@@ -1,0 +1,10 @@
+# Sources — never publish these
+pdf/
+Shape files/
+# Python / OS noise
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+# Local live config (keys stay out of git)
+data/live.json

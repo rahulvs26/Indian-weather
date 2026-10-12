@@ -1,0 +1,48 @@
+# Indian Weather Study Website — Strict Build Spec (v5.2)
+Date: 2026-10-11 (v3.7: TDZ crash fix — MJO window refs published after creation; verified live in browser console) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/NOAA/PIB, cited) | Status: FROZEN.
+Date: 2026-10-11 (v3.3: state rain, IOD time-machine, ocean heat/cold, fly-to chips) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/NOAA/PIB, cited) | Status: FROZEN.
+Amendments vs v3.2: `data/india-states.geo.json` (GADM, 41 feats, 204KB) with per-month `rainStates` highlight (teal = receiving rain, tap for name); chips fly to content on enable; IOD boxes show live warm=amber/cold=blue from DMI slider + landmark dropdown (`data/iod_events.json`, 13 events, illustrative slider only); MJO blob pulses + ghost + track; Fig6 cursor unchanged; self-test counts states; symbols legend extended.
+Date: 2026-10-11 (v3.2: linked conductor — every control drives the map) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/PIB, cited) | Status: FROZEN.
+Amendments vs v3.1: cache-busted assets (`?v=3.2`); radars static-prominent (23 stns incl Karaikal/Port Blair/Srinagar, range rings + zoom≥6 name labels); month slider drives zones (`HEAT_K`/`COLD_K` opacity), currents (Somali/Monsoon flip), graph cursor; DMI slider drives map IOD boxes (`__iodMap`); MJO loom drives map blob + suppressed ghost + track; new Fig6 CLIMATE CONDUCTOR graph (SW/NE rain, heat/cold risk, DMI-typical) whose drag sets `INDWeather.month`; basin/home view buttons; `#layerDebug` self-test line; symbols legend.
+Date: 2026-10-11 (v3.1: layer-robustness fix + MJO on map) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/PIB, cited) | Status: FROZEN.
+Amendments vs v3.0: overlay groups are persistent objects (heatG/radarG/iodG/lpsG/mjoG) so chips add AND remove; radars.json loads independently (a pin failure can never kill the map); new `mjo` layer = equatorial convection blob (lon 15E→134E by phase) driven by Fig5 via `window.__mjoMap`; all 5 layers default ON; zone/IOD/radar strokes boosted (weight 2–2.5, fill .08–.12) for visibility.
+Date: 2026-10-11 (v3: full year + arrows + MJO + accurate zones) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/PIB, cited) | Status: FROZEN.
+
+## 1. Goal (unchanged)
+Minimalist single-page study site. Students learn monsoon + IOD + MJO + heat/cold waves by playing. Live APIs = hooks only.
+
+## 2. Source Truth (PDF wins on conflict; web items show `Source: web · <name>`)
+PDF base = v1 §2 (2025: 936.8mm=108% LPA; onset Kerala 24 May; 19 LPS; DMI W−E; HW/CW tables; NE onset 22 Oct ±7d, withdrawal 4 Jan ±11d; TN 44cm/48% annual).
+ADDED / CORRECTED in v3:
+- FULL YEAR months (data/months.json): JAN–FEB Winter NE trades land→sea; MAR–MAY Summer variable/Loo/Nor'wester; JUN–SEP SW moist split (AS→W Ghats/Mumbai ~10 Jun; BoB→Kolkata ~7 Jun→Assam→W up Gangetic plain→merge Delhi); OCT reversal + NE onset ~22 Oct (coastal TN/Puducherry/south AP per IMD PR 29 Oct 2022); NOV NE peak (TN/CAP >300mm); DEC retreat south + NW cold-wave start. Rain-receiving states per month in JSON `rain` field.
+- IOD boxes BOM-verified (BOM climate/iod + map-indices standard; Saji 1999): WEST 10°S–10°N 50–70°E; EAST 10°S–0° 90–108°E (code uses 90–110E per Saji text, labelled). Threshold sustained ±0.4°C (BOM). pIOD 1982/91/94/97/2006; nIOD 1980/81/85/92; ~50% ENSO co-occur; Kelvin eastward + Rossby westward; SETIO feedback (569-589.pdf).
+- MJO (data/mjo.json): 30–60-day eastward pulse, 8 phases. Ph1–3 enhance S-peninsula/NE rain; Ph4–5 suppress (~83% of break events tied to strong MJO — Pai 2011); onset-timing lever (Taraphdar 2018); active/break forecast 10–15d ahead (PIB relid 62398). Direct BOM fetch 403 — used BOM mirror text + NOAA/TransRe/AGU explainers, labelled web.
+- ACCURATE zones: CHZ states = Punjab, Haryana, Himachal, Uttarakhand, Delhi, Rajasthan, UP, Gujarat, MP, Chhattisgarh, Bihar, Jharkhand, WB, Odisha, Telangana (+coastal AP 2nd zone). Polygon approximates these states. CCZ = IMD area-average box 72.5–82.5°E, 20.5–35°N (monograph §2) + NDMA 17 states/UTs (J&K, Ladakh, HP, Uttarakhand, Punjab, Haryana, Delhi, Rajasthan, UP, Bihar, MP, Telangana +). Rendered as that exact box, labelled `IMD CCZ box`.
+- DWR: ~48 operational, C/S 250 km, X 100 km (PIB/MoES). Pins city-approx.
+RULE: month slider is 1–12 JAN–DEC (v1 1–9 retired). Wheel has 12 detents. Every readout cites source.
+
+## 3. Minimalism (STRICT, unchanged palette)
+Paper #FAF9F6, ink #1A1A1A, muted #6B7280, teal #0F766E, plus functional amber #B45309 (heat/arrows) and blue #1D4ED8 (cold) ONLY for data meaning. No gradients, radius ≤8px. System font. Sections: still 5 (MJO card lives inside §2 Monsoon as Fig5). Own code <200KB (geojson excluded).
+
+## 4. Anatomy (STRICT, inline SVG, one model each)
+Fig1 plotter (onset wells) — unchanged. Fig4 wheel → 12 DETENTS JAN–DEC, drives `INDWeather.month`. Fig2 seesaw (DMI ±0.4 BOM thresholds in readout). Fig3 dial (IMD tables). NEW Fig5 `MJO PULSE LOOM`: an equatorial belt strip (Africa→Pacific) with 8 heddle cells; one shuttle (convection blob) travels eastward on play; phase slider 1–8; readout = where blob sits + India impact from mjo.json. Spring motion, keyboard, reduced-motion still.
+
+## 5. Map (STRICT)
+- Base OSM Standard keyless (tile.openstreetmap.org), [22.5,79.5] z5 + local india-detailed/region.geo.json. OSM attribution.
+- WIND = particles (340, teal AS / grey BoB) + SCREEN-SPACE ARROWS: ~14 shaft+head arrows on wind canvas following monthly vector (angle+magnitude), plus branch polylines with end triangle markers sized by AS/BoB %. All keyboard-mirrored in month readout text (no info by arrow colour alone).
+- Month 1–12 drives vectors: JAN–FEB NE→SW; MAR–APR weak variable; MAY SW build; JUN–AUG strong SW; SEP weakening; OCT reversal; NOV–DEC NE return. Rain states in readout + popups.
+- Layers default ON: winds, heatcold, radar, iod (user asked to see them; chips toggle). Heat = CHZ state polygon (amber dash); Cold = IMD CCZ exact box (blue dash). Radar = city-approx circles 250/100 km. IOD = BOM boxes + LPS dots.
+- Fallback month table has Rain-states column.
+
+## 6. Deck — 12→18 flashcards (add Oct–Dec, MJO×2, CHZ/CCZ), quiz 8→12 (add NE onset, MJO break, CCZ box, X-band radius).
+
+## 7. File Map (exact)
+- `INDIAN_WEATHER_SPEC.md`, `README.md`, `CITATIONS.md`, `.gitignore`, `index.html`, `app.js`, `data/content.json`, `data/months.json` (12), `data/mjo.json` (new), `data/radars.json`, `data/india-detailed.geo.json`, `data/india-states.geo.json` (GADM), `data/india-rivers.geo.json` (Natural Earth centerlines), `data/region.geo.json`, `data/live.example.json`, `data/embedded.js` (generated bundle — app runs from bundle, fetch is fallback).
+
+## 8. Acceptance v3
+- [ ] Slider JAN–DEC + 12-detent wheel sync; Oct–Dec shows NE reversal + TN/AP rain states
+- [ ] Arrows visible + animated with particles; branch sizes track AS/BoB %
+- [ ] CHZ state polygon + CCZ exact box with state lists + IMD sources
+- [ ] IOD boxes = BOM coords with ±0.4 thresholds cited
+- [ ] MJO Fig5 plays 8 phases with India impacts; deck covers MJO
+- [ ] Radar circles visible by default with 250/100 km; all chips toggle; fallback table has rain column

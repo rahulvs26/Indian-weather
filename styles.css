@@ -1,0 +1,95 @@
+:root{--paper:#FAF9F6;--ink:#1A1A1A;--muted:#6B7280;--line:#E5E7EB;--accent:#0F766E;--accent-ink:#0B4F4A;--card:#FFFFFF;--radius:8px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink)}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+header.top{position:sticky;top:0;z-index:10;background:var(--paper);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:16px;height:56px}
+.brand{font-weight:700;letter-spacing:.2px;font-size:15px}
+.brand small{color:var(--muted);font-weight:400}
+nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+nav a{font-size:13px;color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px}
+nav a:hover,nav a:focus-visible{color:var(--ink);background:#EFEDE8;outline:none}
+.hero{padding:48px 0 8px}
+.hero h1{font-size:clamp(28px,4.5vw,44px);line-height:1.12;margin:0 0 10px;letter-spacing:-.5px}
+.hero p.lead{color:var(--muted);max-width:62ch;margin:0 0 16px;font-size:17px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.badge{font-size:12px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 10px;color:var(--muted)}
+.badge b{color:var(--ink);font-weight:600}
+section.block{padding:32px 0;border-top:1px solid var(--line);margin-top:32px}
+section.block h2{font-size:22px;margin:0 0 4px}
+section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:70ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.card-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.card-head strong{color:var(--ink);font-weight:600}
+.card-foot{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);flex-wrap:wrap}
+.readout{font-family:var(--mono);color:var(--ink)}
+.stage{position:relative;background:#F4F2ED}
+#plotterSvg,#seesawSvg,#dialSvg,#wheelSvg,#mjoSvg,#graphSvg{display:block;width:100%;height:auto}
+/* Leaflet owns its own SVGs — our figure rule must never touch them (it collapsed the vector renderer) */
+#osmMap svg{width:auto!important;height:auto!important;max-width:none!important}
+#osmMap .leaflet-div-icon{background:none;border:none}
+#mjoShuttle .halo{animation:halo 2.4s ease-in-out infinite}
+@keyframes halo{0%,100%{opacity:.2}50%{opacity:.9}}
+#mjoShuttle .wake{animation:wake 1.1s linear infinite}
+@keyframes wake{to{stroke-dashoffset:-14}}
+#terrainWrap{position:absolute;inset:0;display:none;background:#0e1513}
+.stage.terrain-on #terrainWrap{display:block}
+.stage.terrain-on{height:420px}
+.stage.terrain-on #osmMap,.stage.terrain-on #windCanvas{display:none}
+#terrain3d{width:100%;height:420px;display:block;touch-action:none;cursor:grab}
+.ctLbl{position:absolute;transform:translate(-50%,-135%);font:600 11px ui-monospace,monospace;color:#FCD34D;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
+.rvLbl{position:absolute;transform:translate(-50%,-135%);font:600 10px ui-monospace,monospace;color:#7DD3FC;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
+.bsLbl{position:absolute;transform:translate(-50%,-135%);font:600 10px ui-monospace,monospace;color:#E7E5E4;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap;letter-spacing:.5px}
+#riverList{position:absolute;right:8px;top:8px;width:150px;max-height:300px;overflow-y:auto;background:rgba(10,15,13,.78);border:1px solid #2a3a34;border-radius:8px;padding:8px;color:#E7E5E4;font-size:11px}
+#riverList b{font-size:10px;letter-spacing:.5px;color:#7DD3FC}
+.rlBtn{display:block;width:100%;text-align:left;background:none;border:none;color:#E7E5E4;font:11px ui-monospace,monospace;padding:3px 2px;cursor:pointer}
+.rlBtn:hover{color:#fff;text-decoration:underline}
+.pkLbl{position:absolute;transform:translate(-50%,-135%);font:600 11px ui-monospace,monospace;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
+#terrainCap{position:absolute;left:10px;bottom:8px;color:#fff;font-size:12px;text-shadow:0 1px 3px #000;max-width:90%}
+.leaflet-container .river-flow{stroke-dasharray:7 9;animation:flow 1.1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-16}}
+#osmMap{width:100%;height:420px;background:#EDEBE4;z-index:1}
+#windCanvas{position:absolute;inset:0;width:100%;height:420px;pointer-events:none;z-index:2}
+.stage{position:relative;background:#F4F2ED}
+.oceanLbl{background:none;border:none;font:600 12px ui-monospace,monospace;color:#6B7280;text-shadow:0 1px 0 #fff;letter-spacing:1px}
+.leaflet-container{font:13px/1.5 -apple-system,"Segoe UI",Inter,Roboto,sans-serif}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--line)}
+.chip{font-size:13px;border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;gap:16px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.controls label{font-size:13px;color:var(--muted)}
+input[type=range]{accent-color:var(--accent);width:min(320px,60vw)}
+button.btn{font-size:13px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer}
+button.btn.ghost{background:transparent;color:var(--ink)}
+button.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=number]{font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+.cap{font-size:13px;color:var(--muted);margin:10px 2px 0}
+.cap b{color:var(--ink)}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:860px){.grid2{grid-template-columns:1.2fr .8fr}}
+.kv{font-size:13px;border-top:1px solid var(--line)}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.kv span{color:var(--muted)}
+.deck{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:760px){.deck{grid-template-columns:1fr 1fr}}
+.flash{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:14px;cursor:pointer}
+.flash:focus-visible{outline:2px solid var(--accent)}
+.flash .q{font-weight:600;font-size:14px}
+.flash .a{display:none;color:var(--muted);font-size:14px;margin-top:6px}
+.flash.open .a{display:block}
+.flash .s{font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
+.quiz{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:14px;margin-top:12px}
+.quiz h3{margin:0 0 8px;font-size:15px}
+.quiz .opt{display:block;width:100%;text-align:left;margin:6px 0;font-size:14px;border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:8px 10px;cursor:pointer}
+.quiz .opt.correct{background:#E6F4F1;border-color:var(--accent)}
+.quiz .opt.wrong{background:#FDECEC;border-color:#B91C1C}
+.quiz .meta{font-size:12px;color:var(--muted);font-family:var(--mono)}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0 48px;color:var(--muted);font-size:13px}
+footer code{font-family:var(--mono);font-size:12px}
+.fallback{padding:12px 14px;font-size:13px}
+table.mini{width:100%;border-collapse:collapse;font-size:13px}
+table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}

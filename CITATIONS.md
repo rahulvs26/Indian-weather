@@ -35,8 +35,11 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
 
 ## Open data & services (accessed Oct 2026)
 
-8. OpenStreetMap contributors — base tiles (© OpenStreetMap, ODbL);
-   re-tinted soft-grey in CSS for the minimalist look (styles.css, tile pane only).
+8. Esri World Light Gray Canvas — base tiles (Tiles © Esri — Esri, DeLorme, NAVTEQ;
+   keyless via server.arcgisonline.com); re-tinted soft-grey in CSS (styles.css,
+   tile pane only). Replaced OpenStreetMap volunteer tiles 2026-10-15 — their
+   tile-usage policy 403-blocked the app after heavy testing (the block is what
+   showed up on the map); do not point the layer back at OSM's servers.
 9. Natural Earth (public domain) — river centerlines; GADM (non-commercial
    academic use) — state boundaries; Terrarium DEM tiles (AWS open data) — relief.
 10. Bureau of Meteorology (Australia) — IOD definition, ±0.4 °C event rule;

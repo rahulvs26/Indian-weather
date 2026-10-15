@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~760 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v6.0).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v6.1).
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -12,7 +12,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -29,17 +29,21 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-15, v6.0)
+## Current verified state (2026-10-15, v6.1)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> layers on=11/13 vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
   While 3D is on the vectors check reads `2D hidden (3D on)` (expected; the 3D
   toggle refreshes the line at toggle-on and again ~350 ms after returning to 2D).
-- Map look (v5.6): OSM raster tiles re-tinted soft grey via
-  `#osmMap .leaflet-tile-pane{filter:grayscale(1) brightness(1.04) contrast(0.92)}`
-  in styles.css — the only colour on the map is the data overlays. CARTO Positron
-  was tried and rejected: keyless CARTO tiles now stamp "API KEY REQUIRED"
-  watermarks (seen live 2026-10-15); do not reintroduce it without a key.
+- Map look (v6.1): Esri World Light Gray Canvas tiles (keyless
+  `server.arcgisonline.com/.../Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+  maxNativeZoom 16, attribution "Tiles © Esri — Esri, DeLorme, NAVTEQ") re-tinted
+  soft grey via `#osmMap .leaflet-tile-pane{filter:grayscale(1) brightness(1.04) contrast(0.92)}`
+  in styles.css — the only colour on the map is the data overlays. Switched from OSM
+  volunteer tiles: tile.openstreetmap.org 403-BLOCKED the app on 2026-10-15 (tile usage
+  policy — heavy repeated test reloads). NEVER point the layer or a verification back at
+  OSM, and keep verification reloads minimal. CARTO Positron stays rejected (keyless =
+  "API KEY REQUIRED" watermarks); do not reintroduce it without a key.
 - MJO: tour (`▶ MJO` on map / `▶ propagate` in Fig5 loom) auto-fits the
   equatorial corridor, advances every 1.1 s (2.6 s + snap under reduced motion),
   wraps 8→1 with snap, glides otherwise; shuttle has CSS glide transition.
@@ -58,7 +62,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
   `yOf h=>max(0,h)/8849*1.15` — UNCLIPPED, Everest 8849 m = 1.15 = top of scale (old
   `min(1.1,…)` cap flattened everything >≈7174 m — do not reintroduce). Terrain bands:
   cA #5B8C5A / cB #A08B62 / cC #8A8F98 / cS #F2F3F5 at 400/1800/5200 m.
-  `window.__t3={hAt,yOf,stats,view}` = read-only verification hooks.
+  `window.__t3={hAt,yOf,stats,view,hydro}` = read-only verification hooks.
 - 3D CAMERA PARAMS (v6.0 deep zoom; grep `tgt`,`fly`,`startFly`,`tMesh` — all inside `buildTerrain()`):
   orbit target `tgt` starts (0,0.25,0) = old fixed lookAt (same math while tgt=HOME); wheel
   `R=max(0.01,min(12,R·e^{deltaY·0.003}))`; near plane `max(0.002,0.02·R)` refreshed each loop;
@@ -77,10 +81,23 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
   geometry, FrontSide; winding verified triangle-by-triangle — don't reorder).
   Reservoir (illustrative): walk upstream t=0.005→0.11 step 0.010; water only if terrain
   reaches crest−0.002 (valley closes) AND Lw≥0.02; lens half-width hw=w0·√(1−(t/Lw)²),
-  w0=0.005+0.008k; #2dd4bf opacity 0.8, DoubleSide.
-  `__t3.stats.walls` = RENDERED count (≤250 after the river gate; 0 = gate/radius broken).
-  Caption carries "(illustrative, height-scaled)". Basins block uses LOCAL XB/ZB helpers —
-  do not "simplify" to X/Z (TDZ crash, fixed v5.3).
+  w0=0.005+0.008k; #2dd4bf, DoubleSide. v6.1: ONE MESH PER DAM (`resMeshes`, world-baked
+  geometry, `matrixAutoUpdate=false`, pivot {px:x0,py:wy,pz:z0} = dam mouth) so the level can
+  scale by month — do NOT re-merge into one geometry. `__t3.stats.walls` = RENDERED count
+  (≤250 after the river gate; 0 = gate/radius broken); `stats.gates` = release gates placed
+  (0 = nearest-vertex search broke). Caption carries "(illustrative, height-scaled)".
+  Basins block uses LOCAL XB/ZB helpers — do not "simplify" to X/Z (TDZ crash, fixed v5.3).
+- 3D HYDRO (v6.1, illustrative month-typical — NOT measured; grep `applyHydro`,`fillOf`,`relOf`,`relGates`):
+  `fillOf(m)=0.28+0.72·e^(−(cd12(m,9.5)/2.3)²)` (fills Jun–Sep, peak late Sep/Oct, trough May);
+  `relOf(m)=0.55+0.85·fillOf³` (release below a dam: ≈1.32 spills when full, ≈0.57 lean dry);
+  rain factor `rf=(arabian+bay)/200` from months.json (clamped 0.12–1). Rivers: per-packet
+  positions integrate du=(0.02+0.11·rf)·rel·dt (dt clamped 0.1 s); point size 0.02+0.028·rf,
+  opacity 0.45+0.5·rf. Gates: in the dam loop, nearest draped vertex within 0.05 u → `relGates`
+  {gi,t} with t as ORIENTED param (rev flips 1−t); packets carry {g,u,gates}; u>t ⇒ factor.
+  Reservoirs: s=0.35+0.65·fill, matrix T(p)·S(s,1,s)·T(−p) + `matrixWorldNeedsUpdate`
+  (manual matrix ⇒ matrixAutoUpdate MUST stay false); `resMat.opacity=0.45+0.42·fill`.
+  `applyHydro(m)` early-outs unless the month changed; seeded after `pktPts` creation.
+  `__t3.hydro()` = {m,rf,fill,rel,scale,res0,gates}; res0 = live matrix x-scale of reservoir 0.
 
 ## Known land-mines (already fixed once — do not reintroduce)
 - `.stage svg` CSS collapsed Leaflet vectors → keep `#osmMap svg` id-scoped rule.
@@ -94,9 +111,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
 - Elevation scale: `yOf` must stay unclipped (v5.8) — heights are relative to
   Everest 8849 m; the visual gains come from z=6 tiles + fine mesh + light blur,
   not from rescaling. If tiles ever 404, check `TB.z`/tileURL, not the formula.
+- Map tiles: Esri only (v6.1) — OSM 403-blocked us 2026-10-15 (usage policy); never
+  restore OSM or hammer any tile server with test reloads.
+- 3D hydro: reservoir meshes need `matrixAutoUpdate=false` + manual
+  `matrixWorldNeedsUpdate` (a plain `scale.set` fights the world-baked geometry — the
+  level is the T·S·T⁻¹ matrix about the dam mouth); gate params must stay ORIENTED
+  (rev flips t) or downstream packets end up on the wrong side of the dam; `resMeshes`
+  / `relGates` are declared OUTSIDE the dams `try{}` — do not move them back inside.
 
 ## Next up (for the next session)
-- Nothing blocking; site is green (v6.0, everything live-verified).
+- Nothing blocking; site is green (v6.1, everything live-verified).
 - If asked to keep polishing the 3D view: candidates are hover labels for the
   top-40 dams, a soft spillway glint, or snow-cap tinting tied to `yOf` bands —
   if any option conveys new info, keep the "(illustrative)" label.
@@ -118,8 +142,8 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
 - Map minimalism: `getComputedStyle(document.querySelector("#osmMap .leaflet-tile-pane")).filter`
   == `grayscale(1) brightness(1.04) contrast(0.92)`; overlay pane filter stays `none`.
 - 3D terrain + elevation (no screenshot needed): fresh load → `3D mountains` →
-  wait for `#terrainCap` to include "Valley-fitted dam walls + reservoir water
-  (illustrative, height-scaled)." Then evaluate `__t3.yOf(8849)` → exactly `1.15`
+  wait for `#terrainCap` to include "river flow and reservoir levels follow the
+  rainfall month + dam release (illustrative)." Then evaluate `__t3.yOf(8849)` → exactly `1.15`
   (clip gone); `__t3.hAt` at Everest (86.925,27.988) → ≈7400–7600 after mesh
   resampling (raw z6 summit pixel is 8121; the old pipeline rendered ≈6830 under
   a 7174 ceiling), K2 (76.51,35.88) > 6000; Mumbai/Chennai coasts < 100 m.
@@ -135,6 +159,10 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
   deltas on `#terrain3d` → R clamps 0.01, near settles 0.002; 25 positive → clamps 12. dblclick
   canvas centre → after ~0.8 s fly=false and tgt ≠ [0,0.25,0]; dblclick a top corner (sky) →
   tgt back to [0,0.25,0], R≈4.4. Console must show 0 errors throughout.
+- 3D hydro (v6.1): default month 7 → `__t3.hydro()` {m:7, fill≈0.501, rel≈0.657, gates>0};
+  set `#monthSlider` 9 (dispatch `input`) → fill≈0.967, rel≈1.318, scale≈0.979, res0≈0.979
+  (matrix really applied to a reservoir); month 5 → fill≈0.296, rel≈0.572, scale≈0.542,
+  res0≈0.542. rf follows months.json; packets keep advancing in every month.
 - Self-test in 3D: expect `2D hidden (3D on)`; toggling back to 2D auto-refreshes
   to `vectors-ok` (~350 ms).
 - Commands used previously run clean: `node --check app.js`.
@@ -143,6 +171,6 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v6.0), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v6.1), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

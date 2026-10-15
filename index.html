@@ -4,31 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Indian Weather — Interactive Study Deck</title>
-<meta name="description" content="Minimalist interactive study site: OSM India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars.">
+<meta name="description" content="Minimalist interactive study site: Esri grey India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=6.0">
+<link rel="stylesheet" href="styles.css?v=6.1">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v6.0</small></div>
+<div class="brand">Indian Weather <small>study deck · v6.1</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
 <main class="wrap">
 <div class="hero">
 <h1>Learn Indian weather by playing with it.</h1>
-<p class="lead">Accurate OSM base (India + neighbours + 3 oceans). Scrub <b>Jan→Sep</b> — winds swing from NE trades to the SW monsoon split (Arabian Sea vs Bay of Bengal branches). Toggle heat/cold zones, Doppler radars + radius, IOD boxes. Every number cites its PDF or web source.</p>
-<div class="badges"><span class="badge"><b>2025:</b> 936.8 mm · 108% LPA</span><span class="badge"><b>IMD seasons:</b> Win / Sum / SW / Post</span><span class="badge"><b>DWR:</b> ~48 · C 250km / X 100km</span><span class="badge">© OpenStreetMap</span></div>
+<p class="lead">Accurate grey base map (Esri Light Gray Canvas — India + neighbours + 3 oceans). Scrub <b>Jan→Sep</b> — winds swing from NE trades to the SW monsoon split (Arabian Sea vs Bay of Bengal branches). Toggle heat/cold zones, Doppler radars + radius, IOD boxes. Every number cites its PDF or web source.</p>
+<div class="badges"><span class="badge"><b>2025:</b> 936.8 mm · 108% LPA</span><span class="badge"><b>IMD seasons:</b> Win / Sum / SW / Post</span><span class="badge"><b>DWR:</b> ~48 · C 250km / X 100km</span><span class="badge">Tiles © Esri</span></div>
 </div>
 
 <!-- 1 MAP -->
 <section class="block" id="map" aria-labelledby="h-map">
-<h2 id="h-map">1 · India + neighbours — OSM live map</h2>
-<p class="sub">Real geography: minimal muted OSM tiles + local <code>india-detailed.geo.json</code> outline. Particles + arrows = simulated monthly wind (arrow direction = flow). Teal = Arabian Sea branch, amber = Bay of Bengal branch (PMF IAS / IMD). Violet arrows = MJO-enhanced zone near the pulse (Ph1–3); grey = MJO-suppressed (Ph4–5). Drag to pan, scroll to zoom.</p>
+<h2 id="h-map">1 · India + neighbours — live map</h2>
+<p class="sub">Real geography: minimal muted grey tiles (Esri Light Gray Canvas) + local <code>india-detailed.geo.json</code> outline. Particles + arrows = simulated monthly wind (arrow direction = flow). Teal = Arabian Sea branch, amber = Bay of Bengal branch (PMF IAS / IMD). Violet arrows = MJO-enhanced zone near the pulse (Ph1–3); grey = MJO-suppressed (Ph4–5). Drag to pan, scroll to zoom.</p>
 <div class="card">
-<div class="card-head"><span>Fig 0</span><strong>OSM · INDIA · MONTHLY WINDS JAN–DEC</strong></div>
-<div class="stage"><div id="osmMap" role="application" aria-label="OpenStreetMap of India with monthly wind simulation and layers."></div><canvas id="windCanvas" aria-hidden="true"></canvas><div id="terrainWrap" aria-hidden="true"><canvas id="terrain3d"></canvas><div id="peakLbls"></div><div id="riverList"><b>RIVERS · tap to trace</b><div id="riverListItems"></div></div><div class="readout" id="terrainCap"></div></div></div>
+<div class="card-head"><span>Fig 0</span><strong>ESRI · INDIA · MONTHLY WINDS JAN–DEC</strong></div>
+<div class="stage"><div id="osmMap" role="application" aria-label="Map of India with monthly wind simulation and layers."></div><canvas id="windCanvas" aria-hidden="true"></canvas><div id="terrainWrap" aria-hidden="true"><canvas id="terrain3d"></canvas><div id="peakLbls"></div><div id="riverList"><b>RIVERS · tap to trace</b><div id="riverListItems"></div></div><div class="readout" id="terrainCap"></div></div></div>
 <div class="controls" style="border-top:1px solid var(--line)">
 <label for="monthSlider"><b style="color:var(--ink)">Month</b> Jan→Dec (Oct–Dec = NE monsoon)</label>
 <input type="range" id="monthSlider" min="1" max="12" step="1" value="7" aria-describedby="monthReadout">
@@ -230,12 +230,12 @@
 
 <footer><div class="wrap">
 <b style="color:var(--ink)">Sources (pdf/):</b> monsoon_report_2025_2 (310 pp) · swmonsoon_yprao (376 pp) · met_monograph NE (224 pp) · Cold_Heat_Waves (202pp) · MM2 (565 pp) · 569-589 IOD (21 pp) — all © IMD / respective authors, used for study with attribution; full citations in <code>CITATIONS.md</code>.<br>
-<b style="color:var(--ink)">Web (Oct 2026):</b> IMD 4-season; OSM Standard tiles, re-tinted soft-grey via CSS (© OpenStreetMap contributors); DWR counts/ranges via PIB/MoES; branch dates via PMF IAS/IMD; rivers Natural Earth; states GADM; DEM Terrarium; IOD rules BOM/NOAA. User CWC shapefiles (basins, rivers, dams, reservoirs, lakes).<br>
+<b style="color:var(--ink)">Web (Oct 2026):</b> IMD 4-season; Esri Light Gray Canvas tiles, re-tinted soft-grey via CSS (Tiles © Esri — Esri, DeLorme, NAVTEQ); DWR counts/ranges via PIB/MoES; branch dates via PMF IAS/IMD; rivers Natural Earth; states GADM; DEM Terrarium; IOD rules BOM/NOAA. User CWC shapefiles (basins, rivers, dams, reservoirs, lakes).<br>
 Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHER_SPEC.md</code>. Future live: <code>window.INDWeather.live = { imdWMS, openMeteo }</code>.
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data/embedded.js?v=6.0"></script>
-<script src="app.js?v=6.0" defer></script>
+<script src="data/embedded.js?v=6.1"></script>
+<script src="app.js?v=6.1" defer></script>
 </body>
 </html>

@@ -12,9 +12,9 @@ python -m http.server 8000
 # open http://localhost:8000 (file:// works for layout, but data fetch needs http)
 ```
 
-No build step. Only CDN deps: Leaflet 1.9.4, Three.js 0.160.0, OSM tiles
-(re-tinted soft-grey via CSS for the minimalist look), Terrarium DEM tiles
-(all keyless).
+No build step. Only CDN deps: Leaflet 1.9.4, Three.js 0.160.0, Esri Light Gray
+Canvas tiles (re-tinted soft-grey via CSS for the minimalist look), Terrarium DEM
+tiles (all keyless).
 
 ## Git & hosting (private)
 

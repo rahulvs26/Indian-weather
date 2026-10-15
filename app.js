@@ -576,6 +576,7 @@ const t3Stats={walls:0,reservoirs:0};
 const TB={lon0:66,lon1:98,lat0:5,lat1:38,z:6};
 const tileXY=(lon,lat,z)=>{const n=2**z;return[Math.floor((lon+180)/360*n),Math.floor((1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*n)];};
 async function buildTerrain(){
+const _t3p={};let _t3s=performance.now();const _t3=k=>{_t3p[k]=Math.round(performance.now()-_t3s);_t3s=performance.now();};   /* v7.0 phase timings → t3Stats.phases */
 const cap=$("terrainCap");cap.textContent="loading elevation…";
 const THREE=await import("three");
 const [x0,y0]=tileXY(TB.lon0,TB.lat1,TB.z),[x1,y1]=tileXY(TB.lon1,TB.lat0,TB.z);
@@ -594,20 +595,30 @@ const lonLT=(x0/Math.pow(2,TB.z))*360-180, spanLon=NX*360/Math.pow(2,TB.z);
 const y2lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/Math.pow(2,TB.z))))*180/Math.PI;
 const mY=la=>Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180));
 const myT=mY(y2lat(y0)),myB=mY(y2lat(y1+1));
-const hAt=(lon,lat)=>{const fx=(lon-lonLT)/spanLon*(Wpx-1),fz=(myT-mY(Math.max(-85,Math.min(85,lat))))/(myT-myB)*(Hpx-1);return H[Math.min(Hpx-1,Math.max(0,Math.round(fz)))*Wpx+Math.min(Wpx-1,Math.max(0,Math.round(fx)))];};
+/* v7.0 BILINEAR DEM sample (was nearest-pixel): valleys, ridges and gorges resolve between
+   pixels, so the true-scale relief, the dam walls and the reservoir shorelines all sit on
+   the real ground surface. */
+const hAt=(lon,lat)=>{const fx=Math.min(Wpx-1,Math.max(0,(lon-lonLT)/spanLon*(Wpx-1))),fz=Math.min(Hpx-1,Math.max(0,(myT-mY(Math.max(-85,Math.min(85,lat))))/(myT-myB)*(Hpx-1)));const ix=Math.floor(fx),iz=Math.floor(fz),ix1=Math.min(Wpx-1,ix+1),iz1=Math.min(Hpx-1,iz+1),xa=fx-ix,za=fz-iz,r0=iz*Wpx,r1=iz1*Wpx;return H[r0+ix]*(1-xa)*(1-za)+H[r0+ix1]*xa*(1-za)+H[r1+ix]*(1-xa)*za+H[r1+ix1]*xa*za;};
 const tmp=new Float32Array(Math.max(Wpx,Hpx));
 for(let j=0;j<Hpx;j++){for(let i=0;i<Wpx;i++){let s=0;for(let k=-1;k<=1;k++)s+=H[j*Wpx+Math.min(Wpx-1,Math.max(0,i+k))];tmp[i]=s/3;}for(let i=0;i<Wpx;i++)H[j*Wpx+i]=tmp[i];}
 for(let i=0;i<Wpx;i++){for(let j=0;j<Hpx;j++){let s=0;for(let k=-1;k<=1;k++)s+=H[Math.min(Hpx-1,Math.max(0,j+k))*Wpx+i];tmp[j]=s/3;}for(let j=0;j<Hpx;j++)H[j*Wpx+i]=tmp[j];}
-const W=3.4,D=2.55,SX=640,SY=560;
+const W=3.4,D=2.55,SX=768,SY=672;   /* v7.0 mesh 768×672 ≈ 1.03 M tris — resolves the z6 DEM under true scale */
 const renderer=new THREE.WebGLRenderer({canvas:$("terrain3d"),antialias:true});
 renderer.setPixelRatio(Math.min(1.5,devicePixelRatio||1));
 const scene=new THREE.Scene();scene.background=new THREE.Color("#0e1513");
+/* v7.0 TRUE SCALE: 1 world unit ≈ 954 km on the ground (W=3.4 u spans 32° longitude).
+   Mountains, dams, reservoirs and weather are built in real metres (metres × 1e-6 = units)
+   and parented to `relG`; the relief chips multiply ONLY relG.scale.y (vertical
+   exaggeration), so ×1 is the honest 1:1 elevation — nothing else needs rebuilding. */
+const relG=new THREE.Group();scene.add(relG);let REL=1;
 scene.add(new THREE.AmbientLight(0xffffff,0.8));
 const sun=new THREE.DirectionalLight(0xffffff,1.05);sun.position.set(-3,4,2);scene.add(sun);
 const geo=new THREE.PlaneGeometry(W,D,SX,SY);geo.rotateX(-Math.PI/2);
 const pos=geo.attributes.position,cols=[];
 const cA=new THREE.Color("#5B8C5A"),cB=new THREE.Color("#A08B62"),cC=new THREE.Color("#8A8F98"),cS=new THREE.Color("#F2F3F5"),tc=new THREE.Color();
-const yOf=h=>Math.max(0,h)/8849*1.15;   /* true relative relief up to Everest (8849 m = top of scale) — v5.8 removed the old ~7174 m clip that flattened the upper Himalaya */
+const UPM=1e-6;                          /* metres → world units (true scale: 1 u ≈ 954 km) */
+const yOf=h=>Math.max(0,h)*UPM;          /* v7.0 true metres: Everest 8849 m = 0.008849 u (was 1.15 u) — unclipped */
+const MZ=m=>m*UPM;                       /* metric offsets: sea level, water levels, label lifts */
 for(let k=0;k<pos.count;k++){
 const ix=k%(SX+1),iz=Math.floor(k/(SX+1));
 const lon=TB.lon0+(TB.lon1-TB.lon0)*ix/SX,lat=TB.lat1-(TB.lat1-TB.lat0)*iz/SY;
@@ -618,10 +629,10 @@ cols.push(tc.r,tc.g,tc.b);
 }
 geo.setAttribute("color",new THREE.Float32BufferAttribute(cols,3));
 geo.computeVertexNormals();
-const tMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));scene.add(tMesh);
+const tMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));relG.add(tMesh);_t3("mesh");
 /* Indian MSL datum: translucent sea plane at 0 m — relief reads against mean sea level */
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(W*1.25,D*1.25),new THREE.MeshStandardMaterial({color:0x0b3b5c,transparent:true,opacity:0.88,roughness:0.55,metalness:0}));
-sea.rotation.x=-Math.PI/2;sea.position.y=0.002;scene.add(sea);
+sea.rotation.x=-Math.PI/2;sea.position.y=MZ(15);relG.add(sea);
 /* CWC basins draped on the relief: translucent wash + dark rim + name tag */
 const BS_C=["#5B8C5A","#0F766E","#B45309","#0284C7","#8A8F98","#A08B62"];
 const bsObjs=[];
@@ -640,18 +651,18 @@ const sh=new THREE.Shape(pts.map(([lo,la])=>new THREE.Vector2(XB(lo),((la-(TB.la
 const gg=new THREE.ShapeGeometry(sh);
 gg.rotateX(-Math.PI/2);
 const pp=gg.attributes.position;
-for(let k=0;k<pp.count;k++){const lo=(pp.getX(k)/W)*(TB.lon1-TB.lon0)+(TB.lon0+TB.lon1)/2;const la=(TB.lat0+TB.lat1)/2-(pp.getZ(k)/D)*(TB.lat1-TB.lat0);pp.setY(k,yOf(Math.max(0,hAt(lo,la)))+0.03);}
+for(let k=0;k<pp.count;k++){const lo=(pp.getX(k)/W)*(TB.lon1-TB.lon0)+(TB.lon0+TB.lon1)/2;const la=(TB.lat0+TB.lat1)/2-(pp.getZ(k)/D)*(TB.lat1-TB.lat0);pp.setY(k,yOf(Math.max(0,hAt(lo,la)))+MZ(230));}
 gg.computeVertexNormals();
 const col=new THREE.Color(BS_C[bi%BS_C.length]);
-scene.add(new THREE.Mesh(gg,new THREE.MeshStandardMaterial({color:col,transparent:true,opacity:0.34,roughness:1,depthWrite:false})));
-const epts=pts.map(([lo,la])=>new THREE.Vector3(XB(lo),yOf(Math.max(0,hAt(lo,la)))+0.035,ZB(la)));
-scene.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(epts),new THREE.LineBasicMaterial({color:0x1a1a1a,transparent:true,opacity:0.8})));
+relG.add(new THREE.Mesh(gg,new THREE.MeshStandardMaterial({color:col,transparent:true,opacity:0.34,roughness:1,depthWrite:false})));
+const epts=pts.map(([lo,la])=>new THREE.Vector3(XB(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(270),ZB(la)));
+relG.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(epts),new THREE.LineBasicMaterial({color:0x1a1a1a,transparent:true,opacity:0.8})));
 const nm=(f.properties.ba_name||"").replace(/\s*Basin\s*/gi,"")||f.properties.bacode;
 const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length,cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;
-bsObjs.push({n:nm,s:{position:new THREE.Vector3(XB(cx),yOf(Math.max(0,hAt(cx,cy)))+0.07,ZB(cy))}});
+bsObjs.push({n:nm,s:{position:new THREE.Vector3(XB(cx),yOf(Math.max(0,hAt(cx,cy)))+MZ(540),ZB(cy))}});
 });
 $("peakLbls").innerHTML+=bsObjs.map((p,i)=>`<span class="bsLbl" id="bsl${i}">${p.n}</span>`).join("");
-}catch(e){console.warn("terrain basins",e);}
+}catch(e){console.warn("terrain basins",e);}_t3("basins");
 const X=lon=>(lon-(TB.lon0+TB.lon1)/2)/(TB.lon1-TB.lon0)*W;
 const Z=lat=>-((lat-(TB.lat0+TB.lat1)/2)/(TB.lat1-TB.lat0))*D;
 const draped=[],riverObjs=[];
@@ -663,9 +674,9 @@ const rmat=new THREE.LineBasicMaterial({color:0x38bdf8});
 for(const f of rv.features){
 if(!f.geometry)continue;
 const lines=f.geometry.type==="LineString"?[f.geometry.coordinates]:f.geometry.coordinates;
-for(const ln of lines){const g=[];for(let i=0;i<ln.length;i+=2){const lo=ln[i][0],la=ln[i][1];if(lo<TB.lon0||lo>TB.lon1||la<TB.lat0||la>TB.lat1)continue;g.push(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.012,Z(la)));}if(g.length>1){const isMajor=(f.properties.scalerank??9)<=3||IND_MAJ.has(nmN(f.properties.name));const mesh=new THREE.Line(new THREE.BufferGeometry().setFromPoints(g),isMajor?new THREE.LineBasicMaterial({color:0x38bdf8}):rmat);scene.add(mesh);draped.push(g);let rec=riverObjs.find(r=>r.name===f.properties.name);if(!rec){rec={name:f.properties.name,meshes:[],mid:null};riverObjs.push(rec);}rec.meshes.push(mesh);if(isMajor&&!rec.mid)rec.mid=g[Math.floor(g.length/2)];}}
+for(const ln of lines){const g=[];for(let i=0;i<ln.length;i+=2){const lo=ln[i][0],la=ln[i][1];if(lo<TB.lon0||lo>TB.lon1||la<TB.lat0||la>TB.lat1)continue;g.push(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(92),Z(la)));}if(g.length>1){const isMajor=(f.properties.scalerank??9)<=3||IND_MAJ.has(nmN(f.properties.name));const mesh=new THREE.Line(new THREE.BufferGeometry().setFromPoints(g),isMajor?new THREE.LineBasicMaterial({color:0x38bdf8}):rmat);relG.add(mesh);draped.push(g);let rec=riverObjs.find(r=>r.name===f.properties.name);if(!rec){rec={name:f.properties.name,meshes:[],mid:null};riverObjs.push(rec);}rec.meshes.push(mesh);if(isMajor&&!rec.mid)rec.mid=g[Math.floor(g.length/2)];}}
 }
-}catch(e){console.warn("terrain rivers",e);}
+}catch(e){console.warn("terrain rivers",e);}_t3("riversNE");
 /* v6.2 west-flowing rivers (Arabian-Sea side, from the CWC River_Network): real centre-lines
    the Natural Earth set lacks — Konkan/Goa/Karnataka/Kerala + Kutch/Saurashtra coast. Drawn as
    ONE LineSegments batch (hundreds of small rivers = 1 draw call) and appended to `draped` so
@@ -679,96 +690,161 @@ for(const f of rw.features){
 const lines=f.geometry.type==="LineString"?[f.geometry.coordinates]:f.geometry.coordinates;
 for(const ln of lines){
 const g=[];
-for(let i=0;i<ln.length;i++){const lo=ln[i][0],la=ln[i][1];if(lo<TB.lon0||lo>TB.lon1||la<TB.lat0||la>TB.lat1)continue;g.push(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.010,Z(la)));}
+for(let i=0;i<ln.length;i++){const lo=ln[i][0],la=ln[i][1];if(lo<TB.lon0||lo>TB.lon1||la<TB.lat0||la>TB.lat1)continue;g.push(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(77),Z(la)));}
 if(g.length>1){for(let i=1;i<g.length;i++){segs.push(g[i-1].x,g[i-1].y,g[i-1].z,g[i].x,g[i].y,g[i].z);}draped.push(g);westDragged++;}
 }
 }
-if(segs.length){const gW2=new THREE.BufferGeometry();gW2.setAttribute("position",new THREE.Float32BufferAttribute(segs,3));scene.add(new THREE.LineSegments(gW2,new THREE.LineBasicMaterial({color:0x38bdf8,transparent:true,opacity:0.6})));}
-}catch(e){console.warn("terrain west rivers",e);}
+if(segs.length){const gW2=new THREE.BufferGeometry();gW2.setAttribute("position",new THREE.Float32BufferAttribute(segs,3));relG.add(new THREE.LineSegments(gW2,new THREE.LineBasicMaterial({color:0x38bdf8,transparent:true,opacity:0.6})));}
+}catch(e){console.warn("terrain west rivers",e);}_t3("riversWest");
 t3Stats.west=westDragged;
 const PEAKS=[["Everest 8849m",27.988,86.925],["Kanchenjunga 8586m",27.702,88.148],["Nanda Devi 7816m",30.375,79.969],["K2 8611m",35.88,76.51],["Nanga Parbat 8126m",35.24,74.59],["Anamudi 2695m",10.169,77.062]];
 const pkMat=new THREE.MeshBasicMaterial({color:0xffffff});
-const pkObjs=PEAKS.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(0.022,10,10),pkMat);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.03,Z(la));scene.add(s);return{n,s};});
+const pkObjs=PEAKS.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(1,10,10),pkMat);s.scale.setScalar(0.02);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(230),Z(la));relG.add(s);return{n,s};});
 $("peakLbls").innerHTML=pkObjs.map((p,i)=>`<span class="${p.city?"ctLbl":"pkLbl"}" id="pkl${i}">${p.n}</span>`).join("");
 /* cities for orientation on the relief */
 const CITIES=[["Delhi",28.61,77.21],["Mumbai",19.08,72.88],["Kolkata",22.57,88.36],["Chennai",13.08,80.27],["Bengaluru",12.97,77.59],["Hyderabad",17.39,78.49],["Leh",34.15,77.58],["Guwahati",26.18,91.76]];
 const ctMat=new THREE.MeshBasicMaterial({color:0xfbbf24});
-const ctObjs=CITIES.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(0.018,8,8),ctMat);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.025,Z(la));scene.add(s);return{n,s};});
+const ctObjs=CITIES.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(1,8,8),ctMat);s.scale.setScalar(0.016);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(190),Z(la));relG.add(s);return{n,s};});_t3("markers");
 $("peakLbls").innerHTML+=ctObjs.map((p,i)=>`<span class="ctLbl" id="ctl${i}">${p.n}</span>`).join("");
-/* valley-fitted dams (v5.9, minimalist Google-Maps-like): low concrete-grey crest-level
-   walls — bases follow the terrain, ends die into hillsides at abutments, battered
-   cross-section. Only dams sitting near a draped river are built (no river → no wall),
-   so nothing floats on the plains. Where the valley closes upstream, an illustrative flat
-   reservoir lens sits just below crest; the terrain carves its shoreline. Crest
-   elevations are height-scaled pins (illustrative). Walls = one merged geometry;
-   each reservoir = its own mesh so v6.1 can scale the lake level by the month. */
+_t3("preDams");
+/* v7.0 DAMS — every CWC dam/barrage/weir in the bbox becomes an anatomy model at its real
+   coordinates (all 13,002 of them). Class from the CWC `type` column; height = the real CWC
+   height where the row has one, else the class median (illustrative). Cross-sections follow
+   real construction: earth 1V:2.5H upstream / 1V:2H downstream with a wide crest, rockfill
+   1V:1.5H both faces, CFRD a concrete slab upstream + rockfill downstream, concrete/masonry
+   gravity near-vertical upstream with a stepped downstream face; Idukki bows upstream as its
+   arch type dictates. The dam is exactly as long as the gap it closes: stations walk the axis
+   until the ground reaches crest level, so abutments die into the hillsides (30 km cap).
+   Axis = nearest draped-river tangent (≤4 km) else the DEM gradient — every wall lies across
+   its valley, none float. Reservoir level = crest − freeboard (12% of height, 1.5–15 m); the
+   terrain itself carves the shoreline. The 240 longest lakes are month-animated meshes; all
+   others merge into one static batch. Where the shapefile is silent the model is illustrative. */
 const resMeshes=[],relGates=[];
 const resMat=new THREE.MeshBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.8,side:THREE.DoubleSide});
 try{
 const dm3=await getJSON("data/dams.geo.json","dams");
-const dl=dm3.features.filter(f=>{const c=f.geometry.coordinates;return c[0]>=TB.lon0&&c[0]<=TB.lon1&&c[1]>=TB.lat0&&c[1]<=TB.lat1;}).sort((a,b)=>((b.properties.height)||0)-((a.properties.height)||0)).slice(0,250);
-/* coarse xz grid of river tangent samples (from draped polylines) for orientation/lookup */
+const dl=dm3.features.filter(f=>{const c=f.geometry&&f.geometry.coordinates;return c&&c[0]>=TB.lon0&&c[0]<=TB.lon1&&c[1]>=TB.lat0&&c[1]<=TB.lat1;});
+/* xz grid of river tangent samples (draped polylines): dam-axis orientation (≤4 km radius)
+   and the release gates (≤50 km — v6.1 semantics kept) */
 const CELL=0.1,RG=new Map();
-for(const g of draped){for(let i=0;i<g.length-1;i++){const a=g[i],b=g[i+1];const tx=b.x-a.x,tz=b.z-a.z;const lr=Math.hypot(tx,tz);if(lr<1e-6)continue;const kk=Math.floor(a.x/CELL)+":"+Math.floor(a.z/CELL);let r=RG.get(kk);if(!r)RG.set(kk,r=[]);r.push(a.x,a.z,tx/lr,tz/lr);}}
-const nearRiver=(x,z)=>{let best=null,bd=0.0025;const gx=Math.floor(x/CELL),gz=Math.floor(z/CELL);for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const r=RG.get((gx+dx)+":"+(gz+dz));if(!r)continue;for(let i=0;i<r.length;i+=4){const ddx=r[i]-x,ddz=r[i+1]-z,d2=ddx*ddx+ddz*ddz;if(d2<bd){bd=d2;best=[r[i+2],r[i+3]];}}}return best;};
+for(let gi=0;gi<draped.length;gi++){const g=draped[gi];for(let i=0;i<g.length-1;i++){const a=g[i],b=g[i+1];const tx=b.x-a.x,tz=b.z-a.z;const lr=Math.hypot(tx,tz);if(lr<1e-6)continue;const kk=Math.floor(a.x/CELL)+":"+Math.floor(a.z/CELL);let r=RG.get(kk);if(!r)RG.set(kk,r=[]);r.push(a.x,a.z,tx/lr,tz/lr,gi,i);}}
+const nearRiver=(x,z,bd)=>{let best=null;const gx=Math.floor(x/CELL),gz=Math.floor(z/CELL);for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const r=RG.get((gx+dx)+":"+(gz+dz));if(!r)continue;for(let i=0;i<r.length;i+=6){const ddx=r[i]-x,ddz=r[i+1]-z,d2=ddx*ddx+ddz*ddz;if(d2<bd){bd=d2;best=[r[i+2],r[i+3],r[i+4],r[i+5]];}}}return best;};
 const dLonPerW=(TB.lon1-TB.lon0)/W,dLatPerW=(TB.lat1-TB.lat0)/D;
 const terrAt=(lon,lat)=>yOf(Math.max(0,hAt(lon,lat)));
-const cB=new THREE.Color(0x6e7378),cT=new THREE.Color(0xd8dbde);   /* v5.9 concrete greys */
-const WV=[],WC=[];let nRes=0,nWall=0;
-const tri=(arr,ca,a,b,c,col)=>{arr.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]);if(ca)ca.push(col.r,col.g,col.b,col.r,col.g,col.b,col.r,col.g,col.b);};
-const J=10,STEP=0.006,LMAX=0.11,ST=0.010;
+/* class-median heights (m) for the 6,669 rows without a height value — illustrative */
+const H_MED={earth:16.5,rock:19.5,cfrd:31.7,conc:90,arch:168.9};
+const MB={eu:[],ed:[],ru:[],rd:[],cm:[],cr:[]};   /* 6 merged batches = ~6 draw calls */
+const lakes=[];let nRes=0,nWall=0,nHero=0,nTri=0;
+const tri=(b,p0,p1,p2)=>{b.push(p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]);nTri++;};
+const obox=(b,cx0,cy0,cz0,ha,ht,hy)=>{const v=[[cx0-ha,cy0,cz0-ht],[cx0+ha,cy0,cz0-ht],[cx0+ha,cy0,cz0+ht],[cx0-ha,cy0,cz0+ht],[cx0-ha,cy0+hy,cz0-ht],[cx0+ha,cy0+hy,cz0-ht],[cx0+ha,cy0+hy,cz0+ht],[cx0-ha,cy0+hy,cz0+ht]],F=[[0,1,2],[0,2,3],[4,6,5],[4,7,6],[0,4,5],[0,5,1],[1,5,6],[1,6,2],[2,6,7],[2,7,3],[3,7,4],[3,4,0]];for(const fc of F)tri(b,v[fc[0]],v[fc[1]],v[fc[2]]);};
 dl.forEach(f=>{
-const c=f.geometry.coordinates,lo=c[0],la=c[1];const k=Math.sqrt(Math.min(1,((f.properties.height)||15)/260));
+const c=f.geometry.coordinates,lo=c[0],la=c[1];
+if(!isFinite(lo)||!isFinite(la))return;
+const nm=(f.properties.name||"").toUpperCase(),tp=(f.properties.type||"").toUpperCase();
+let cls;
+if(nm.indexOf("CHERUTHONI")>=0)cls="conc";
+else if(nm.indexOf("IDUKKI")>=0)cls="arch";
+else if(tp.indexOf("CFRD")>=0)cls="cfrd";
+else if(tp.indexOf("ROCKFILL")>=0)cls="rock";
+else if(tp.indexOf("EARTHEN")>=0||tp.indexOf("EARTHFILL")>=0||tp.indexOf("ZONED")>=0||tp.indexOf("HOMOGENEOUS")>=0)cls="earth";
+else if(tp.indexOf("GRAVITY")>=0||tp.indexOf("MASONRY")>=0||tp.indexOf("PG")>=0)cls="conc";
+else cls=((f.properties.height)||0)>=80?"conc":"earth";
+const hm=(f.properties.height>0)?f.properties.height:H_MED[cls];
+const HU=hm*UPM;
 const x0=X(lo),z0=Z(la),gy=terrAt(lo,la);
-const dir=nearRiver(x0,z0);
-if(!dir)return;                                              /* v5.9 minimal: only dams on a draped river get walls */
-const ax=-dir[1],az=dir[0];                                  /* wall axis lying across the nearest river */
-const cosA=ax,sinA=-az;                                      /* local +X maps to (ax,az) under rotY */
-const H=0.005+0.016*k,crest=gy+H,hb=0.003+0.0015*k,htp=0.0018+0.001*k,smax=0.016+0.030*k,snk=Math.min(0.004,H*0.35);
-const w2=(lx,ly,lz)=>{const rx=lx*cosA+lz*sinA,rz=-lx*sinA+lz*cosA;return[x0+rx,gy+ly,z0+rz];};
-const reach=sg=>{let s=STEP;for(;s<=smax;s+=STEP){const lon2=lo+ax*s*sg*dLonPerW,lat2=la-az*s*sg*dLatPerW;if(terrAt(lon2,lat2)>=crest-0.001)break;}return Math.min(s,smax);};
-const sL=reach(-1),sR=reach(1);
+/* upstream = the higher side: nearest river tangent (≤4 km) else the DEM gradient */
+let ux=0,uz=1;
+const rv=nearRiver(x0,z0,1.6e-5);
+if(rv){let fx=rv[0],fz=rv[1];const dh=0.0015;
+const hP=terrAt(lo+fx*dh*dLonPerW,la-fz*dh*dLatPerW),hM=terrAt(lo-fx*dh*dLonPerW,la+fz*dh*dLatPerW);
+if(hP<hM){fx=-fx;fz=-fz;}
+ux=fx;uz=fz;}
+else{const e=0.0012,dE=e*dLonPerW,dN=e*dLatPerW;
+const gx=terrAt(lo+dE,la)-terrAt(lo-dE,la),gz=terrAt(lo,la-dN)-terrAt(lo,la+dN);
+const gm=Math.hypot(gx,gz);
+if(gm>1e-12){ux=gx/gm;uz=gz/gm;}
+else{ux=0;uz=1;}}
+const ax=-uz,az=ux;                                          /* the dam axis, across the valley */
+const crest=gy+HU;
+const STEP=0.0006,SMAX=0.03,TOL=1e-6;
+const reach=sg=>{let s=STEP;for(;s<=SMAX;s+=STEP){const lon2=lo+ax*s*sg*dLonPerW,lat2=la-az*s*sg*dLatPerW;if(terrAt(lon2,lat2)>=crest-TOL)break;}return Math.min(s,SMAX);};
+const sL=reach(-1),sR=reach(1),span=sL+sR;
+const J=Math.max(3,Math.min(8,Math.round(span/0.004)+2));
+const wcp=((cls==="conc"||cls==="arch")?3:4)*UPM;           /* crest half-width: 6 m / 8 m */
+const su=cls==="earth"?2.5:cls==="rock"?1.5:cls==="cfrd"?1.4:0.08;
+const sd=cls==="earth"?2.0:cls==="rock"?1.5:cls==="cfrd"?1.4:0.75;
+const bU=(cls==="earth")?MB.eu:(cls==="rock")?MB.ru:MB.cm;   /* upstream-face material */
+const bD=(cls==="earth")?MB.ed:(cls==="rock")?MB.rd:(cls==="cfrd")?MB.rd:MB.cm;
+const st=[];
+for(let j=0;j<=J;j++){
+const t=j/J,s=-sL+span*t;
+let cx=x0+ax*s,cz=z0+az*s;
+if(cls==="arch"){const bw=0.18*span*(1-Math.pow(2*t-1,2));cx+=ux*bw;cz+=uz*bw;}
+const g=terrAt(lo+ax*s*dLonPerW,la-az*s*dLatPerW);
+st.push({cx:cx,cz:cz,g:g,hL:Math.max(0,crest-g)});
+}
 for(let j=0;j<J;j++){
-const s0=-sL+(sL+sR)*j/J,s1=-sL+(sL+sR)*(j+1)/J;
-const lon0=lo+ax*s0*dLonPerW,lat0=la-az*s0*dLatPerW,lon1=lo+ax*s1*dLonPerW,lat1=la-az*s1*dLatPerW;
-const b0=Math.min(terrAt(lon0,lat0)-gy-snk,H-snk),b1=Math.min(terrAt(lon1,lat1)-gy-snk,H-snk);
-const FB0=w2(s0,b0,-hb),FT0=w2(s0,H,-htp),BT0=w2(s0,H,htp),BB0=w2(s0,b0,hb);
-const FB1=w2(s1,b1,-hb),FT1=w2(s1,H,-htp),BT1=w2(s1,H,htp),BB1=w2(s1,b1,hb);
-tri(WV,WC,FB0,FT0,FT1,cB);tri(WV,WC,FB0,FT1,FB1,cB);         /* downstream face */
-tri(WV,WC,BB0,BB1,BT1,cB);tri(WV,WC,BB0,BT1,BT0,cB);         /* upstream face */
-tri(WV,WC,FT0,BT1,FT1,cT);tri(WV,WC,FT0,BT0,BT1,cT);         /* lit crest */
-if(j===0){tri(WV,WC,FB0,BB0,BT0,cB);tri(WV,WC,FB0,BT0,FT0,cB);}
-if(j===J-1){tri(WV,WC,FB1,BT1,BB1,cB);tri(WV,WC,FB1,FT1,BT1,cB);}
+const A=st[j],B2=st[j+1];
+const toUA=[A.cx+ux*su*A.hL,A.g,A.cz+uz*su*A.hL],toUB=[B2.cx+ux*su*B2.hL,B2.g,B2.cz+uz*su*B2.hL];
+const toDA=[A.cx-ux*sd*A.hL,A.g,A.cz-uz*sd*A.hL],toDB=[B2.cx-ux*sd*B2.hL,B2.g,B2.cz-uz*sd*B2.hL];
+const crUA=[A.cx+ux*wcp,crest,A.cz+uz*wcp],crDA=[A.cx-ux*wcp,crest,A.cz-uz*wcp];
+const crUB=[B2.cx+ux*wcp,crest,B2.cz+uz*wcp],crDB=[B2.cx-ux*wcp,crest,B2.cz-uz*wcp];
+tri(bU,toUA,crUB,toUB);tri(bU,toUA,crUA,crUB);               /* upstream face */
+if(cls==="conc"||cls==="arch"){                              /* gravity: steep, stepped downstream */
+const sa=[A.cx-ux*0.45*sd*A.hL,crest-0.45*A.hL,A.cz-uz*0.45*sd*A.hL];
+const sb=[B2.cx-ux*0.45*sd*B2.hL,crest-0.45*B2.hL,B2.cz-uz*0.45*sd*B2.hL];
+tri(bD,crDA,crDB,sb);tri(bD,crDA,sb,sa);
+tri(bD,sa,sb,toDB);tri(bD,sa,toDB,toDA);
+}else{tri(bD,crDA,crDB,toDB);tri(bD,crDA,toDB,toDA);}
+tri(MB.cr,crUA,crDA,crDB);tri(MB.cr,crUA,crDB,crUB);         /* lit crest */
+if(j===0){const P0=toUA,P1=crUA,P2=crDA,P3=toDA;tri(bD,P0,P2,P1);tri(bD,P0,P3,P2);}
+if(j===J-1){const P0=toUB,P1=crUB,P2=crDB,P3=toDB;tri(bD,P0,P1,P2);tri(bD,P0,P2,P3);}
 }
 nWall++;
-/* reservoir lens: walk upstream; water only where the valley closes (terrain rises to crest) */
-if(dir){
-const up0=dir[0],up1=dir[1];
-const t0s=terrAt(lo+up0*0.05*dLonPerW,la-up1*0.05*dLatPerW),t1s=terrAt(lo-up0*0.05*dLonPerW,la+up1*0.05*dLatPerW);
-const sg=t0s>=t1s?1:-1,upX=up0*sg,upZ=up1*sg;
-const wy=crest-0.002;let Lw=0,closed=false;const ts=[];
-for(let t=0.005;t<=LMAX;t+=ST){const lon2=lo+upX*t*dLonPerW,lat2=la-upZ*t*dLatPerW;if(terrAt(lon2,lat2)>=wy){closed=true;break;}ts.push(t);Lw=t;}
-if(closed&&Lw>=0.02&&ts.length>=3){
-const w0=0.005+0.008*k,px=-upZ,pz=upX,lv=[];
-for(let i=0;i<ts.length-1;i++){
-const ta=ts[i],tb=ts[i+1];
-const ha=w0*Math.sqrt(Math.max(0,1-(ta/Lw)*(ta/Lw))),hbb=w0*Math.sqrt(Math.max(0,1-(tb/Lw)*(tb/Lw)));
-const xa=x0+upX*ta,za=z0+upZ*ta,xb=x0+upX*tb,zb=z0+upZ*tb;
-const A=[xa+px*ha,wy,za+pz*ha],Bv=[xa-px*ha,wy,za-pz*ha],Cv=[xb-px*hbb,wy,zb-pz*hbb],Dv=[xb+px*hbb,wy,zb+pz*hbb];
-tri(lv,null,A,Cv,Bv,null);tri(lv,null,A,Dv,Cv,null);
+/* hero extras (h ≥ 100 m concrete/arch): three crest piers hint the spillway */
+if((cls==="conc"||cls==="arch")&&hm>=100){nHero++;
+const ha=Math.max(4,span*0.012),ht=5*UPM,hy=7*UPM;
+[-0.12,0,0.12].forEach(fr=>{const s=span*fr;obox(MB.cm,x0+ax*s,crest,z0+az*s,ha,ht,hy);});
 }
-if(lv.length){const gL=new THREE.BufferGeometry();gL.setAttribute("position",new THREE.Float32BufferAttribute(lv,3));const mL=new THREE.Mesh(gL,resMat);mL.matrixAutoUpdate=false;scene.add(mL);resMeshes.push({m:mL,px:x0,py:wy,pz:z0});}
-nRes++;
+/* reservoir: water level = crest − freeboard; walk upstream until the valley closes, then
+   fit the lens to the real shoreline at every station (the terrain carves it — nothing floats) */
+const fb=Math.min(15,Math.max(1.5,0.12*hm))*UPM;
+const wy=crest-fb;
+let Lw=0,closed=false;const ts=[];
+for(let t=0.0016;t<=0.025;t+=0.0016){const lon2=lo+ux*t*dLonPerW,lat2=la-uz*t*dLatPerW;if(terrAt(lon2,lat2)>=wy){closed=true;break;}ts.push(t);Lw=t;}
+if(closed&&ts.length>=3&&Lw>=0.003){
+const wid=[];
+for(let i=0;i<ts.length;i++){
+const t=ts[i],lon2=lo+ux*t*dLonPerW,lat2=la-uz*t*dLatPerW;let hw=0.0006;
+for(;hw<=0.012;hw+=0.0006){const o1=terrAt(lon2+ax*hw*dLonPerW,lat2-az*hw*dLatPerW),o2=terrAt(lon2-ax*hw*dLonPerW,lat2+az*hw*dLatPerW);if(o1>=wy||o2>=wy)break;}
+wid.push(Math.min(hw,0.012));
+}
+const lv=[];
+for(let i=0;i<ts.length-1;i++){
+const ta=ts[i],tb=ts[i+1],wa=wid[i],wb=wid[i+1];
+const xa=x0+ux*ta,za=z0+uz*ta,xb=x0+ux*tb,zb=z0+uz*tb;
+const A=[xa+ax*wa,wy,za+az*wa],Bv=[xa-ax*wa,wy,za-az*wa],Cv=[xb-ax*wb,wy,zb-az*wb],Dv=[xb+ax*wb,wy,zb+az*wb];
+tri(lv,A,Cv,Bv);tri(lv,A,Dv,Cv);
+}
+if(lv.length){lakes.push({v:lv,Lw:Lw,x:x0,z:z0,wy:wy,hm:hm});nRes++;}
+}
 /* v6.1 gate: nearest draped-river vertex within ~0.05 u, stored as ORIENTED param t
    (packets with u>t are downstream of this dam and follow its release) */
-let bg=-1,bt=0,bd=0.0025;
-for(let gi=0;gi<draped.length;gi++){const g=draped[gi];for(let i=0;i<g.length;i++){const ddx=g[i].x-x0,ddz=g[i].z-z0,d2=ddx*ddx+ddz*ddz;if(d2<bd){bd=d2;bg=gi;bt=i/(g.length-1);}}}
-if(bg>=0)relGates.push({gi:bg,t:draped[bg][draped[bg].length-1].y>draped[bg][0].y?1-bt:bt});
-}
-}
+const gt=nearRiver(x0,z0,0.0025);
+if(gt){const gg=draped[gt[2]],tt=gg.length>1?gt[3]/(gg.length-1):0;relGates.push({gi:gt[2],t:gg[gg.length-1].y>gg[0].y?1-tt:tt});}
 });
-t3Stats.walls=nWall;t3Stats.reservoirs=nRes;t3Stats.gates=relGates.length;
-if(WV.length){const gW=new THREE.BufferGeometry();gW.setAttribute("position",new THREE.Float32BufferAttribute(WV,3));gW.setAttribute("color",new THREE.Float32BufferAttribute(WC,3));gW.computeVertexNormals();scene.add(new THREE.Mesh(gW,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.62,metalness:0.05})));}
+_t3("damLoop");
+/* lakes: the 240 longest become month-animated meshes; all the rest merge into ONE static batch */
+lakes.sort((a,b2)=>b2.Lw-a.Lw);
+const stat=[];
+for(let i=0;i<lakes.length;i++){const L=lakes[i];
+if(i<240){const gL=new THREE.BufferGeometry();gL.setAttribute("position",new THREE.Float32BufferAttribute(L.v,3));const mL=new THREE.Mesh(gL,resMat);mL.matrixAutoUpdate=false;relG.add(mL);resMeshes.push({m:mL,px:L.x,py:L.wy,pz:L.z,hm:L.hm});}
+else for(let k2=0;k2<L.v.length;k2++)stat.push(L.v[k2]);
+}
+if(stat.length){const gS=new THREE.BufferGeometry();gS.setAttribute("position",new THREE.Float32BufferAttribute(stat,3));relG.add(new THREE.Mesh(gS,resMat));}
+const addB=(v,col,ro)=>{if(!v.length)return;const gB=new THREE.BufferGeometry();gB.setAttribute("position",new THREE.Float32BufferAttribute(v,3));gB.computeVertexNormals();relG.add(new THREE.Mesh(gB,new THREE.MeshStandardMaterial({color:col,roughness:ro,metalness:0.05})));};
+addB(MB.eu,0x6f6a60,0.95);addB(MB.ed,0x6f8058,1.0);addB(MB.ru,0x63686d,0.85);addB(MB.rd,0x7a8086,0.9);addB(MB.cm,0x999fa5,0.62);addB(MB.cr,0xd9dcdf,0.7);_t3("damBuild");
+t3Stats.walls=nWall;t3Stats.reservoirs=nRes;t3Stats.gates=relGates.length;t3Stats.tris=nTri;t3Stats.animLakes=Math.min(240,lakes.length);t3Stats.heroes=nHero;
 }catch(e){console.warn("terrain dams",e);}
 /* v6.1 hydro (illustrative, month-typical — NOT measured): river flow follows the rainfall
    month (rf=(arabian+bay)/200); reservoir level follows a monsoon fill curve (fills Jun–Sep,
@@ -783,9 +859,11 @@ if(!force&&m===hydroM)return;
 hydroM=m;hydroF=fillOf(m);hydroR=relOf(m);
 const md=monthByNum(m);hydroRF=md?Math.max(0.12,Math.min(1,(md.arabian+md.bay)/200)):0.6;
 const s=0.35+0.65*hydroF,M4=new THREE.Matrix4(),S4=new THREE.Matrix4();
-resMeshes.forEach(r=>{M4.makeTranslation(r.px,r.py,r.pz);S4.makeScale(s,1,s);M4.multiply(S4);S4.makeTranslation(-r.px,-r.py,-r.pz);M4.multiply(S4);r.m.matrix.copy(M4);r.m.matrixWorldNeedsUpdate=true;});
+/* v7.0: shoreline-fitted lakes shrink toward the dam AND drop with drawdown —
+   22% of dam height when the reservoir is empty (real metres, illustrative curve) */
+resMeshes.forEach(r=>{const dr=r.hm?r.hm*0.22*(1-hydroF)*UPM:0;M4.makeTranslation(r.px,r.py-dr,r.pz);S4.makeScale(s,1,s);M4.multiply(S4);S4.makeTranslation(-r.px,-r.py,-r.pz);M4.multiply(S4);r.m.matrix.copy(M4);r.m.matrixWorldNeedsUpdate=true;});
 resMat.opacity=0.45+0.42*hydroF;
-pktPts.material.size=0.02+0.028*hydroRF;pktPts.material.opacity=0.45+0.5*hydroRF;
+pktPts.material.opacity=0.45+0.5*hydroRF;
 const vd=md?vecFor(md):curVec;
 wxVec={x:vd.vx,z:vd.vy};
 wxRN=Math.round((36+330*hydroRF)*(RM?0.5:1));
@@ -839,46 +917,54 @@ wxW.frustumCulled=false;scene.add(wxW);
 let wxRN=0,wxWN=0,wxVec={x:0,z:0};
 const wxInvLon=x=>(x/W)*(TB.lon1-TB.lon0)+(TB.lon0+TB.lon1)/2;
 const wxInvLat=z=>(TB.lat0+TB.lat1)/2-(z/D)*(TB.lat1-TB.lat0);
-const wxFloor=(x,z)=>yOf(Math.max(0,hAt(wxInvLon(x),wxInvLat(z))))+0.012;
-const wxResetR=i=>{wxRDrop[i]={x:(Math.random()-0.5)*W*0.96,z:(Math.random()-0.5)*D*0.96,y:1.02+Math.random()*0.4};};
-const wxResetW=i=>{wxWDrop[i]={x:(Math.random()-0.5)*W*0.94,z:(Math.random()-0.5)*D*0.94,y:0.3+Math.random()*0.75};};
+const wxFloor=(x,z)=>yOf(Math.max(0,hAt(wxInvLon(x),wxInvLat(z))))+MZ(90);
+const wxResetR=i=>{wxRDrop[i]={x:(Math.random()-0.5)*W*0.96,z:(Math.random()-0.5)*D*0.96,y:(tgt.y+R*(0.15+0.40*Math.random()))/REL};};
+const wxResetW=i=>{wxWDrop[i]={x:(Math.random()-0.5)*W*0.94,z:(Math.random()-0.5)*D*0.94,y:MZ(1400+5200*Math.random())};};
 const stepWx=dt=>{
 if(wxRN>0){wxRGeo.setDrawRange(0,Math.min(wxRN,wxRMax)*2);
 for(let i=0;i<wxRN&&i<wxRMax;i++){const d=wxRDrop[i]||(wxResetR(i),wxRDrop[i]);
-d.y-=(1.25+0.55*hydroRF)*dt;if(d.y<wxFloor(d.x,d.z)){wxResetR(i);continue;}
-const o=i*6;wxRPos[o]=d.x;wxRPos[o+1]=d.y;wxRPos[o+2]=d.z;wxRPos[o+3]=d.x+wxVec.x*0.012;wxRPos[o+4]=d.y+0.045;wxRPos[o+5]=d.z+wxVec.z*0.012;}
+d.y-=(R*(0.35+0.20*hydroRF)/REL)*dt;if(d.y<wxFloor(d.x,d.z)){wxResetR(i);continue;}
+const ln=Math.max(0.0006,0.0102*R)/REL;
+const o=i*6;wxRPos[o]=d.x;wxRPos[o+1]=d.y;wxRPos[o+2]=d.z;wxRPos[o+3]=d.x+wxVec.x*ln*0.25;wxRPos[o+4]=d.y+ln;wxRPos[o+5]=d.z+wxVec.z*ln*0.25;}
 wxRGeo.attributes.position.needsUpdate=true;}
 if(wxWN>0){wxWGeo.setDrawRange(0,Math.min(wxWN,wxWMax)*2);
-const hb=Math.max(1e-6,Math.hypot(wxVec.x,wxVec.z)),spd=0.12+0.4*Math.min(1.3,hb);
+const hb=Math.max(1e-6,Math.hypot(wxVec.x,wxVec.z)),spd=R*(0.028+0.10*Math.min(1.3,hb))/REL;
 for(let i=0;i<wxWN&&i<wxWMax;i++){const d=wxWDrop[i]||(wxResetW(i),wxWDrop[i]);
 d.x+=wxVec.x*spd*dt;d.z+=wxVec.z*spd*dt;
 if(d.x>W/2)d.x-=W*1.02;if(d.x<-W/2)d.x+=W*1.02;if(d.z>D/2)d.z-=D*1.02;if(d.z<-D/2)d.z+=D*1.02;
-const lx=wxVec.x/hb*0.055,lz=wxVec.z/hb*0.055;const o=i*6;
+const lh=Math.max(0.0005,0.0125*R)/REL,lx=wxVec.x/hb*lh,lz=wxVec.z/hb*lh;const o=i*6;
 wxWPos[o]=d.x-lx;wxWPos[o+1]=d.y;wxWPos[o+2]=d.z-lz;wxWPos[o+3]=d.x+lx;wxWPos[o+4]=d.y;wxWPos[o+5]=d.z+lz;}
 wxWGeo.attributes.position.needsUpdate=true;}
 };
 applyHydro(INDWeather.month||7,true);   /* v6.1: seed flow + reservoir levels for the current month */
 const cam=new THREE.PerspectiveCamera(42,2,0.1,50);
-let th=0,ph=0.62,R=4.4,drag=false,px=0,py=0,lastW=0;
+let th=0,ph=0.62,R=4.4,drag=false,px=0,py=0,lastW=0,spin=false,panDrag=false;   /* v7.0: spin OFF by default (user feedback) + pan state */
 /* v6.0 deep zoom: movable orbit target (double-click a spot to fly to it; double-click empty sky
    resets home), exponential wheel zoom over R 12→0.01 (0.01 ≈ 10 km — the z6 DEM's honest floor),
    near plane scales with R so ultra-close views never clip. */
-const tgt=new THREE.Vector3(0,0.25,0),HOME=new THREE.Vector3(0,0.25,0);
+const tgt=new THREE.Vector3(0,0.0019,0),HOME=new THREE.Vector3(0,0.0019,0);   /* v7.0: orbit target at ≈1,900 m — the true mid-relief height (was 0.25 old units) */
 let fly=null;
 const startFly=(tt,tr)=>{fly={t0:performance.now(),ft:tgt.clone(),tt:tt.clone(),fr:R,tr};};
 const cv3=$("terrain3d");
 const fit=()=>{const w=cv3.clientWidth||cv3.parentElement.clientWidth;if(w===lastW)return;lastW=w;renderer.setSize(w,420,false);cam.aspect=w/420;cam.updateProjectionMatrix();};
-cv3.addEventListener("pointerdown",e=>{fly=null;drag=true;px=e.clientX;py=e.clientY;try{cv3.setPointerCapture(e.pointerId);}catch(_){}});
-cv3.addEventListener("pointermove",e=>{if(!drag)return;th+=(e.clientX-px)*0.008;ph=Math.max(0.25,Math.min(1.25,ph-(e.clientY-py)*0.006));px=e.clientX;py=e.clientY;});
-addEventListener("pointerup",()=>drag=false);
+cv3.addEventListener("pointerdown",e=>{fly=null;drag=true;panDrag=(e.button===1||e.button===2||e.shiftKey);px=e.clientX;py=e.clientY;try{cv3.setPointerCapture(e.pointerId);}catch(_){}});
+cv3.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;if(panDrag){const kp=0.0018*R;tgt.x+=kp*(Math.cos(th)*dx+Math.sin(th)*dy);tgt.z+=kp*(-Math.sin(th)*dx+Math.cos(th)*dy);}else{th+=dx*0.008;ph=Math.max(0.25,Math.min(1.25,ph-dy*0.006));}});
+addEventListener("pointerup",()=>{drag=false;panDrag=false;});
+cv3.addEventListener("contextmenu",e=>e.preventDefault());
 cv3.addEventListener("wheel",e=>{e.preventDefault();fly=null;R=Math.max(0.01,Math.min(12,R*Math.exp(e.deltaY*0.003)));},{passive:false});
 const ray=new THREE.Raycaster();
 cv3.addEventListener("dblclick",e=>{const r=cv3.getBoundingClientRect();ray.setFromCamera({x:((e.clientX-r.left)/r.width)*2-1,y:-((e.clientY-r.top)/r.height)*2+1},cam);const hit=ray.intersectObject(tMesh)[0];hit?startFly(hit.point,Math.max(0.01,R*0.35)):startFly(HOME,4.4);});
+/* v7.0 HUD: spin (default OFF), relief-exaggeration chips ×1…×100 (×1 = true 1:1), home */
+const setRel=r=>{r=Math.max(1,r);const kr=r/REL;REL=r;relG.scale.y=r;tgt.y*=kr;HOME.y*=kr;const b=$("t3rel");if(b)b.textContent=r===1?"×1 relief · true":"×"+r+" relief";};
+const setSpin=v=>{spin=v;const b=$("t3spin");if(b)b.textContent=v?"⟳ spin: on":"⟳ spin: off";};
+if($("t3rel"))$("t3rel").addEventListener("click",()=>{const RELS=[1,5,20,100],i=RELS.indexOf(REL);setRel(RELS[(i+1)%RELS.length]);});
+if($("t3spin"))$("t3spin").addEventListener("click",()=>setSpin(!spin));
+if($("t3home"))$("t3home").addEventListener("click",()=>startFly(HOME,4.4));
 const proj=new THREE.Vector3();let tmLast=performance.now()/1000;
 (function loop(){
 requestAnimationFrame(loop);
 if(!terrainOn||document.hidden)return;
-if(!drag&&!RM&&!fly)th+=0.0012*Math.min(1,R/2.6);
+if(spin&&!drag&&!RM&&!fly)th+=0.0012*Math.min(1,R/2.6);   /* v7.0: auto-rotation OFF by default — the ⟳ chip turns it on */
 if(fly){const k=Math.min(1,(performance.now()-fly.t0)/600),e=k*k*(3-2*k);tgt.lerpVectors(fly.ft,fly.tt,e);R=fly.fr+(fly.tr-fly.fr)*e;if(k>=1)fly=null;}
 const nNear=Math.max(0.002,R*0.02);if(Math.abs(cam.near-nNear)>nNear*0.05){cam.near=nNear;cam.updateProjectionMatrix();}
 cam.position.set(tgt.x+R*Math.sin(ph)*Math.sin(th),tgt.y+R*Math.cos(ph),tgt.z+R*Math.sin(ph)*Math.cos(th));
@@ -887,20 +973,24 @@ applyHydro(mNow);                                            /* v6.1: flow + res
 const tw=performance.now()/1000,dtS=Math.min(0.1,tw-tmLast||0.016);tmLast=tw;
 const vF=(0.02+0.11*hydroRF)*dtS;
 stepWx(dtS);                                                 /* v6.2: rain + wind streaks follow the month */
-for(let i=0;i<pktN;i++){const P=pktAsn[i];if(!P)continue;const g=P.g;let k=1;const gt=P.gates;for(let j=0;j<gt.length;j++)if(P.u>gt[j])k*=hydroR;P.u=(P.u+vF*k)%1;const s=P.u*(g.length-1),i0=Math.floor(s),fr=s-i0,a=g[i0],b=g[Math.min(g.length-1,i0+1)];pktPos[i*3]=a.x+(b.x-a.x)*fr;pktPos[i*3+1]=a.y+(b.y-a.y)*fr+0.008;pktPos[i*3+2]=a.z+(b.z-a.z)*fr;}
+for(let i=0;i<pktN;i++){const P=pktAsn[i];if(!P)continue;const g=P.g;let k=1,gN=0;const gt=P.gates;for(let j=0;j<gt.length;j++)if(P.u>gt[j])gN++;if(gN)k=hydroR;P.u=(P.u+vF*k)%1;const s=P.u*(g.length-1),i0=Math.floor(s),fr=s-i0,a=g[i0],b=g[Math.min(g.length-1,i0+1)];pktPos[i*3]=a.x+(b.x-a.x)*fr;pktPos[i*3+1]=a.y+(b.y-a.y)*fr+MZ(62);pktPos[i*3+2]=a.z+(b.z-a.z)*fr;}
 pktGeo.attributes.position.needsUpdate=true;
+/* v7.0: markers & packets resize per frame — true scale at every zoom (radius-1 spheres,
+   flat in Y so vertical exaggeration can't turn them into eggs) */
+{const mr=Math.max(0.0005,0.0045*R);pkObjs.forEach(o=>o.s.scale.set(mr,mr/REL,mr));const mc=Math.max(0.0004,0.0037*R);ctObjs.forEach(o=>o.s.scale.set(mc,mc/REL,mc));pktPts.material.size=Math.max(0.0008,(0.0052+0.0072*hydroRF)*R);}
 cam.lookAt(tgt);fit();renderer.render(scene,cam);
 const w=cv3.clientWidth,h=420;
-const tag=(arr,pre)=>arr.forEach((p,i)=>{proj.copy(p.s.position).project(cam);const el=document.getElementById(pre+i);if(!el)return;if(proj.z>1){el.style.display="none";return;}el.style.display="block";el.style.left=((proj.x*0.5+0.5)*w)+"px";el.style.top=((-proj.y*0.5+0.5)*h)+"px";el.style.marginTop=((i%3)*13)+"px";});
+const tag=(arr,pre)=>arr.forEach((p,i)=>{proj.set(p.s.position.x,p.s.position.y*REL,p.s.position.z).project(cam);const el=document.getElementById(pre+i);if(!el)return;if(proj.z>1){el.style.display="none";return;}el.style.display="block";el.style.left=((proj.x*0.5+0.5)*w)+"px";el.style.top=((-proj.y*0.5+0.5)*h)+"px";el.style.marginTop=((i%3)*13)+"px";});
 tag(pkObjs,"pkl");tag(ctObjs,"ctl");tag(bsObjs,"bsl");
-if(typeof lblRivers!=="undefined")lblRivers.forEach((r)=>{proj.copy(r.mid).project(cam);const el=document.getElementById("rvl"+r.li);if(!el)return;if(proj.z>1){el.style.display="none";return;}el.style.display="block";el.style.left=((proj.x*0.5+0.5)*w)+"px";el.style.top=((-proj.y*0.5+0.5)*h)+"px";});
+if(typeof lblRivers!=="undefined")lblRivers.forEach((r)=>{proj.set(r.mid.x,r.mid.y*REL,r.mid.z).project(cam);const el=document.getElementById("rvl"+r.li);if(!el)return;if(proj.z>1){el.style.display="none";return;}el.style.display="block";el.style.left=((proj.x*0.5+0.5)*w)+"px";el.style.top=((-proj.y*0.5+0.5)*h)+"px";});
 })();
 window.__terrainMonth=d=>{
 const m=d.m;
-cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m. Valley-fitted dam walls + reservoir water (illustrative, height-scaled); river flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative).";
+cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m — true scale at ×1 (1 unit ≈ 950 km E-W; relief chips exaggerate only the vertical). Every CWC dam is a modelled cross-section at its real coordinates (CWC heights where the file has one, class medians elsewhere — illustrative); reservoir shorelines are carved by the terrain. River flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative).";
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
-window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(4),+tgt.z.toFixed(4)],fly:!!fly}),hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount})};
+_t3("tail");t3Stats.phases=_t3p;
+window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount})};
 }
 if($("btn3d"))$("btn3d").addEventListener("click",async()=>{
 terrainOn=!terrainOn;

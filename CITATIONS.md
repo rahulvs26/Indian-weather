@@ -36,6 +36,10 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
    River_Network lines of the west-flowing systems (Narmada, Tapi, Mahi, Sabarmati,
    Kutch–Saurashtra, Tapi–Tadri, Tadri–Kanyakumari basins), len ≥ 30 km,
    Douglas–Peucker ≈ 0.9 km (180 KB); used on the 2D map (z≥5) and the 3D relief.
+   v7.0 uses `data/dams.geo.json` — 13,002 CWC/WRIS dam, barrage and weir points
+   (names, types, 6,333 recorded heights) — to place a modelled dam cross-section at
+   every real coordinate in the 3D relief; the missing heights use class medians
+   (labelled illustrative). Section conventions: §11.
 
 ## Open data & services (accessed Oct 2026)
 
@@ -49,6 +53,18 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
 10. Bureau of Meteorology (Australia) — IOD definition, ±0.4 °C event rule;
     NOAA Climate.gov — IOD history; PIB/MoES — DWR counts and ranges;
     PMF IAS / IMD materials — monsoon branch dates.
+
+## Engineering conventions for the 3D dam cross-sections (profiles illustrative)
+
+11. Bureau of Reclamation — *Design of Small Dams* (3rd ed., 1987): earthfill
+    embankments commonly ≈2.5–3H:1V upstream / 2–2.5H:1V downstream, with a
+    freeboard allowance above the design flood; *Design of Gravity Dams* (1976):
+    near-vertical upstream and ≈0.75H:1V battered downstream faces for concrete
+    gravity dams. Concrete-face rockfill dams (CFRD) typically use ≈1.3–1.4H:1V
+    face slopes (Sherard & Cooke, J. Geotech. Eng., 1987; Shuibuya Dam project
+    literature). The site applies stylised versions of these conventions to build
+    every dam's 3D section: positions and CWC heights are real; all profile
+    geometry is (illustrative).
 
 ## Site's own content
 

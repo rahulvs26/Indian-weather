@@ -563,7 +563,7 @@ cols.push(tc.r,tc.g,tc.b);
 }
 geo.setAttribute("color",new THREE.Float32BufferAttribute(cols,3));
 geo.computeVertexNormals();
-scene.add(new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0})));
+const tMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));scene.add(tMesh);
 /* Indian MSL datum: translucent sea plane at 0 m — relief reads against mean sea level */
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(W*1.25,D*1.25),new THREE.MeshStandardMaterial({color:0x0b3b5c,transparent:true,opacity:0.88,roughness:0.55,metalness:0}));
 sea.rotation.x=-Math.PI/2;sea.position.y=0.002;scene.add(sea);
@@ -715,22 +715,32 @@ const pktPts=new THREE.Points(pktGeo,new THREE.PointsMaterial({color:0xffffff,si
 pktPts.frustumCulled=false;scene.add(pktPts);
 const cam=new THREE.PerspectiveCamera(42,2,0.1,50);
 let th=0,ph=0.62,R=4.4,drag=false,px=0,py=0,lastW=0;
+/* v6.0 deep zoom: movable orbit target (double-click a spot to fly to it; double-click empty sky
+   resets home), exponential wheel zoom over R 12→0.01 (0.01 ≈ 10 km — the z6 DEM's honest floor),
+   near plane scales with R so ultra-close views never clip. */
+const tgt=new THREE.Vector3(0,0.25,0),HOME=new THREE.Vector3(0,0.25,0);
+let fly=null;
+const startFly=(tt,tr)=>{fly={t0:performance.now(),ft:tgt.clone(),tt:tt.clone(),fr:R,tr};};
 const cv3=$("terrain3d");
 const fit=()=>{const w=cv3.clientWidth||cv3.parentElement.clientWidth;if(w===lastW)return;lastW=w;renderer.setSize(w,420,false);cam.aspect=w/420;cam.updateProjectionMatrix();};
-cv3.addEventListener("pointerdown",e=>{drag=true;px=e.clientX;py=e.clientY;try{cv3.setPointerCapture(e.pointerId);}catch(_){}});
+cv3.addEventListener("pointerdown",e=>{fly=null;drag=true;px=e.clientX;py=e.clientY;try{cv3.setPointerCapture(e.pointerId);}catch(_){}});
 cv3.addEventListener("pointermove",e=>{if(!drag)return;th+=(e.clientX-px)*0.008;ph=Math.max(0.25,Math.min(1.25,ph-(e.clientY-py)*0.006));px=e.clientX;py=e.clientY;});
 addEventListener("pointerup",()=>drag=false);
-cv3.addEventListener("wheel",e=>{e.preventDefault();R=Math.max(2.6,Math.min(7,R+e.deltaY*0.003));},{passive:false});
+cv3.addEventListener("wheel",e=>{e.preventDefault();fly=null;R=Math.max(0.01,Math.min(12,R*Math.exp(e.deltaY*0.003)));},{passive:false});
+const ray=new THREE.Raycaster();
+cv3.addEventListener("dblclick",e=>{const r=cv3.getBoundingClientRect();ray.setFromCamera({x:((e.clientX-r.left)/r.width)*2-1,y:-((e.clientY-r.top)/r.height)*2+1},cam);const hit=ray.intersectObject(tMesh)[0];hit?startFly(hit.point,Math.max(0.01,R*0.35)):startFly(HOME,4.4);});
 const proj=new THREE.Vector3();
 (function loop(){
 requestAnimationFrame(loop);
 if(!terrainOn||document.hidden)return;
-if(!drag&&!RM)th+=0.0012;
-cam.position.set(R*Math.sin(ph)*Math.sin(th),R*Math.cos(ph),R*Math.sin(ph)*Math.cos(th));
+if(!drag&&!RM&&!fly)th+=0.0012*Math.min(1,R/2.6);
+if(fly){const k=Math.min(1,(performance.now()-fly.t0)/600),e=k*k*(3-2*k);tgt.lerpVectors(fly.ft,fly.tt,e);R=fly.fr+(fly.tr-fly.fr)*e;if(k>=1)fly=null;}
+const nNear=Math.max(0.002,R*0.02);if(Math.abs(cam.near-nNear)>nNear*0.05){cam.near=nNear;cam.updateProjectionMatrix();}
+cam.position.set(tgt.x+R*Math.sin(ph)*Math.sin(th),tgt.y+R*Math.cos(ph),tgt.z+R*Math.sin(ph)*Math.cos(th));
 const mNow=INDWeather.month||7,spd=(mNow>=6&&mNow<=9)?0.10:0.045,tm=performance.now()/1000;
 for(let i=0;i<pktN;i++){const P=pktAsn[i];if(!P)continue;const g=P.g;const s=((tm*spd+P.off)%1)*(g.length-1),i0=Math.floor(s),fr=s-i0,a=g[i0],b=g[Math.min(g.length-1,i0+1)];pktPos[i*3]=a.x+(b.x-a.x)*fr;pktPos[i*3+1]=a.y+(b.y-a.y)*fr+0.008;pktPos[i*3+2]=a.z+(b.z-a.z)*fr;}
 pktGeo.attributes.position.needsUpdate=true;
-cam.lookAt(0,0.25,0);fit();renderer.render(scene,cam);
+cam.lookAt(tgt);fit();renderer.render(scene,cam);
 const w=cv3.clientWidth,h=420;
 const tag=(arr,pre)=>arr.forEach((p,i)=>{proj.copy(p.s.position).project(cam);const el=document.getElementById(pre+i);if(!el)return;if(proj.z>1){el.style.display="none";return;}el.style.display="block";el.style.left=((proj.x*0.5+0.5)*w)+"px";el.style.top=((-proj.y*0.5+0.5)*h)+"px";el.style.marginTop=((i%3)*13)+"px";});
 tag(pkObjs,"pkl");tag(ctObjs,"ctl");tag(bsObjs,"bsl");
@@ -741,7 +751,7 @@ const m=d.m;
 cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m. Valley-fitted dam walls + reservoir water (illustrative, height-scaled).";
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
-window.__t3={hAt,yOf,stats:t3Stats};
+window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(4),+tgt.z.toFixed(4)],fly:!!fly})};
 }
 if($("btn3d"))$("btn3d").addEventListener("click",async()=>{
 terrainOn=!terrainOn;

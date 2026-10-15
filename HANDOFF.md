@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~760 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v5.9).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v6.0).
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -12,7 +12,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.0).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -29,7 +29,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-15, v5.9)
+## Current verified state (2026-10-15, v6.0)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> layers on=11/13 vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -58,7 +58,14 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
   `yOf h=>max(0,h)/8849*1.15` — UNCLIPPED, Everest 8849 m = 1.15 = top of scale (old
   `min(1.1,…)` cap flattened everything >≈7174 m — do not reintroduce). Terrain bands:
   cA #5B8C5A / cB #A08B62 / cC #8A8F98 / cS #F2F3F5 at 400/1800/5200 m.
-  `window.__t3={hAt,yOf,stats}` = read-only verification hooks.
+  `window.__t3={hAt,yOf,stats,view}` = read-only verification hooks.
+- 3D CAMERA PARAMS (v6.0 deep zoom; grep `tgt`,`fly`,`startFly`,`tMesh` — all inside `buildTerrain()`):
+  orbit target `tgt` starts (0,0.25,0) = old fixed lookAt (same math while tgt=HOME); wheel
+  `R=max(0.01,min(12,R·e^{deltaY·0.003}))`; near plane `max(0.002,0.02·R)` refreshed each loop;
+  auto-rotate `th+=0.0012·min(1,R/2.6)`; dblclick = raycast `tMesh` → 600 ms smoothstep fly to hit
+  with `tr=max(0.01,R·0.35)`; dblclick miss (sky) → HOME, R=4.4; wheel/pointerdown cancels the fly.
+  Zoom floor 0.01 ≈ 10 km camera distance = honest z6 DEM limit (~2.3 km/px, mesh cell ≈5.2 km).
+  `__t3.view()` = {R,near,tgt,fly}.
 - 3D DAM PARAMS (v5.9 minimalist, top-250 tallest by height) — TWO gates:
   (a) built ONLY if a draped river lies within ~0.05 units of the point (gate
   `if(!dir)return;` — riverless dams are skipped, so nothing floats on plains);
@@ -89,7 +96,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
   not from rescaling. If tiles ever 404, check `TB.z`/tileURL, not the formula.
 
 ## Next up (for the next session)
-- Nothing blocking; site is green (v5.9, everything live-verified).
+- Nothing blocking; site is green (v6.0, everything live-verified).
 - If asked to keep polishing the 3D view: candidates are hover labels for the
   top-40 dams, a soft spillway glint, or snow-cap tinting tied to `yOf` bands —
   if any option conveys new info, keep the "(illustrative)" label.
@@ -124,6 +131,10 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
   If they scream orange or protrude like pins, the palette/H constants regressed;
   if they look perpendicular-matchstick, check the `w2` mapping
   (`cosA=ax, sinA=-az`) and that `draped` is still in scope before them.
+- 3D deep zoom: `__t3.view()` starts {R≈4.4, near≈0.088, tgt=[0,0.25,0]}. 25 negative wheel
+  deltas on `#terrain3d` → R clamps 0.01, near settles 0.002; 25 positive → clamps 12. dblclick
+  canvas centre → after ~0.8 s fly=false and tgt ≠ [0,0.25,0]; dblclick a top corner (sky) →
+  tgt back to [0,0.25,0], R≈4.4. Console must show 0 errors throughout.
 - Self-test in 3D: expect `2D hidden (3D on)`; toggling back to 2D auto-refreshes
   to `vectors-ok` (~350 ms).
 - Commands used previously run clean: `node --check app.js`.
@@ -132,6 +143,6 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v5.9), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v6.0), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

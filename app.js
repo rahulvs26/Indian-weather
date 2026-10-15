@@ -52,7 +52,7 @@ const chips=[...document.querySelectorAll(".chip")];
 const layers={winds:true,heatcold:true,radar:true,iod:true,mjo:true,rivers:true,basins:true,dams:true,water:false};
 const FLY={heatcold:[[22.5,79.5],5],radar:[[22.5,79.5],5],iod:[[[-12,45],[12,112]],null],mjo:[[[-15,10],[15,140]],null],rivers:[[22.5,79.5],5],basins:[[22.5,79.5],5],dams:[[22.5,79.5],5],water:[[22.5,79.5],5]};
 chips.forEach(c=>c.addEventListener("click",()=>{const k=c.dataset.layer;layers[k]=!layers[k];c.setAttribute("aria-pressed",layers[k]);if(window.__applyLayers)window.__applyLayers();if(k==="water"&&layers[k]&&window.__loadWater)window.__loadWater();if(layers[k]&&map&&FLY[k]){const f=FLY[k];if(f[1])map.flyTo(f[0],f[1],{duration:1});else map.flyToBounds(f[0],{duration:1});}}));
-let map=null,windParts=[],wctx=null,curVec={vx:1,vy:-0.6};
+let map=null,windParts=[],wctx=null,curVec={vx:1,vy:-0.6},rainFx=[],rainInfo={m:0,n:0,pool:0,k:0};
 const ARAB_COL="#0F766E",BOB_COL="#6B7280",BOB_WIND="#B45309",HEAT_COL="#B91C1C",COLD_COL="#1D4ED8";
 function vecFor(d){
 let base;
@@ -81,12 +81,30 @@ wctx.lineTo(hx-Math.cos(a-0.42)*6,hy-Math.sin(a-0.42)*6);
 wctx.lineTo(hx-Math.cos(a+0.42)*6,hy-Math.sin(a+0.42)*6);
 wctx.closePath();wctx.fill();wctx.globalAlpha=1;
 }
+/* v6.2 rain streaks: fall over the month's rain-receiving states (illustrative animation —
+   same months.json rainStates list that drives the teal state highlight; density follows the
+   branch strengths (arabian+bay)/200, so monsoon months rain hard, winter months barely) */
+function stepRain(nowS){
+if(!rainFx.length||!map)return;
+const c=$("windCanvas");
+for(const d of rainFx){
+let p;try{p=map.latLngToContainerPoint([d.la,d.lo]);}catch(_){continue;}
+const off=(d.ph+nowS*d.sp)%1;
+const y=p.y+off*170-45;
+if(p.x<-30||p.x>c.width+30||y<-24||y>c.height+40)continue;
+const x=p.x+off*curVec.vx*26;
+wctx.strokeStyle="#0E7490";wctx.globalAlpha=0.32+0.2*rainInfo.k;
+wctx.lineWidth=1.1;wctx.beginPath();wctx.moveTo(x,y);wctx.lineTo(x+curVec.vx*1.7,y+d.ln);wctx.stroke();
+}
+wctx.globalAlpha=1;
+}
 function stepWind(){
 stepWind._t=true;
 if(!wctx){requestAnimationFrame(stepWind);return;}
 const c=$("windCanvas");
 if(!layers.winds){wctx.clearRect(0,0,c.width,c.height);requestAnimationFrame(stepWind);return;}
 wctx.clearRect(0,0,c.width,c.height);
+const nowS=Date.now()/1000;
 for(const p of windParts){
 const wob=Math.sin((p.x+p.y)*0.02+Date.now()*0.0004)*0.3;
 p.x+=(curVec.vx*p.sp+wob*0.3);p.y+=(curVec.vy*p.sp+wob*0.2);
@@ -95,6 +113,7 @@ wctx.fillStyle=p.west?ARAB_COL:BOB_WIND;wctx.globalAlpha=0.5;
 wctx.fillRect(p.x,p.y,2.2,1.4);
 }
 wctx.globalAlpha=1;
+stepRain(nowS);
 /* arrow grid mirrors the same vector (text equivalent lives in month readout) */
 const gx=90,gy=105;
 const MJO_ENH="#6D28D9";
@@ -164,6 +183,33 @@ L.geoJSON(st,{style:{color:"#1A1A1A",weight:0.7,fillColor:"#FAF9F6",fillOpacity:
 window.__rainStates=d=>{
 const want=new Set(d.rainStates||[]);
 for(const n in stateLayers){const on=want.has(n);try{stateLayers[n].setStyle({fillColor:on?"#0F766E":"#FAF9F6",fillOpacity:on?0.45:0.12,weight:on?1.4:0.7});}catch(_){}}
+/* v6.2 rain particles: sample points inside the month's rain-receiving states (the same
+   IMD month-typical list as the teal highlight; illustrative animation, cached per month) */
+try{
+const cache=window.__rainPoolCache||(window.__rainPoolCache={});
+let pool=cache[d.m];
+if(!pool){
+pool=[];
+for(const n of (d.rainStates||[])){
+const ly=stateLayers[n];if(!ly)continue;
+const rings=[];(function w(a){if(!a||!a.length)return;if(typeof a[0].lat==="number"){rings.push(a);return;}for(const x of a)w(x);})(ly.getLatLngs());
+if(!rings.length)continue;
+const boxes=rings.map(a=>{let a1=91,a2=-91,b1=999,b2=-999;for(const p of a){if(p.lat<a1)a1=p.lat;if(p.lat>a2)a2=p.lat;if(p.lng<b1)b1=p.lng;if(p.lng>b2)b2=p.lng;}return[a1,a2,b1,b2,Math.max(0.0001,(a2-a1)*(b2-b1))];});
+const totA=boxes.reduce((s,b)=>s+b[4],0);let got=0,tries=0;
+while(got<12&&tries<260){tries++;let rr=Math.random()*totA,bi=0;while(bi<boxes.length-1&&rr>boxes[bi][4]){rr-=boxes[bi][4];bi++;}
+const b=boxes[bi],la=b[0]+Math.random()*(b[1]-b[0]),lo=b[2]+Math.random()*(b[3]-b[2]);
+let c=false;const r=rings[bi];for(let i=0,j=r.length-1;i<r.length;j=i++){const xi=r[i].lng,yi=r[i].lat,xj=r[j].lng,yj=r[j].lat;if((yi>la)!==(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)c=!c;}
+if(c){pool.push([la,lo]);got++;}}
+}
+cache[d.m]=pool;}
+const rf=Math.max(0.12,Math.min(1,(d.arabian+d.bay)/200));
+const n=Math.min(320,Math.round((40+250*rf)*(RM?0.4:1)));
+rainFx=[];
+for(let i=0;i<n;i++){if(!pool.length)break;const p=pool[i%pool.length];
+rainFx.push({la:p[0]+(Math.random()-0.5)*0.22,lo:p[1]+(Math.random()-0.5)*0.22,ph:Math.random(),sp:0.6+Math.random()*0.5+rf*0.5,ln:7+Math.random()*5});}
+rainInfo={m:d.m,n:rainFx.length,pool:pool.length,k:rf};
+window.__rainDbg=()=>({m:rainInfo.m,rain:rainInfo.n,pool:rainInfo.pool,k:+rainInfo.k.toFixed(3)});
+}catch(e){rainFx=[];rainInfo={m:d.m,n:0,pool:0,k:0};}
 };
 window.__rainStates(monthByNum(INDWeather.month||7));
 [["ARABIAN SEA",12.5,62],["BAY OF BENGAL",14.5,88.5],["INDIAN OCEAN",-3,74]].forEach(([t,la,lo])=>L.marker([la,lo],{interactive:false,icon:L.divIcon({className:"oceanLbl",html:t})}).addTo(map));
@@ -232,8 +278,8 @@ map.on("zoomend",()=>{if(window.__applyLayers)window.__applyLayers();});
 const riverG=L.layerGroup();
 const MAJORS=new Set(["ganges","brahmaputra","indus","yamuna","godavari","krishna","cauvery","narmada","tapi","mahana nadi","ghaghara","gandak","chambal","son","brahmani","chenab","sutlej","penner","tungabhadra","tista","mahi","beas","ravi","jhelum","palar","wainganga","kolidam","luhit"]);
 const rnorm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-const rivMaj=L.layerGroup(),rivMed=L.layerGroup(),rivMin=L.layerGroup();
-let riverCount=0;
+const rivMaj=L.layerGroup(),rivMed=L.layerGroup(),rivMin=L.layerGroup(),rivWest=L.layerGroup();
+let riverCount=0,westCount=0;
 const RORIG=[
 {n:"Ganga",o:"Gaumukh · Gangotri glacier",st:"Uttarakhand",la:30.93,lo:79.47,note:"Mouth: Bay of Bengal; snowmelt + monsoon fed"},
 {n:"Yamuna",o:"Yamunotri glacier",st:"Uttarakhand",la:31.01,lo:78.45,note:"Largest Ganga tributary; meets at Prayagraj"},
@@ -274,6 +320,14 @@ const ang=Math.atan2(b[0]-a[0],b[1]-a[1])*180/Math.PI;
 L.marker([a[1],a[0]],{interactive:false,icon:L.divIcon({className:"",html:`<span style="display:inline-block;transform:rotate(${ang.toFixed(0)}deg);color:#0284C7;font-size:13px;line-height:1">▲</span>`})}).addTo(riverG);
 });
 }catch(e){console.warn("rivers failed",e);}
+/* v6.2 west-flowing rivers (Arabian-Sea side): the CWC River_Network subset that Natural
+   Earth lacks (Konkan/Goa/Karnataka/Kerala + Kutch/Saurashtra coast, Narmada–Tapi inland).
+   Shown from z5 with the other rivers so the west coast reads like the east. */
+try{
+const rw=await getJSON("data/india-rivers-west.geo.json","riversWest");
+L.geoJSON(rw,{style:{color:"#0284C7",weight:1.1,opacity:0.8,smoothFactor:2},onEachFeature:(f,l)=>{l.bindPopup(`<b>${f.properties.rivname||"River"}</b> · ${f.properties.len_km} km<br>basin: ${f.properties.basin||"—"}<br>Source: user River_Network shapefile (west-flowing subset)`);}}).eachLayer(l=>rivWest.addLayer(l));
+westCount=rw.features.length;
+}catch(e){console.warn("west rivers failed",e);}
 RORIG.forEach(o=>{L.circleMarker([o.la,o.lo],{radius:4,color:"#1A1A1A",fillColor:"#0284C7",fillOpacity:1,weight:2}).addTo(riverG).bindPopup(`<b>${o.n} origin (approx)</b><br>${o.o} — ${o.st}<br>${o.note}<br>Source: web · NCERT Oct 2026`);});
 const MOUTHS=[["Ganga","Sagar Island",21.6,88.08],["Brahmaputra","confluence with Ganga",23.8,89.75],["Indus","Kotri creek, Arabian Sea",23.99,67.42],["Godavari","Yanam",16.73,82.28],["Krishna","Hamsaladeevi",15.91,80.91],["Kaveri","Poompuhar",11.14,79.85],["Narmada","Gulf of Khambhat",21.65,72.53],["Tapi","Surat",21.2,72.62],["Mahanadi","Paradip",20.26,86.65],["Sabarmati","Gulf of Khambhat",22.16,72.55],["Mahi","Gulf of Khambhat",22.23,72.62],["Brahmani","Dhamra",20.78,86.95],["Subarnarekha","Talsari",21.58,87.28]];
 MOUTHS.forEach(([n,o,la,lo])=>{L.circleMarker([la,lo],{radius:5,color:"#0284C7",fillColor:"#fff",fillOpacity:1,weight:2}).addTo(riverG).bindPopup(`<b>${n} meets the sea (approx)</b><br>${o}<br>Source: web · NCERT Oct 2026`);});
@@ -399,6 +453,7 @@ sync(riverG,layers.rivers);
 const zd=map.getZoom();
 sync(rivMaj,layers.rivers);
 sync(rivMed,layers.rivers&&zd>=5);
+sync(rivWest,layers.rivers&&zd>=5);
 sync(rivMin,layers.rivers&&zd>=7);
 sync(curG,layers.winds);
 sync(textG,layers.winds&&zd>=5);
@@ -409,12 +464,12 @@ sync(cwcG,layers.rivers&&map.getZoom()>=6);
 if(!layers.basins&&map.hasLayer(subG))map.removeLayer(subG);
 syncRadarLbl();
 if(window.__damLbl)window.__damLbl(layers.dams);
-const n=[heatG,radarG,iodG,lpsG,mjoG,curG,textG,riverG,rivMaj,basinG,dg0,waterG,cwcG].filter(g=>{try{return map.hasLayer(g);}catch(_){return false;}}).length;
-monthReadout.title=`layers on map: ${n}/13`;
+const n=[heatG,radarG,iodG,lpsG,mjoG,curG,textG,riverG,rivMaj,rivWest,basinG,dg0,waterG,cwcG].filter(g=>{try{return map.hasLayer(g);}catch(_){return false;}}).length;
+monthReadout.title=`layers on map: ${n}/14`;
 let svgOk="svg-?";
 try{if(document.querySelector("#map .stage").classList.contains("terrain-on"))svgOk="2D hidden (3D on)";else{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}}catch(_){}
 const dbg=$("layerDebug");
-if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount} basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/13 · zoom=${map.getZoom()} · ${svgOk}`;
+if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · zoom=${map.getZoom()} · ${svgOk}`;
 };
 window.__applyLayers();
 setTimeout(()=>window.__applyLayers(),1200);
@@ -611,6 +666,26 @@ const lines=f.geometry.type==="LineString"?[f.geometry.coordinates]:f.geometry.c
 for(const ln of lines){const g=[];for(let i=0;i<ln.length;i+=2){const lo=ln[i][0],la=ln[i][1];if(lo<TB.lon0||lo>TB.lon1||la<TB.lat0||la>TB.lat1)continue;g.push(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.012,Z(la)));}if(g.length>1){const isMajor=(f.properties.scalerank??9)<=3||IND_MAJ.has(nmN(f.properties.name));const mesh=new THREE.Line(new THREE.BufferGeometry().setFromPoints(g),isMajor?new THREE.LineBasicMaterial({color:0x38bdf8}):rmat);scene.add(mesh);draped.push(g);let rec=riverObjs.find(r=>r.name===f.properties.name);if(!rec){rec={name:f.properties.name,meshes:[],mid:null};riverObjs.push(rec);}rec.meshes.push(mesh);if(isMajor&&!rec.mid)rec.mid=g[Math.floor(g.length/2)];}}
 }
 }catch(e){console.warn("terrain rivers",e);}
+/* v6.2 west-flowing rivers (Arabian-Sea side, from the CWC River_Network): real centre-lines
+   the Natural Earth set lacks — Konkan/Goa/Karnataka/Kerala + Kutch/Saurashtra coast. Drawn as
+   ONE LineSegments batch (hundreds of small rivers = 1 draw call) and appended to `draped` so
+   dams gate on them and the flow packets run on them exactly like the other rivers. */
+const neCount=draped.length;
+let westDragged=0;
+try{
+const rw=await getJSON("data/india-rivers-west.geo.json","riversWest");
+const segs=[];
+for(const f of rw.features){
+const lines=f.geometry.type==="LineString"?[f.geometry.coordinates]:f.geometry.coordinates;
+for(const ln of lines){
+const g=[];
+for(let i=0;i<ln.length;i++){const lo=ln[i][0],la=ln[i][1];if(lo<TB.lon0||lo>TB.lon1||la<TB.lat0||la>TB.lat1)continue;g.push(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.010,Z(la)));}
+if(g.length>1){for(let i=1;i<g.length;i++){segs.push(g[i-1].x,g[i-1].y,g[i-1].z,g[i].x,g[i].y,g[i].z);}draped.push(g);westDragged++;}
+}
+}
+if(segs.length){const gW2=new THREE.BufferGeometry();gW2.setAttribute("position",new THREE.Float32BufferAttribute(segs,3));scene.add(new THREE.LineSegments(gW2,new THREE.LineBasicMaterial({color:0x38bdf8,transparent:true,opacity:0.6})));}
+}catch(e){console.warn("terrain west rivers",e);}
+t3Stats.west=westDragged;
 const PEAKS=[["Everest 8849m",27.988,86.925],["Kanchenjunga 8586m",27.702,88.148],["Nanda Devi 7816m",30.375,79.969],["K2 8611m",35.88,76.51],["Nanga Parbat 8126m",35.24,74.59],["Anamudi 2695m",10.169,77.062]];
 const pkMat=new THREE.MeshBasicMaterial({color:0xffffff});
 const pkObjs=PEAKS.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(0.022,10,10),pkMat);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.03,Z(la));scene.add(s);return{n,s};});
@@ -711,6 +786,10 @@ const s=0.35+0.65*hydroF,M4=new THREE.Matrix4(),S4=new THREE.Matrix4();
 resMeshes.forEach(r=>{M4.makeTranslation(r.px,r.py,r.pz);S4.makeScale(s,1,s);M4.multiply(S4);S4.makeTranslation(-r.px,-r.py,-r.pz);M4.multiply(S4);r.m.matrix.copy(M4);r.m.matrixWorldNeedsUpdate=true;});
 resMat.opacity=0.45+0.42*hydroF;
 pktPts.material.size=0.02+0.028*hydroRF;pktPts.material.opacity=0.45+0.5*hydroRF;
+const vd=md?vecFor(md):curVec;
+wxVec={x:vd.vx,z:vd.vy};
+wxRN=Math.round((36+330*hydroRF)*(RM?0.5:1));
+wxWN=Math.round(22+115*Math.min(1.25,Math.hypot(vd.vx,vd.vy)));
 };
 /* named river labels + tap-to-trace list */
 const lblRivers=riverObjs.filter(r=>r.mid);
@@ -732,13 +811,52 @@ window.__riverLbl=rec=>{const el=document.getElementById("rvl"+rec.li);if(!el)re
    rainfall month, packets downstream of a dam follow that dam's release (v6.1) */
 function orientSrc(g){return g[g.length-1].y>g[0].y?[...g].reverse():g;}
 const pktAsn=[];
-{let tot=0;const Ls=draped.map(g=>{let L=0;for(let i=1;i<g.length;i++)L+=g[i].distanceTo(g[i-1]);tot+=L;return L;});
-draped.forEach((g,gi)=>{const og=orientSrc(g);const n=Math.max(3,Math.round(200*(Ls[gi]/(tot||1))));const gt=relGates.filter(x=>x.gi===gi).map(x=>x.t);for(let k=0;k<n&&pktAsn.length<200;k++)pktAsn.push({g:og,u:Math.random(),gates:gt});});}
+{let tot=0,totW=0;const Ls=draped.map((g,gi)=>{let L=0;for(let i=1;i<g.length;i++)L+=g[i].distanceTo(g[i-1]);if(gi<neCount)tot+=L;else totW+=L;return L;});
+/* v6.2: two budgets — the Natural Earth majors keep their 200-packet share; the west subset
+   gets its own 150 so the new coast rivers actually have living flow instead of falling off
+   the old single cap (features are pre-sorted longest-first in the file). */
+let neUsed=0,wUsed=0;
+draped.forEach((g,gi)=>{const og=orientSrc(g);const west=gi>=neCount;const n=Math.max(west?1:3,Math.round((west?150:200)*(Ls[gi]/((west?totW:tot)||1))));const gt=relGates.filter(x=>x.gi===gi).map(x=>x.t);
+if(west){for(let k=0;k<n&&wUsed<150;k++,wUsed++)pktAsn.push({g:og,u:Math.random(),gates:gt});}
+else{for(let k=0;k<n&&neUsed<200;k++,neUsed++)pktAsn.push({g:og,u:Math.random(),gates:gt});}});}
 const pktN=pktAsn.length,pktPos=new Float32Array(Math.max(3,pktN)*3);
 const pktGeo=new THREE.BufferGeometry();
 pktGeo.setAttribute("position",new THREE.BufferAttribute(pktPos,3));
 const pktPts=new THREE.Points(pktGeo,new THREE.PointsMaterial({color:0xffffff,size:0.035,transparent:true,opacity:0.95,sizeAttenuation:true}));
 pktPts.frustumCulled=false;scene.add(pktPts);
+/* v6.2 3D weather field (illustrative month-typical): rain streaks fall over the relief and
+   wind streaks drift with the month's branch vector — both density-driven by the same
+   months.json numbers as the 2D wind/rain (rf=(arabian+bay)/200, vecFor(d) direction). */
+const wxRMax=400,wxWMax=150;
+const wxRPos=new Float32Array(wxRMax*6),wxRDrop=new Array(wxRMax).fill(null);
+const wxRGeo=new THREE.BufferGeometry();wxRGeo.setAttribute("position",new THREE.BufferAttribute(wxRPos,3));
+const wxR=new THREE.LineSegments(wxRGeo,new THREE.LineBasicMaterial({color:0x7cc4e3,transparent:true,opacity:0.4,depthWrite:false}));
+wxR.frustumCulled=false;scene.add(wxR);
+const wxWPos=new Float32Array(wxWMax*6),wxWDrop=new Array(wxWMax).fill(null);
+const wxWGeo=new THREE.BufferGeometry();wxWGeo.setAttribute("position",new THREE.BufferAttribute(wxWPos,3));
+const wxW=new THREE.LineSegments(wxWGeo,new THREE.LineBasicMaterial({color:0x9fb4c7,transparent:true,opacity:0.24,depthWrite:false}));
+wxW.frustumCulled=false;scene.add(wxW);
+let wxRN=0,wxWN=0,wxVec={x:0,z:0};
+const wxInvLon=x=>(x/W)*(TB.lon1-TB.lon0)+(TB.lon0+TB.lon1)/2;
+const wxInvLat=z=>(TB.lat0+TB.lat1)/2-(z/D)*(TB.lat1-TB.lat0);
+const wxFloor=(x,z)=>yOf(Math.max(0,hAt(wxInvLon(x),wxInvLat(z))))+0.012;
+const wxResetR=i=>{wxRDrop[i]={x:(Math.random()-0.5)*W*0.96,z:(Math.random()-0.5)*D*0.96,y:1.02+Math.random()*0.4};};
+const wxResetW=i=>{wxWDrop[i]={x:(Math.random()-0.5)*W*0.94,z:(Math.random()-0.5)*D*0.94,y:0.3+Math.random()*0.75};};
+const stepWx=dt=>{
+if(wxRN>0){wxRGeo.setDrawRange(0,Math.min(wxRN,wxRMax)*2);
+for(let i=0;i<wxRN&&i<wxRMax;i++){const d=wxRDrop[i]||(wxResetR(i),wxRDrop[i]);
+d.y-=(1.25+0.55*hydroRF)*dt;if(d.y<wxFloor(d.x,d.z)){wxResetR(i);continue;}
+const o=i*6;wxRPos[o]=d.x;wxRPos[o+1]=d.y;wxRPos[o+2]=d.z;wxRPos[o+3]=d.x+wxVec.x*0.012;wxRPos[o+4]=d.y+0.045;wxRPos[o+5]=d.z+wxVec.z*0.012;}
+wxRGeo.attributes.position.needsUpdate=true;}
+if(wxWN>0){wxWGeo.setDrawRange(0,Math.min(wxWN,wxWMax)*2);
+const hb=Math.max(1e-6,Math.hypot(wxVec.x,wxVec.z)),spd=0.12+0.4*Math.min(1.3,hb);
+for(let i=0;i<wxWN&&i<wxWMax;i++){const d=wxWDrop[i]||(wxResetW(i),wxWDrop[i]);
+d.x+=wxVec.x*spd*dt;d.z+=wxVec.z*spd*dt;
+if(d.x>W/2)d.x-=W*1.02;if(d.x<-W/2)d.x+=W*1.02;if(d.z>D/2)d.z-=D*1.02;if(d.z<-D/2)d.z+=D*1.02;
+const lx=wxVec.x/hb*0.055,lz=wxVec.z/hb*0.055;const o=i*6;
+wxWPos[o]=d.x-lx;wxWPos[o+1]=d.y;wxWPos[o+2]=d.z-lz;wxWPos[o+3]=d.x+lx;wxWPos[o+4]=d.y;wxWPos[o+5]=d.z+lz;}
+wxWGeo.attributes.position.needsUpdate=true;}
+};
 applyHydro(INDWeather.month||7,true);   /* v6.1: seed flow + reservoir levels for the current month */
 const cam=new THREE.PerspectiveCamera(42,2,0.1,50);
 let th=0,ph=0.62,R=4.4,drag=false,px=0,py=0,lastW=0;
@@ -768,6 +886,7 @@ const mNow=INDWeather.month||7;
 applyHydro(mNow);                                            /* v6.1: flow + reservoir levels follow the month (no-op unless changed) */
 const tw=performance.now()/1000,dtS=Math.min(0.1,tw-tmLast||0.016);tmLast=tw;
 const vF=(0.02+0.11*hydroRF)*dtS;
+stepWx(dtS);                                                 /* v6.2: rain + wind streaks follow the month */
 for(let i=0;i<pktN;i++){const P=pktAsn[i];if(!P)continue;const g=P.g;let k=1;const gt=P.gates;for(let j=0;j<gt.length;j++)if(P.u>gt[j])k*=hydroR;P.u=(P.u+vF*k)%1;const s=P.u*(g.length-1),i0=Math.floor(s),fr=s-i0,a=g[i0],b=g[Math.min(g.length-1,i0+1)];pktPos[i*3]=a.x+(b.x-a.x)*fr;pktPos[i*3+1]=a.y+(b.y-a.y)*fr+0.008;pktPos[i*3+2]=a.z+(b.z-a.z)*fr;}
 pktGeo.attributes.position.needsUpdate=true;
 cam.lookAt(tgt);fit();renderer.render(scene,cam);
@@ -778,10 +897,10 @@ if(typeof lblRivers!=="undefined")lblRivers.forEach((r)=>{proj.copy(r.mid).proje
 })();
 window.__terrainMonth=d=>{
 const m=d.m;
-cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m. Valley-fitted dam walls + reservoir water (illustrative, height-scaled); river flow and reservoir levels follow the rainfall month + dam release (illustrative).";
+cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m. Valley-fitted dam walls + reservoir water (illustrative, height-scaled); river flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative).";
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
-window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(4),+tgt.z.toFixed(4)],fly:!!fly}),hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length})};
+window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(4),+tgt.z.toFixed(4)],fly:!!fly}),hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount})};
 }
 if($("btn3d"))$("btn3d").addEventListener("click",async()=>{
 terrainOn=!terrainOn;

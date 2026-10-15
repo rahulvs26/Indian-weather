@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~760 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v6.1).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v6.2).
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -12,7 +12,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.2).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -29,9 +29,9 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-15, v6.1)
-- Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109
-  basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> layers on=11/13 vectors-ok`.
+## Current verified state (2026-10-15, v6.2)
+- Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
+  basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> layers on=12/14 vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
   While 3D is on the vectors check reads `2D hidden (3D on)` (expected; the 3D
   toggle refreshes the line at toggle-on and again ~350 ms after returning to 2D).
@@ -53,16 +53,34 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
 - MJO arrow influence zone: canvas wind arrows within ±30° lon of the pulse and
   |lat|<14 recolour violet (Ph1–3 enhanced) / muted grey (Ph4–5); the three
   pulse-feed burst arrows match; legend in the Fig-0 caption.
-- Zoom hierarchy (Google-Maps style): rivers rivMaj/rivMed(≥5)/rivMin(≥7);
-  dams dg0(top40)/dg1(<400)/dg2(all, ≥8) + labels ≥7; CWC network ≥6 bg-load;
-  water (reservoirs/glacial/TN) lazy on chip only.
+- Zoom hierarchy (Google-Maps style): rivers rivMaj/rivMed(≥5)/rivMin(≥7) + rivWest
+  (CWC west-flowing subset, ≥5); dams dg0(top40)/dg1(<400)/dg2(all, ≥8) + labels ≥7;
+  CWC network ≥6 bg-load; water (reservoirs/glacial/TN) lazy on chip only.
+- 2D RAIN STREAKS (v6.2, illustrative): `stepRain(nowS)` runs inside the wind-canvas
+  loop (only while the Winds chip is on). Drops fall over the month's `rainStates` —
+  the same IMD month-typical list as the teal highlight. Pool sampled inside each state
+  polygon (area-weighted ring pick + even-odd test), cached per month in
+  `window.__rainPoolCache`; count `min(320,40+250·rf)`, `rf=max(0.12,min(1,(arabian+bay)/200))`;
+  streak lean follows `curVec`. Rebuild happens inside `window.__rainStates`. `__rainDbg()`
+  = {m,rain,pool,k}.
+- 3D WEATHER (v6.2, illustrative): rain = LineSegments `wxRGeo` with N=`wxRN=36+330·rf`
+  falling to terrain (`wxFloor`); wind = LineSegments `wxWGeo` with
+  N=`wxWN=22+115·min(1.25,|vecFor(md)|)` drifting along `wxVec=(x:vx,z:vy)`; both counts +
+  vector set inside `applyHydro` (the month funnel), positions integrated by `stepWx(dtS)`
+  in the render loop; extras hidden via `setDrawRange`. `__t3.wx()` = {m,rf,rain,wind,vx,vz,pkt,west}.
+- 3D WEST RIVERS (v6.2): `neCount=draped.length` is captured right after the Natural Earth
+  drape and the CWC subset is appended AFTER it. Land-mine: packet seeding used one 200-cap
+  fed in `draped` order — appended west lines would have been starved to ZERO packets; it now
+  keeps two budgets (NE 200 / west 150). Never reorder `draped` before packets are seeded.
+  `__t3.stats.west` counts draped LINE PARTS (file = 633 features = 376 LineString + 257
+  MultiLineString = 1268 parts; verified).
 - 3D TERRAIN PARAMS (all inside `buildTerrain()`; grep the names — do not re-read the file):
   `TB={lon0:66,lon1:98,lat0:5,lat1:38,z:6}` (Terrarium DEM, 7×8=56 tiles ≈2–4 MB, build
   a few seconds); blur = single-pass 3-tap ±1 px; mesh W=3.4 D=2.55 SX=640 SY=560;
   `yOf h=>max(0,h)/8849*1.15` — UNCLIPPED, Everest 8849 m = 1.15 = top of scale (old
   `min(1.1,…)` cap flattened everything >≈7174 m — do not reintroduce). Terrain bands:
   cA #5B8C5A / cB #A08B62 / cC #8A8F98 / cS #F2F3F5 at 400/1800/5200 m.
-  `window.__t3={hAt,yOf,stats,view,hydro}` = read-only verification hooks.
+  `window.__t3={hAt,yOf,stats,view,hydro,wx}` = read-only verification hooks.
 - 3D CAMERA PARAMS (v6.0 deep zoom; grep `tgt`,`fly`,`startFly`,`tMesh` — all inside `buildTerrain()`):
   orbit target `tgt` starts (0,0.25,0) = old fixed lookAt (same math while tgt=HOME); wheel
   `R=max(0.01,min(12,R·e^{deltaY·0.003}))`; near plane `max(0.002,0.02·R)` refreshed each loop;
@@ -120,15 +138,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
   / `relGates` are declared OUTSIDE the dams `try{}` — do not move them back inside.
 
 ## Next up (for the next session)
-- Nothing blocking; site is green (v6.1, everything live-verified).
+- Nothing blocking; site is green (v6.2, everything live-verified).
 - If asked to keep polishing the 3D view: candidates are hover labels for the
   top-40 dams, a soft spillway glint, or snow-cap tinting tied to `yOf` bands —
   if any option conveys new info, keep the "(illustrative)" label.
 - Otherwise pick from the standing optional items below.
 
 ## Open items (not bugs)
-- 6 rivers have no centerlines in any source (Kosi, Sabarmati, Luni, Damodar,
-  Subarnarekha, Vaigai) → origin dots only; honest gap, documented.
+- 6 rivers had no centerlines in older sources (Kosi, Sabarmati, Luni, Damodar,
+  Subarnarekha, Vaigai); v6.2 gave Sabarmati a real centerline (west subset), the other
+  five keep origin dots only — honest gap, documented.
 - Big layers stay fetch-only (14.6 MB CWC, 2.3 MB reservoirs, 2 MB banks,
   0.5 MB TN) — intentional for first-paint speed.
 - Optional future: thinner cwc file, mobile pass, live-API hooks
@@ -148,7 +167,9 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
   resampling (raw z6 summit pixel is 8121; the old pipeline rendered ≈6830 under
   a 7174 ceiling), K2 (76.51,35.88) > 6000; Mumbai/Chennai coasts < 100 m.
 - 3D dams: `__t3.stats.walls` → >0 and ≤250 (the RIVER-GATED rendered count —
-  record the number; 0 = gate/radius broke, 250 = gate never fired),
+  record the number; 0 = gate/radius broke, 250 = gate never fired. v6.2 values:
+  walls=221, reservoirs=46, gates=46 at month 1 — the west rivers let extra coast
+  valley gates fire; v6.1 was walls≈165, res≈39),
   `__t3.stats.reservoirs` → >0 (0 means the valley-closure gate never fired —
   inspect `LMAX`/`wy`). Walls must sit IN the terrain — small, low, concrete-grey
   with a light crest; ends vanish into hillsides; water only in closed valleys.
@@ -162,7 +183,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
 - 3D hydro (v6.1): default month 7 → `__t3.hydro()` {m:7, fill≈0.501, rel≈0.657, gates>0};
   set `#monthSlider` 9 (dispatch `input`) → fill≈0.967, rel≈1.318, scale≈0.979, res0≈0.979
   (matrix really applied to a reservoir); month 5 → fill≈0.296, rel≈0.572, scale≈0.542,
-  res0≈0.542. rf follows months.json; packets keep advancing in every month.
+  res0≈0.542; month 1 (seeded build) → fill≈0.351, rel≈0.587, scale/res0≈0.578. rf follows
+  months.json; packets keep advancing in every month.
+- v6.2 west rivers: fresh load → `__t3.stats.west` = 1268 line parts (of the 633 features) and
+  `__t3.wx().west` must equal it; self-test reads `rivers=109+633west`; at z5 the overlay pane
+  shows ~880 paths (≈633 west + 109 NE + 36 states + markers) — the Konkan/Goa/Karnataka/Kerala
+  coast now carries rivers (rivWest, 2D only).
+- v6.2 weather animations: `__rainDbg()` month 7 → {m:7, rain≈278, pool≈360}; slider 1 →
+  {m:1, rain≈103, pool≈48}. 3D on: `__t3.wx()` month 7 → {rain≈350, wind≈166, vx≈1.45, vz≈-0.84};
+  slider 1 → {rain≈119, wind≈61, vx≈-0.26, vz≈0.21}. Values are ballpark — the month-to-month
+  FLIP in density/direction is what must hold; console stays clean.
 - Self-test in 3D: expect `2D hidden (3D on)`; toggling back to 2D auto-refreshes
   to `vectors-ok` (~350 ms).
 - Commands used previously run clean: `node --check app.js`.
@@ -171,6 +201,6 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v6.1).
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v6.1), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v6.2), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

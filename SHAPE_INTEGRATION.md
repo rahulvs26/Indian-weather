@@ -9,6 +9,7 @@ Goal: every user dataset visible in 3D + 2D map. Boxes ticked only after live br
 - [x] subbasins (98 CWC sub-basin polygons deduped from 121, 3.9MB) from KML
 - [x] dams (13,002 pts from 13,365: Dam.shp + DAM.shp + BWA, explicit lat/longs, deduped, 2.9MB)
 - [x] rivers-cwc (30,395 lines + names/basin/origin/ends, 14.6MB, background load)
+- [x] rivers-west (v6.2: 633 west-flowing lines — filter = west basins + len≥30 km + lon<76.7°E, DP ~0.9 km, 0.18MB; 2D z≥5 + 3D drape + flow packets)
 - [x] glacial lakes (522 polys + elevation, 0.6MB)
 - [x] reservoirs (5,162 polys hard-thinned, 2.3MB; slivers below thin threshold dropped)
 - [x] riverbanks (1,032 major-polygon subset, 2.0MB)

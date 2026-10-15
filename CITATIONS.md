@@ -31,7 +31,11 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
    sub-basins), dam/barrage points (Dam.shp, DAM.shp, BWA.shp), river network
    polylines (River_Network.shp), reservoir polygons, glacial-lake polygons,
    riverbank polygons, Tamil Nadu waterbody polygons. Provided by the site owner
-   from `Shape files/`; web extracts in `data/` are thinned derivatives.
+   from `Shape files/`; web extracts in `data/` are thinned derivatives. v6.2
+   subset for the Arabian-Sea side: `data/india-rivers-west.geo.json` — 633
+   River_Network lines of the west-flowing systems (Narmada, Tapi, Mahi, Sabarmati,
+   Kutch–Saurashtra, Tapi–Tadri, Tadri–Kanyakumari basins), len ≥ 30 km,
+   Douglas–Peucker ≈ 0.9 km (180 KB); used on the 2D map (z≥5) and the 3D relief.
 
 ## Open data & services (accessed Oct 2026)
 

@@ -1,4 +1,5 @@
-# Indian Weather Study Website — Strict Build Spec (v5.2)
+# Indian Weather Study Website — Strict Build Spec (v5.4)
+Date: 2026-10-12 (v5.4: MJO visibility fix — tour auto-fits the equatorial corridor (Africa→Pacific) so the pulse is never off-screen; slider pans gently only when the blob target is outside the padded view; wrap 8→1 snaps to Africa instead of sliding backwards; shuttle glides via CSS transition; verified live) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/NOAA/PIB, cited) | Status: FROZEN.
 Date: 2026-10-11 (v3.7: TDZ crash fix — MJO window refs published after creation; verified live in browser console) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/NOAA/PIB, cited) | Status: FROZEN.
 Date: 2026-10-11 (v3.3: state rain, IOD time-machine, ocean heat/cold, fly-to chips) | Sources: 6 PDFs in `pdf/` + open web (IMD/OSM/BOM/NOAA/PIB, cited) | Status: FROZEN.
 Amendments vs v3.2: `data/india-states.geo.json` (GADM, 41 feats, 204KB) with per-month `rainStates` highlight (teal = receiving rain, tap for name); chips fly to content on enable; IOD boxes show live warm=amber/cold=blue from DMI slider + landmark dropdown (`data/iod_events.json`, 13 events, illustrative slider only); MJO blob pulses + ghost + track; Fig6 cursor unchanged; self-test counts states; symbols legend extended.

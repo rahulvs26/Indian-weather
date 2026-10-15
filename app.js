@@ -347,6 +347,8 @@ const lon=15+(p-1)*17;
 let sl=lon-180;if(sl<-180)sl+=360;if(sl>180)sl-=360;
 const A=window.__mjoAnim||(window.__mjoAnim={lon,sup:sl,tlon:lon,tsup:sl});
 A.tlon=lon;A.tsup=sl;
+/* wrap 8→1: snap to Africa instead of sliding backwards across the ocean */
+if(Math.abs(lon-A.lon)>80)A.lon=lon;if(Math.abs(sl-A.sup)>80)A.sup=sl;
 CLIM.mjoBoost=(p<=3?1.25:(p<=5?0.8:1));
 if(window.__currentMonth){try{window.__currentMonth(monthByNum(INDWeather.month||7));}catch(_){}}
 mjoBlob.setPopupContent(`<b>MJO Phase ${p} (enhanced)</b> over ${d?d.over:"—"}<br>${d?d.india:""}<br>Westerly bursts feed it from the west; currents run with MJO boost.<br>Source: data/mjo.json`);
@@ -480,6 +482,8 @@ mjoShuttle.setAttribute("transform",`translate(${(110+(p-1)*(500/7)).toFixed(1)}
 mjoReadout.textContent=`Ph${p} over ${d.over} → India: ${d.india} · ${d.s}`;
 mjoReadout.title="30-60-day eastward pulse; Ph1-3 wet S peninsula, Ph4-5 dry/break (Pai 2011)";
 if(window.__mjoMap)window.__mjoMap(p,d);
+/* if the pulse is off-screen, pan gently so the phase change is visible */
+try{if(window.__mjoG&&map.hasLayer(window.__mjoG)){const t=[-5,15+(p-1)*17],pp=map.latLngToContainerPoint(t),s=map.getSize();if(pp.x<-30||pp.x>s.x+30||pp.y<-30||pp.y>s.y+30)map.panInside(t,{animate:true,paddingTopLeft:[100,70],paddingBottomRight:[70,100]});}}catch(_){}
 if(window.__graphCursor)window.__graphCursor(INDWeather.month||7);
 }
 Promise.resolve(getJSON("data/mjo.json","mjo")).then(j=>{
@@ -492,7 +496,10 @@ mjoPhase(2);
 }).catch(()=>{mjoReadout.textContent="mjo.json failed to load — use local server.";});
 let mjoTourShared=null;
 function paintMjoBtns(running){["mjoPlay","mjoPlayMap"].forEach(id=>{const b=$(id);if(!b)return;if(id==="mjoPlay")b.textContent=running?"■ stop":"▶ propagate";else b.textContent=running?"■ MJO":"▶ MJO";});}
-window.__toggleMjo=()=>{if(mjoTourShared){clearInterval(mjoTourShared);mjoTourShared=null;paintMjoBtns(false);return;}paintMjoBtns(true);mjoTourShared=setInterval(()=>{INDWeather.mjo=INDWeather.mjo%8+1;mjoPhase(INDWeather.mjo);},RM?99999:1100);};
+window.__toggleMjo=()=>{if(mjoTourShared){clearInterval(mjoTourShared);mjoTourShared=null;paintMjoBtns(false);return;}
+/* tour starts: bring the whole MJO corridor (Africa→Pacific) into view if it is not already */
+try{if(window.__mjoG&&map.hasLayer(window.__mjoG)){const cb=L.latLngBounds([[-16,6],[14,144]]);if(!map.getBounds().contains(cb))map.flyToBounds(cb,{duration:1.5,padding:[24,24]});}}catch(_){}
+paintMjoBtns(true);mjoTourShared=setInterval(()=>{INDWeather.mjo=INDWeather.mjo%8+1;mjoPhase(INDWeather.mjo);},RM?99999:1100);};
 $("mjoPlay").addEventListener("click",window.__toggleMjo);
 if($("mjoPlayMap"))$("mjoPlayMap").addEventListener("click",window.__toggleMjo);
 

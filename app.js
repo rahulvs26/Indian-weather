@@ -36,6 +36,7 @@ if(window.__branchSize)window.__branchSize(d);
 if(window.__zoneMonth)window.__zoneMonth(m);
 if(window.__iodSeason)window.__iodSeason(m);
 if(window.__currentMonth)window.__currentMonth(d);
+if(window.__mjoMonthSync)window.__mjoMonthSync(d);
 if(window.__graphCursor)window.__graphCursor(m);
 if(window.__rainStates)window.__rainStates(d);
 if(window.__riverMonth)window.__riverMonth(d);
@@ -96,32 +97,40 @@ wctx.fillRect(p.x,p.y,2.2,1.4);
 wctx.globalAlpha=1;
 /* arrow grid mirrors the same vector (text equivalent lives in month readout) */
 const gx=90,gy=105;
+const MJO_ENH="#6D28D9";
 for(let ix=0;ix<Math.floor(c.width/gx);ix++)for(let iy=0;iy<4;iy++){
 const x=ix*gx+45+(iy%2)*30,y=iy*gy+55;
 const wob=Math.sin(Date.now()*0.001+x*0.01)*0.15;
 let ax=curVec.vx+wob*0.3,ay=curVec.vy+wob*0.2;
-if(map){try{const ll=map.containerPointToLatLng([x,y]);if(ll.lat>-12&&ll.lat<12&&ll.lng>40&&ll.lng<115)ax+=-CLIM.dmi*0.9;}catch(_){}}
-drawArrow(x,y,ax,ay,x<c.width*0.45?ARAB_COL:(x>c.width*0.55?BOB_WIND:"#9CA3AF"));
+let col=x<c.width*0.45?ARAB_COL:(x>c.width*0.55?BOB_WIND:"#9CA3AF");
+if(map){try{const ll=map.containerPointToLatLng([x,y]);
+if(ll.lat>-12&&ll.lat<12&&ll.lng>40&&ll.lng<115)ax+=-CLIM.dmi*0.9;
+/* MJO influence zone follows the pulse: violet = enhanced Ph1-3, muted grey = suppressed Ph4-5 */
+if(window.__mjoAnim&&ll.lat>-14&&ll.lat<14&&Math.abs(ll.lng-window.__mjoAnim.lon)<=30){const p=INDWeather.mjo;if(p<=3)col=MJO_ENH;else if(p<=5)col=BOB_COL;}
+}catch(_){}}
+drawArrow(x,y,ax,ay,col);
 }
 /* MJO glide: blob + ghost travel toward phase targets; westerly bursts feed the blob */
 if(window.__mjoAnim&&window.__mjoBlob&&map){
 const A=window.__mjoAnim;
-A.lon+=((A.tlon??A.lon)-A.lon)*0.06;
-A.sup+=((A.tsup??A.sup)-A.sup)*0.06;
+const k=RM?1:0.06; /* reduced motion: snap to the new phase, no glide */
+A.lon+=((A.tlon??A.lon)-A.lon)*k;
+A.sup+=((A.tsup??A.sup)-A.sup)*k;
 try{
 window.__mjoBlob.setLatLng([-5,A.lon]);
 if(window.__mjoSup)window.__mjoSup.setLatLng([-5,A.sup]);
 if(window.__mjoLbl)window.__mjoLbl.setLatLng([6,A.lon]);
 if(window.__mjoG&&map.hasLayer(window.__mjoG)){
+const zc=INDWeather.mjo<=3?MJO_ENH:(INDWeather.mjo<=5?BOB_COL:"#0F766E");
 const bp=map.latLngToContainerPoint([-5,A.lon]);
 const burst=(dx,dy,vx,vy,col)=>{const sx=bp.x+dx,sy=bp.y+dy;if(sx>-40&&sx<c.width+40&&sy>-40&&sy<c.height+40)drawArrow(sx,sy,vx,vy,col);};
-burst(-70,0,2.2,-0.4,ARAB_COL);
-burst(-38,14,2.0,-0.3,ARAB_COL);
-burst(44,10,-1.6,-0.3,BOB_COL);
+burst(-70,0,2.2,-0.4,zc);
+burst(-38,14,2.0,-0.3,zc);
+burst(44,10,-1.6,-0.3,zc);
 }
 }catch(_){}
 }
-if(window.__mjoBlob&&map&&window.__mjoG&&map.hasLayer(window.__mjoG)){try{window.__mjoBlob.setRadius(Math.max(6,(INDWeather.mjo<=3?16:(INDWeather.mjo<=5?12:9))+Math.sin(Date.now()*0.005)*2.5));}catch(_){}}
+if(window.__mjoBlob&&map&&window.__mjoG&&map.hasLayer(window.__mjoG)){try{window.__mjoBlob.setRadius(RM?12:Math.max(6,(INDWeather.mjo<=3?16:(INDWeather.mjo<=5?12:9))+Math.sin(Date.now()*0.005)*2.5));}catch(_){}}
 if(!RM&&!document.hidden)requestAnimationFrame(stepWind);else setTimeout(()=>requestAnimationFrame(stepWind),500);
 }
 /* watchdog: if any frame ever kills the wind loop, restart it within 4s */
@@ -405,7 +414,7 @@ monthReadout.title=`layers on map: ${n}/13`;
 let svgOk="svg-?";
 try{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}catch(_){}
 const dbg=$("layerDebug");
-if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount} basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} · layers on=${n}/13 · zoom=${map.getZoom()} · ${svgOk}`;
+if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount} basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/13 · zoom=${map.getZoom()} · ${svgOk}`;
 };
 window.__applyLayers();
 setTimeout(()=>window.__applyLayers(),1200);
@@ -480,7 +489,7 @@ mjoSlider.value=p;
 mjoShuttle.setAttribute("transform",`translate(${(110+(p-1)*(500/7)).toFixed(1)},130)`);
 [...mjoCells.children].forEach((g,i)=>{const r=g.querySelector("rect");const ph=i+1;let fill="#FAF9F6";if(ph<=3)fill="#DCEDE9";else if(ph<=5)fill="#F6E8D8";r.setAttribute("fill",fill);r.setAttribute("stroke-width",ph===p?"2.5":"1");});
 mjoReadout.textContent=`Ph${p} over ${d.over} → India: ${d.india} · ${d.s}`;
-mjoReadout.title="30-60-day eastward pulse; Ph1-3 wet S peninsula, Ph4-5 dry/break (Pai 2011)";
+mjoReadout.title="30-60-day eastward pulse; Ph1-3 wet S peninsula, Ph4-5 dry/break (Pai 2011). Map zone arrows: violet = MJO-enhanced (Ph1-3), grey = suppressed (Ph4-5).";
 if(window.__mjoMap)window.__mjoMap(p,d);
 /* if the pulse is off-screen, pan gently so the phase change is visible */
 try{if(window.__mjoG&&map.hasLayer(window.__mjoG)){const t=[-5,15+(p-1)*17],pp=map.latLngToContainerPoint(t),s=map.getSize();if(pp.x<-30||pp.x>s.x+30||pp.y<-30||pp.y>s.y+30)map.panInside(t,{animate:true,paddingTopLeft:[100,70],paddingBottomRight:[70,100]});}}catch(_){}
@@ -492,14 +501,17 @@ let h="";const names=["AFR","W-IO","C-IO","E-IO","MC","W-PAC","E-PAC","ATL"];
 MJOP.forEach((d,i)=>{const x=90+i*(500/7);h+=`<g><rect x="${(x-30).toFixed(1)}" y="90" width="60" height="80" fill="#FAF9F6" stroke="#1A1A1A"/><text x="${x.toFixed(1)}" y="112" font-size="10" text-anchor="middle" font-family="monospace" fill="#1A1A1A">Ph${d.p}</text><text x="${x.toFixed(1)}" y="126" font-size="8" text-anchor="middle" font-family="monospace" fill="#6B7280">${names[i]}</text><text x="${x.toFixed(1)}" y="158" font-size="8" text-anchor="middle" font-family="monospace" fill="#6B7280">${d.p<=3?"WET":(d.p<=5?"DRY":"—")}</text></g>`;});
 mjoCells.innerHTML=h;
 mjoSlider.addEventListener("input",e=>mjoPhase(+e.target.value));
-mjoPhase(2);
+mjoPhase((monthByNum(INDWeather.month||7)||{}).mjoTyp||2);
 }).catch(()=>{mjoReadout.textContent="mjo.json failed to load — use local server.";});
 let mjoTourShared=null;
+/* month slider → month-typical MJO phase (illustrative linkage; a running tour wins) */
+window.__mjoMonthSync=d=>{if(!d||!d.mjoTyp||mjoTourShared)return;try{mjoPhase(d.mjoTyp);mjoReadout.textContent+=" · month-typical phase (illustrative)";}catch(_){}};
 function paintMjoBtns(running){["mjoPlay","mjoPlayMap"].forEach(id=>{const b=$(id);if(!b)return;if(id==="mjoPlay")b.textContent=running?"■ stop":"▶ propagate";else b.textContent=running?"■ MJO":"▶ MJO";});}
 window.__toggleMjo=()=>{if(mjoTourShared){clearInterval(mjoTourShared);mjoTourShared=null;paintMjoBtns(false);return;}
 /* tour starts: bring the whole MJO corridor (Africa→Pacific) into view if it is not already */
 try{if(window.__mjoG&&map.hasLayer(window.__mjoG)){const cb=L.latLngBounds([[-16,6],[14,144]]);if(!map.getBounds().contains(cb))map.flyToBounds(cb,{duration:1.5,padding:[24,24]});}}catch(_){}
-paintMjoBtns(true);mjoTourShared=setInterval(()=>{INDWeather.mjo=INDWeather.mjo%8+1;mjoPhase(INDWeather.mjo);},RM?99999:1100);};
+/* advance every 1.1s; under prefers-reduced-motion still advance (2.6s) but the blob snaps */
+paintMjoBtns(true);mjoTourShared=setInterval(()=>{INDWeather.mjo=INDWeather.mjo%8+1;mjoPhase(INDWeather.mjo);},RM?2600:1100);};
 $("mjoPlay").addEventListener("click",window.__toggleMjo);
 if($("mjoPlayMap"))$("mjoPlayMap").addEventListener("click",window.__toggleMjo);
 

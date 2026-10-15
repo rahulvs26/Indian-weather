@@ -3,6 +3,7 @@
 Minimalist single-page study site for Indian monsoon, IOD, MJO, heat/cold waves,
 rivers, dams and basins. See `INDIAN_WEATHER_SPEC.md` (build rules),
 `SHAPE_INTEGRATION.md` (shapefile checklist) and `CITATIONS.md` (all sources).
+Continuing work in a new session: start by reading `HANDOFF.md` only.
 
 ## Run locally
 

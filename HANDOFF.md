@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~760 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v5.8).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v5.9).
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -12,7 +12,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.8).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.9).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -29,7 +29,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.8).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-15, v5.8)
+## Current verified state (2026-10-15, v5.9)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> layers on=11/13 vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -52,23 +52,28 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.8).
 - Zoom hierarchy (Google-Maps style): rivers rivMaj/rivMed(≥5)/rivMin(≥7);
   dams dg0(top40)/dg1(<400)/dg2(all, ≥8) + labels ≥7; CWC network ≥6 bg-load;
   water (reservoirs/glacial/TN) lazy on chip only.
-- 3D terrain (v5.8, real relief): Terrarium DEM at z=6 (≈2.3 km/px, 7×8=56 tiles
-  ≈2–4 MB on first 3D open → build takes a few seconds), relief mesh 640×560
-  segments, single-pass ±1 px blur (heavy blur flattens summits — raw z6 holds
-  Everest at 8121 m), and `yOf` UNCLIPPED — Everest 8849 m = 1.15
-  world units, top of scale (old `min(1.1,…)` cap flattened everything above
-  ≈7174 m into an upper-Himalaya plateau — do not reintroduce).
-  `window.__t3={hAt,yOf,stats}` publishes read-only hooks for verification.
-- 3D dams (v5.8, top-250 tallest): valley-fitted crest-level walls — bases follow
-  the terrain, ends die into hillsides at abutments (search stops when terrain
-  reaches crest), battered cross-section, bronze body + lit amber crest via vertex
-  colours in ONE merged non-indexed geometry (FrontSide; winding was verified
-  triangle-by-triangle — don't casually reorder). Wall axis ⟂ nearest draped river
-  (coarse xz tangent grid). Reservoir water = flat surfaces just below crest only
-  where the valley closes upstream; the terrain itself carves the shoreline.
-  Caption carries "(illustrative, height-scaled)".
-  Basins block uses LOCAL XB/ZB helpers — do not "simplify" to X/Z (TDZ crash,
-  fixed v5.3).
+- 3D TERRAIN PARAMS (all inside `buildTerrain()`; grep the names — do not re-read the file):
+  `TB={lon0:66,lon1:98,lat0:5,lat1:38,z:6}` (Terrarium DEM, 7×8=56 tiles ≈2–4 MB, build
+  a few seconds); blur = single-pass 3-tap ±1 px; mesh W=3.4 D=2.55 SX=640 SY=560;
+  `yOf h=>max(0,h)/8849*1.15` — UNCLIPPED, Everest 8849 m = 1.15 = top of scale (old
+  `min(1.1,…)` cap flattened everything >≈7174 m — do not reintroduce). Terrain bands:
+  cA #5B8C5A / cB #A08B62 / cC #8A8F98 / cS #F2F3F5 at 400/1800/5200 m.
+  `window.__t3={hAt,yOf,stats}` = read-only verification hooks.
+- 3D DAM PARAMS (v5.9 minimalist, top-250 tallest by height) — TWO gates:
+  (a) built ONLY if a draped river lies within ~0.05 units of the point (gate
+  `if(!dir)return;` — riverless dams are skipped, so nothing floats on plains);
+  (b) wall axis lies ⟂ the nearest river tangent (coarse xz grid CELL=0.1, ±2 cells).
+  Wall: J=10 segments, STEP=0.006; k=√min(1,height/260); H=0.005+0.016k; half-thickness
+  hb=0.003+0.0015k; crest cap htp=0.0018+0.001k; reach smax=0.016+0.030k (each end stops
+  where terrain ≥ crest−0.001 = abutment); base sink snk=min(0.004,0.35H).
+  Colours: body #6E7378, crest #D8DBDE (vertex-coloured, ONE merged non-indexed
+  geometry, FrontSide; winding verified triangle-by-triangle — don't reorder).
+  Reservoir (illustrative): walk upstream t=0.005→0.11 step 0.010; water only if terrain
+  reaches crest−0.002 (valley closes) AND Lw≥0.02; lens half-width hw=w0·√(1−(t/Lw)²),
+  w0=0.005+0.008k; #2dd4bf opacity 0.8, DoubleSide.
+  `__t3.stats.walls` = RENDERED count (≤250 after the river gate; 0 = gate/radius broken).
+  Caption carries "(illustrative, height-scaled)". Basins block uses LOCAL XB/ZB helpers —
+  do not "simplify" to X/Z (TDZ crash, fixed v5.3).
 
 ## Known land-mines (already fixed once — do not reintroduce)
 - `.stage svg` CSS collapsed Leaflet vectors → keep `#osmMap svg` id-scoped rule.
@@ -84,7 +89,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.8).
   not from rescaling. If tiles ever 404, check `TB.z`/tileURL, not the formula.
 
 ## Next up (for the next session)
-- Nothing blocking; site is green (v5.8, everything live-verified).
+- Nothing blocking; site is green (v5.9, everything live-verified).
 - If asked to keep polishing the 3D view: candidates are hover labels for the
   top-40 dams, a soft spillway glint, or snow-cap tinting tied to `yOf` bands —
   if any option conveys new info, keep the "(illustrative)" label.
@@ -110,12 +115,14 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.8).
   (illustrative, height-scaled)." Then evaluate `__t3.yOf(8849)` → exactly `1.15`
   (clip gone); `__t3.hAt` at Everest (86.925,27.988) → ≈7400–7600 after mesh
   resampling (raw z6 summit pixel is 8121; the old pipeline rendered ≈6830 under
-  a 7174 ceiling), K2 (76.51,35.88) > 6000; Mumbai/Chennai coasts < 100 m;
-  `__t3.stats.walls` → 250, `__t3.stats.reservoirs` → >0 (0 means the
-  valley-closure gate never fired — inspect `LMAX`/`wy`).
-- 3D dam look: walls should sit IN the terrain — bottoms follow the slope, ends
-  vanish into hillsides, amber crest strip on top; water only in closed valleys.
-  If walls float or look perpendicular-matchstick again, check the `w2` mapping
+  a 7174 ceiling), K2 (76.51,35.88) > 6000; Mumbai/Chennai coasts < 100 m.
+- 3D dams: `__t3.stats.walls` → >0 and ≤250 (the RIVER-GATED rendered count —
+  record the number; 0 = gate/radius broke, 250 = gate never fired),
+  `__t3.stats.reservoirs` → >0 (0 means the valley-closure gate never fired —
+  inspect `LMAX`/`wy`). Walls must sit IN the terrain — small, low, concrete-grey
+  with a light crest; ends vanish into hillsides; water only in closed valleys.
+  If they scream orange or protrude like pins, the palette/H constants regressed;
+  if they look perpendicular-matchstick, check the `w2` mapping
   (`cosA=ax, sinA=-az`) and that `draped` is still in scope before them.
 - Self-test in 3D: expect `2D hidden (3D on)`; toggling back to 2D auto-refreshes
   to `vectors-ok` (~350 ms).
@@ -125,6 +132,6 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v5.8).
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v5.8), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v5.9), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

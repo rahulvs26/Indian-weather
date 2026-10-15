@@ -23,7 +23,7 @@ Goal: every user dataset visible in 3D + 2D map. Boxes ticked only after live br
 - [x] Zoom hierarchy (Google-Maps-style tiers) + smoothFactor + lazy/bg loads
 
 ## D. 3D terrain — live-proven (walls + rivers + basins wash + sea plane)
-- [x] Dams as valley-fitted crest-level walls + illustrative reservoir surfaces (top-250 tallest; bases follow the terrain, ends abut into hillsides, battered cross-section, vertex-coloured single geometry; water only where the valley closes, shoreline carved by the terrain itself; v5.8 live-verified via `__t3.stats`; v5.7's aligned barrage-wall step and the original TDZ crash both fixed/retired)
+- [x] Dams as minimalist valley-fitted crest-level walls + illustrative reservoir surfaces (top-250 tallest; concrete greys; built only where a draped river runs nearby — riverless dams skipped so nothing floats on plains; bases follow the terrain, ends abut into hillsides, battered cross-section, single merged geometry; water only where the valley closes, shoreline carved by the terrain itself; v5.9 live-verified via `__t3.stats` (rendered-count gate); v5.7's aligned barrage-wall step and the original TDZ crash both fixed/retired)
 - [x] Real-relief Himalaya: DEM z=6 + 640×560 mesh + single-pass ±1 px blur + unclipped height scale (Everest 8849 m = top of scale; v5.8)
 - [x] Rivers (46 labelled, tap-to-trace list, elevation-oriented packets)
 - [x] Basins draped (25 washes + rims + name tags; fixed X/Z scope crash caught live)

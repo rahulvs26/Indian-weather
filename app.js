@@ -620,11 +620,12 @@ const CITIES=[["Delhi",28.61,77.21],["Mumbai",19.08,72.88],["Kolkata",22.57,88.3
 const ctMat=new THREE.MeshBasicMaterial({color:0xfbbf24});
 const ctObjs=CITIES.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(0.018,8,8),ctMat);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.025,Z(la));scene.add(s);return{n,s};});
 $("peakLbls").innerHTML+=ctObjs.map((p,i)=>`<span class="ctLbl" id="ctl${i}">${p.n}</span>`).join("");
-/* valley-fitted dams (v5.8): crest-level walls span the valley — bases follow the terrain,
-   ends die into hillsides at abutments, lit crest on top, battered cross-section. Where the
-   valley closes upstream, an illustrative flat reservoir surface sits just below crest and
-   the terrain carves its shoreline. Crest elevations are height-scaled pins (illustrative).
-   One merged geometry per part; walls are vertex-coloured, so a single draw call each. */
+/* valley-fitted dams (v5.9, minimalist Google-Maps-like): low concrete-grey crest-level
+   walls — bases follow the terrain, ends die into hillsides at abutments, battered
+   cross-section. Only dams sitting near a draped river are built (no river → no wall),
+   so nothing floats on the plains. Where the valley closes upstream, an illustrative flat
+   reservoir surface sits just below crest; the terrain carves its shoreline. Crest
+   elevations are height-scaled pins (illustrative). One merged geometry per part. */
 try{
 const dm3=await getJSON("data/dams.geo.json","dams");
 const dl=dm3.features.filter(f=>{const c=f.geometry.coordinates;return c[0]>=TB.lon0&&c[0]<=TB.lon1&&c[1]>=TB.lat0&&c[1]<=TB.lat1;}).sort((a,b)=>((b.properties.height)||0)-((a.properties.height)||0)).slice(0,250);
@@ -634,25 +635,25 @@ for(const g of draped){for(let i=0;i<g.length-1;i++){const a=g[i],b=g[i+1];const
 const nearRiver=(x,z)=>{let best=null,bd=0.0025;const gx=Math.floor(x/CELL),gz=Math.floor(z/CELL);for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const r=RG.get((gx+dx)+":"+(gz+dz));if(!r)continue;for(let i=0;i<r.length;i+=4){const ddx=r[i]-x,ddz=r[i+1]-z,d2=ddx*ddx+ddz*ddz;if(d2<bd){bd=d2;best=[r[i+2],r[i+3]];}}}return best;};
 const dLonPerW=(TB.lon1-TB.lon0)/W,dLatPerW=(TB.lat1-TB.lat0)/D;
 const terrAt=(lon,lat)=>yOf(Math.max(0,hAt(lon,lat)));
-const cB=new THREE.Color(0x92400e),cT=new THREE.Color(0xfbbf24);
-const WV=[],WC=[],WW=[];let nRes=0;
+const cB=new THREE.Color(0x6e7378),cT=new THREE.Color(0xd8dbde);   /* v5.9 concrete greys */
+const WV=[],WC=[],WW=[];let nRes=0,nWall=0;
 const tri=(arr,ca,a,b,c,col)=>{arr.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]);if(ca)ca.push(col.r,col.g,col.b,col.r,col.g,col.b,col.r,col.g,col.b);};
 const J=10,STEP=0.006,LMAX=0.11,ST=0.010;
 dl.forEach(f=>{
 const c=f.geometry.coordinates,lo=c[0],la=c[1];const k=Math.sqrt(Math.min(1,((f.properties.height)||15)/260));
 const x0=X(lo),z0=Z(la),gy=terrAt(lo,la);
 const dir=nearRiver(x0,z0);
-let ax=1,az=0;                                               /* fallback: east–west wall */
-if(dir){ax=-dir[1];az=dir[0];}                               /* wall axis lying across the nearest river */
+if(!dir)return;                                              /* v5.9 minimal: only dams on a draped river get walls */
+const ax=-dir[1],az=dir[0];                                  /* wall axis lying across the nearest river */
 const cosA=ax,sinA=-az;                                      /* local +X maps to (ax,az) under rotY */
-const H=0.012+0.045*k,crest=gy+H,hb=0.006+0.005*k,htp=0.0036+0.003*k,smax=0.020+0.040*k;
+const H=0.005+0.016*k,crest=gy+H,hb=0.003+0.0015*k,htp=0.0018+0.001*k,smax=0.016+0.030*k,snk=Math.min(0.004,H*0.35);
 const w2=(lx,ly,lz)=>{const rx=lx*cosA+lz*sinA,rz=-lx*sinA+lz*cosA;return[x0+rx,gy+ly,z0+rz];};
 const reach=sg=>{let s=STEP;for(;s<=smax;s+=STEP){const lon2=lo+ax*s*sg*dLonPerW,lat2=la-az*s*sg*dLatPerW;if(terrAt(lon2,lat2)>=crest-0.001)break;}return Math.min(s,smax);};
 const sL=reach(-1),sR=reach(1);
 for(let j=0;j<J;j++){
 const s0=-sL+(sL+sR)*j/J,s1=-sL+(sL+sR)*(j+1)/J;
 const lon0=lo+ax*s0*dLonPerW,lat0=la-az*s0*dLatPerW,lon1=lo+ax*s1*dLonPerW,lat1=la-az*s1*dLatPerW;
-const b0=Math.min(terrAt(lon0,lat0)-gy-0.004,H-0.004),b1=Math.min(terrAt(lon1,lat1)-gy-0.004,H-0.004);
+const b0=Math.min(terrAt(lon0,lat0)-gy-snk,H-snk),b1=Math.min(terrAt(lon1,lat1)-gy-snk,H-snk);
 const FB0=w2(s0,b0,-hb),FT0=w2(s0,H,-htp),BT0=w2(s0,H,htp),BB0=w2(s0,b0,hb);
 const FB1=w2(s1,b1,-hb),FT1=w2(s1,H,-htp),BT1=w2(s1,H,htp),BB1=w2(s1,b1,hb);
 tri(WV,WC,FB0,FT0,FT1,cB);tri(WV,WC,FB0,FT1,FB1,cB);         /* downstream face */
@@ -661,15 +662,16 @@ tri(WV,WC,FT0,BT1,FT1,cT);tri(WV,WC,FT0,BT0,BT1,cT);         /* lit crest */
 if(j===0){tri(WV,WC,FB0,BB0,BT0,cB);tri(WV,WC,FB0,BT0,FT0,cB);}
 if(j===J-1){tri(WV,WC,FB1,BT1,BB1,cB);tri(WV,WC,FB1,FT1,BT1,cB);}
 }
+nWall++;
 /* reservoir lens: walk upstream; water only where the valley closes (terrain rises to crest) */
 if(dir){
 const up0=dir[0],up1=dir[1];
 const t0s=terrAt(lo+up0*0.05*dLonPerW,la-up1*0.05*dLatPerW),t1s=terrAt(lo-up0*0.05*dLonPerW,la+up1*0.05*dLatPerW);
 const sg=t0s>=t1s?1:-1,upX=up0*sg,upZ=up1*sg;
-const wy=crest-0.004;let Lw=0,closed=false;const ts=[];
+const wy=crest-0.002;let Lw=0,closed=false;const ts=[];
 for(let t=0.005;t<=LMAX;t+=ST){const lon2=lo+upX*t*dLonPerW,lat2=la-upZ*t*dLatPerW;if(terrAt(lon2,lat2)>=wy){closed=true;break;}ts.push(t);Lw=t;}
 if(closed&&Lw>=0.02&&ts.length>=3){
-const w0=0.006+0.010*k,px=-upZ,pz=upX;
+const w0=0.005+0.008*k,px=-upZ,pz=upX;
 for(let i=0;i<ts.length-1;i++){
 const ta=ts[i],tb=ts[i+1];
 const ha=w0*Math.sqrt(Math.max(0,1-(ta/Lw)*(ta/Lw))),hbb=w0*Math.sqrt(Math.max(0,1-(tb/Lw)*(tb/Lw)));
@@ -681,9 +683,9 @@ nRes++;
 }
 }
 });
-t3Stats.walls=dl.length;t3Stats.reservoirs=nRes;
+t3Stats.walls=nWall;t3Stats.reservoirs=nRes;
 if(WV.length){const gW=new THREE.BufferGeometry();gW.setAttribute("position",new THREE.Float32BufferAttribute(WV,3));gW.setAttribute("color",new THREE.Float32BufferAttribute(WC,3));gW.computeVertexNormals();scene.add(new THREE.Mesh(gW,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.62,metalness:0.05})));}
-if(WW.length){const gW2=new THREE.BufferGeometry();gW2.setAttribute("position",new THREE.Float32BufferAttribute(WW,3));scene.add(new THREE.Mesh(gW2,new THREE.MeshBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.88,side:THREE.DoubleSide})));}
+if(WW.length){const gW2=new THREE.BufferGeometry();gW2.setAttribute("position",new THREE.Float32BufferAttribute(WW,3));scene.add(new THREE.Mesh(gW2,new THREE.MeshBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.8,side:THREE.DoubleSide})));}
 }catch(e){console.warn("terrain dams",e);}
 /* named river labels + tap-to-trace list */
 const lblRivers=riverObjs.filter(r=>r.mid);

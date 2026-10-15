@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: OSM India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=5.6">
+<link rel="stylesheet" href="styles.css?v=5.7">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v5.6</small></div>
+<div class="brand">Indian Weather <small>study deck · v5.7</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -53,7 +53,7 @@
 <div class="card-foot"><span>Hint: click radar / zone for source</span><span class="readout" id="monthReadout">—</span></div>
 <div class="fallback"><details><summary>Offline fallback — month table + sources</summary>
 <table class="mini" id="monthTable"><tr><th>M</th><th>IMD season</th><th>Wind</th><th>AS</th><th>BoB</th><th>Rain states</th><th>DMI-typ</th></tr></table>
-<div class="cap"><b>Symbols:</b> short arrows = wind flow (teal Arabian Sea / amber Bay of Bengal) · ┅ lines = sea currents, flip with month · white dots + rings = Doppler radars, static, C 250 km / X 100 km, city-approx (names at zoom ≥6) · dashed amber = heat zone · dashed blue = cold box · dashed ocean rectangles = IOD W/E boxes · blue rivers = living streams (dots = origins, rings = sea mouths, ▲ = flow dir) · teal wash = CWC basins (click = sub-basins) · amber pins = dams · blue fills = reservoirs/lakes · travelling teal blob + amber ghost = MJO enhanced / suppressed · teal states = receiving rain this month · tap a state for its name · equatorial arrows lean with DMI · click IOD boxes for live phase · zoom in: smaller rivers, all dams + names appear (fast hierarchy) · 3D: basins wash + dam walls + traceable rivers.</div>
+<div class="cap"><b>Symbols:</b> short arrows = wind flow (teal Arabian Sea / amber Bay of Bengal) · ┅ lines = sea currents, flip with month · white dots + rings = Doppler radars, static, C 250 km / X 100 km, city-approx (names at zoom ≥6) · dashed amber = heat zone · dashed blue = cold box · dashed ocean rectangles = IOD W/E boxes · blue rivers = living streams (dots = origins, rings = sea mouths, ▲ = flow dir) · teal wash = CWC basins (click = sub-basins) · amber pins = dams · blue fills = reservoirs/lakes · travelling teal blob + amber ghost = MJO enhanced / suppressed · teal states = receiving rain this month · tap a state for its name · equatorial arrows lean with DMI · click IOD boxes for live phase · zoom in: smaller rivers, all dams + names appear (fast hierarchy) · 3D: basins wash + aligned dam walls (lit crests, illustrative upstream pools) + traceable rivers.</div>
 <div class="readout" id="layerDebug">self-test: waiting for map… (serve via http, hard-refresh once)</div></details></div>
 </div>
 <p class="cap"><b>How to read:</b> Jan–Feb NE→SW dry (Bay tail rains TN) · Mar–May variable/hot · Jun–Sep SW moist splits at peninsula, merges near Delhi. <span style="font-family:var(--mono)">IMD 4-season; Rao p39; met_monograph Ch.5</span>.</p>
@@ -235,7 +235,7 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data/embedded.js?v=5.6"></script>
-<script src="app.js?v=5.6" defer></script>
+<script src="data/embedded.js?v=5.7"></script>
+<script src="app.js?v=5.7" defer></script>
 </body>
 </html>

@@ -23,7 +23,7 @@ Goal: every user dataset visible in 3D + 2D map. Boxes ticked only after live br
 - [x] Zoom hierarchy (Google-Maps-style tiers) + smoothFactor + lazy/bg loads
 
 ## D. 3D terrain — live-proven (photos: walls + rivers + basins wash + sea plane)
-- [x] Dams as wall models (top-250 tallest, one InstancedMesh; fixed TDZ crash caught live)
+- [x] Dams as aligned barrage walls + lit crest + illustrative upstream pools (top-250 tallest, 3 InstancedMeshes; wall long-axis ⟂ nearest draped river via a coarse xz tangent grid; pools on the uphill side; v5.7 live-verified; original TDZ crash fixed)
 - [x] Rivers (46 labelled, tap-to-trace list, elevation-oriented packets)
 - [x] Basins draped (25 washes + rims + name tags; fixed X/Z scope crash caught live)
 

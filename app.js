@@ -412,7 +412,7 @@ if(window.__damLbl)window.__damLbl(layers.dams);
 const n=[heatG,radarG,iodG,lpsG,mjoG,curG,textG,riverG,rivMaj,basinG,dg0,waterG,cwcG].filter(g=>{try{return map.hasLayer(g);}catch(_){return false;}}).length;
 monthReadout.title=`layers on map: ${n}/13`;
 let svgOk="svg-?";
-try{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}catch(_){}
+try{if(document.querySelector("#map .stage").classList.contains("terrain-on"))svgOk="2D hidden (3D on)";else{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}}catch(_){}
 const dbg=$("layerDebug");
 if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount} basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/13 · zoom=${map.getZoom()} · ${svgOk}`;
 };
@@ -621,19 +621,43 @@ const CITIES=[["Delhi",28.61,77.21],["Mumbai",19.08,72.88],["Kolkata",22.57,88.3
 const ctMat=new THREE.MeshBasicMaterial({color:0xfbbf24});
 const ctObjs=CITIES.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(0.018,8,8),ctMat);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+0.025,Z(la));scene.add(s);return{n,s};});
 $("peakLbls").innerHTML+=ctObjs.map((p,i)=>`<span class="ctLbl" id="ctl${i}">${p.n}</span>`).join("");
-/* user dams as height-scaled pins — one InstancedMesh, one draw call */
+/* user dams as aligned barrage walls (body + lit crest) with illustrative upstream pools.
+   250 tallest in-tile dams; one draw call per part. Walls orient ACROSS the nearest draped
+   river so they read as barrages strung along the blue lines; pools sit on the uphill side. */
 try{
 const dm3=await getJSON("data/dams.geo.json","dams");
 const dl=dm3.features.filter(f=>{const c=f.geometry.coordinates;return c[0]>=TB.lon0&&c[0]<=TB.lon1&&c[1]>=TB.lat0&&c[1]<=TB.lat1;}).sort((a,b)=>((b.properties.height)||0)-((a.properties.height)||0)).slice(0,250);
-const wallShape=new THREE.Shape([new THREE.Vector2(-0.25,0),new THREE.Vector2(0.25,0),new THREE.Vector2(0.14,1),new THREE.Vector2(-0.14,1)]);
-const wallGeo=new THREE.ExtrudeGeometry(wallShape,{depth:0.12,bevelEnabled:false});
-wallGeo.translate(0,0,-0.06);
-const UP=new THREE.Vector3(0,1,0);
-const im=new THREE.InstancedMesh(wallGeo,new THREE.MeshStandardMaterial({color:0xd97706,roughness:0.9}),dl.length);
-const M4=new THREE.Matrix4();
-const VSC=new THREE.Vector3(),VP=new THREE.Vector3(),QQ=new THREE.Quaternion();
-dl.forEach((f,i)=>{const c=f.geometry.coordinates;const h=0.02+Math.min(0.07,((f.properties.height)||15)/350);const wdt=0.02+Math.min(0.03,((f.properties.height)||0)/800);QQ.setFromAxisAngle(UP,(i*2.399963)%Math.PI);VSC.set(wdt,h,1);VP.set(X(c[0]),yOf(Math.max(0,hAt(c[0],c[1]))),Z(c[1]));M4.compose(VP,QQ,VSC);im.setMatrixAt(i,M4);});
-scene.add(im);
+/* coarse xz grid of river tangent samples (from draped polylines) for orientation/lookup */
+const CELL=0.1,RG=new Map();
+for(const g of draped){for(let i=0;i<g.length-1;i++){const a=g[i],b=g[i+1];const tx=b.x-a.x,tz=b.z-a.z;const L=Math.hypot(tx,tz);if(L<1e-6)continue;const k=Math.floor(a.x/CELL)+":"+Math.floor(a.z/CELL);let r=RG.get(k);if(!r)RG.set(k,r=[]);r.push(a.x,a.z,tx/L,tz/L);}}
+const nearRiver=(x,z)=>{let best=null,bd=0.0025;const gx=Math.floor(x/CELL),gz=Math.floor(z/CELL);for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const r=RG.get((gx+dx)+":"+(gz+dz));if(!r)continue;for(let i=0;i<r.length;i+=4){const ddx=r[i]-x,ddz=r[i+1]-z,d2=ddx*ddx+ddz*ddz;if(d2<bd){bd=d2;best=[r[i+2],r[i+3]];}}}return best;};
+const wallShape=new THREE.Shape([new THREE.Vector2(-0.5,0),new THREE.Vector2(0.5,0),new THREE.Vector2(0.17,1),new THREE.Vector2(-0.17,1)]);
+const wallGeo=new THREE.ExtrudeGeometry(wallShape,{depth:1,bevelEnabled:false});wallGeo.translate(0,0,-0.5);wallGeo.rotateY(-Math.PI/2);
+/* local X = length (spans across the river), Y = height, Z = thickness (downstream profile) */
+const crestGeo=new THREE.BoxGeometry(1,1,1);
+const dBody=new THREE.InstancedMesh(wallGeo,new THREE.MeshStandardMaterial({color:0x92400e,roughness:0.85}),dl.length);
+const dCrest=new THREE.InstancedMesh(crestGeo,new THREE.MeshStandardMaterial({color:0xfbbf24,roughness:0.45,emissive:0xf59e0b,emissiveIntensity:0.24}),dl.length);
+const pools=[];
+const UP=new THREE.Vector3(0,1,0),M4=new THREE.Matrix4(),VSC=new THREE.Vector3(),VP=new THREE.Vector3(),QQ=new THREE.Quaternion();
+const dLonPerW=(TB.lon1-TB.lon0)/W,dLatPerW=(TB.lat1-TB.lat0)/D;
+dl.forEach((f,i)=>{const c=f.geometry.coordinates,lo=c[0],la=c[1];const ht=(f.properties.height)||15;const k=Math.sqrt(Math.min(1,ht/260));
+const L=0.045+0.075*k,Tw=0.014+0.012*k,h=0.016+0.055*k;   /* length/thickness/height pin scales (illustrative) */
+const x=X(lo),z=Z(la),gy=yOf(Math.max(0,hAt(lo,la)));
+const dir=nearRiver(x,z);let ang=0,upX=0,upZ=0;
+if(dir){const tx=dir[0],tz=dir[1];ang=Math.atan2(-tx,-tz);        /* long axis ⟂ river */
+const s0=hAt(lo+tx*0.05*dLonPerW,la-tz*0.05*dLatPerW),s1=hAt(lo-tx*0.05*dLonPerW,la+tz*0.05*dLatPerW);
+const sgn=s0>=s1?1:-1;upX=tx*sgn;upZ=tz*sgn;}
+QQ.setFromAxisAngle(UP,ang);
+VP.set(x,gy,z);VSC.set(L,h,Tw);M4.compose(VP,QQ,VSC);dBody.setMatrixAt(i,M4);
+VP.set(x,gy+h,z);VSC.set(L*1.03,Math.min(0.02,Math.max(0.008,0.28*h)),Tw*0.42);M4.compose(VP,QQ,VSC);dCrest.setMatrixAt(i,M4);
+if(dir&&ht>=30){const r=0.02+Math.min(0.024,ht/2000);pools.push([x+upX*0.035,yOf(Math.max(0,hAt(lo+upX*0.035*dLonPerW,la-upZ*0.035*dLatPerW)))+0.005,z+upZ*0.035,r,ang+Math.PI/2]);}
+});
+dBody.instanceMatrix.needsUpdate=true;dCrest.instanceMatrix.needsUpdate=true;
+scene.add(dBody);scene.add(dCrest);
+if(pools.length){const pGeo=new THREE.CircleGeometry(1,14);pGeo.rotateX(-Math.PI/2);
+const pm=new THREE.InstancedMesh(pGeo,new THREE.MeshBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.9}),pools.length);
+pools.forEach((p,i)=>{VP.set(p[0],p[1],p[2]);QQ.setFromAxisAngle(UP,p[4]);VSC.set(p[3],1,p[3]*0.7);M4.compose(VP,QQ,VSC);pm.setMatrixAt(i,M4);});
+pm.instanceMatrix.needsUpdate=true;scene.add(pm);}
 }catch(e){console.warn("terrain dams",e);}
 /* named river labels + tap-to-trace list */
 const lblRivers=riverObjs.filter(r=>r.mid);
@@ -686,7 +710,7 @@ if(typeof lblRivers!=="undefined")lblRivers.forEach((r)=>{proj.copy(r.mid).proje
 })();
 window.__terrainMonth=d=>{
 const m=d.m;
-cap.textContent=(m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest. Relief vs Indian MSL datum; sea plane = 0 m.`;
+cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m. Dam walls + pools (illustrative, height-scaled).";
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
 }
@@ -695,7 +719,7 @@ terrainOn=!terrainOn;
 document.querySelector("#map .stage").classList.toggle("terrain-on",terrainOn);
 $("btn3d").textContent=terrainOn?"2D map":"3D mountains";
 if(terrainOn){if(window.__terrainMonth)window.__terrainMonth(monthByNum(INDWeather.month||7));if(!terrainBuilt&&!terrainBuilding){terrainBuilding=true;try{await buildTerrain();terrainBuilt=true;}catch(e){console.warn(e);terrainBuilding=false;$("terrainCap").textContent="3D needs network for elevation tiles — back to 2D.";terrainOn=false;document.querySelector("#map .stage").classList.remove("terrain-on");$("btn3d").textContent="3D mountains";}}}
-else if(map)map.invalidateSize();
+else if(map){map.invalidateSize();setTimeout(()=>window.__applyLayers&&window.__applyLayers(),350);}
 });
 
 /* ================= Fig6 CLIMATE CONDUCTOR (links every phenomenon) ================= */

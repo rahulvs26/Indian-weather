@@ -51,6 +51,9 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 .leaflet-container .river-flow{stroke-dasharray:7 9;animation:flow 1.1s linear infinite}
 @keyframes flow{to{stroke-dashoffset:-16}}
 #osmMap{width:100%;height:420px;background:#EDEBE4;z-index:1}
+/* minimalist look: re-tint the OSM raster tiles to soft grey (data overlays stay the only colour).
+   Scoped to the tile pane only — never the overlay/SVG panes. */
+#osmMap .leaflet-tile-pane{filter:grayscale(1) brightness(1.04) contrast(0.92)}
 #windCanvas{position:absolute;inset:0;width:100%;height:420px;pointer-events:none;z-index:2}
 .stage{position:relative;background:#F4F2ED}
 .oceanLbl{background:none;border:none;font:600 12px ui-monospace,monospace;color:#6B7280;text-shadow:0 1px 0 #fff;letter-spacing:1px}

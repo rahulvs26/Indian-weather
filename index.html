@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: OSM India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=5.5">
+<link rel="stylesheet" href="styles.css?v=5.6">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v5.5</small></div>
+<div class="brand">Indian Weather <small>study deck · v5.6</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -25,7 +25,7 @@
 <!-- 1 MAP -->
 <section class="block" id="map" aria-labelledby="h-map">
 <h2 id="h-map">1 · India + neighbours — OSM live map</h2>
-<p class="sub">Real geography: OSM tiles + local <code>india-detailed.geo.json</code> outline. Particles + arrows = simulated monthly wind (arrow direction = flow). Teal = Arabian Sea branch, amber = Bay of Bengal branch (PMF IAS / IMD). Violet arrows = MJO-enhanced zone near the pulse (Ph1–3); grey = MJO-suppressed (Ph4–5). Drag to pan, scroll to zoom.</p>
+<p class="sub">Real geography: minimal muted OSM tiles + local <code>india-detailed.geo.json</code> outline. Particles + arrows = simulated monthly wind (arrow direction = flow). Teal = Arabian Sea branch, amber = Bay of Bengal branch (PMF IAS / IMD). Violet arrows = MJO-enhanced zone near the pulse (Ph1–3); grey = MJO-suppressed (Ph4–5). Drag to pan, scroll to zoom.</p>
 <div class="card">
 <div class="card-head"><span>Fig 0</span><strong>OSM · INDIA · MONTHLY WINDS JAN–DEC</strong></div>
 <div class="stage"><div id="osmMap" role="application" aria-label="OpenStreetMap of India with monthly wind simulation and layers."></div><canvas id="windCanvas" aria-hidden="true"></canvas><div id="terrainWrap" aria-hidden="true"><canvas id="terrain3d"></canvas><div id="peakLbls"></div><div id="riverList"><b>RIVERS · tap to trace</b><div id="riverListItems"></div></div><div class="readout" id="terrainCap"></div></div></div>
@@ -230,12 +230,12 @@
 
 <footer><div class="wrap">
 <b style="color:var(--ink)">Sources (pdf/):</b> monsoon_report_2025_2 (310 pp) · swmonsoon_yprao (376 pp) · met_monograph NE (224 pp) · Cold_Heat_Waves (202pp) · MM2 (565 pp) · 569-589 IOD (21 pp) — all © IMD / respective authors, used for study with attribution; full citations in <code>CITATIONS.md</code>.<br>
-<b style="color:var(--ink)">Web (Oct 2026):</b> IMD 4-season; OSM Standard tiles © OpenStreetMap contributors; DWR counts/ranges via PIB/MoES; branch dates via PMF IAS/IMD; rivers Natural Earth; states GADM; DEM Terrarium; IOD rules BOM/NOAA. User CWC shapefiles (basins, rivers, dams, reservoirs, lakes).<br>
+<b style="color:var(--ink)">Web (Oct 2026):</b> IMD 4-season; OSM Standard tiles, re-tinted soft-grey via CSS (© OpenStreetMap contributors); DWR counts/ranges via PIB/MoES; branch dates via PMF IAS/IMD; rivers Natural Earth; states GADM; DEM Terrarium; IOD rules BOM/NOAA. User CWC shapefiles (basins, rivers, dams, reservoirs, lakes).<br>
 Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHER_SPEC.md</code>. Future live: <code>window.INDWeather.live = { imdWMS, openMeteo }</code>.
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data/embedded.js?v=5.5"></script>
-<script src="app.js?v=5.5" defer></script>
+<script src="data/embedded.js?v=5.6"></script>
+<script src="app.js?v=5.6" defer></script>
 </body>
 </html>

@@ -4,12 +4,13 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.5).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.6).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
 **v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
 **v7.4 SHIPPED (2026-10-16):** 3D crest polish + snow — spillway-pier width fixed to true scale (the v7.0 `ha` bug built ≈3,800 km slabs) and the 14 concrete/arch heroes (≥100 m) carry a soft pulsing crest glint (additive sprites, illustrative); terrain snow blends in from 4,400 m, fully white ≈5,700 m (schematic); near-plane floor fix (`max(2e-5,0.02·R)` — the old 0.002 floor sat at/above the orbit target below R≈0.1 and clipped crest-level detail); new hooks `__t3.colAt/flyTo/glint`.
 **v7.5 SHIPPED (2026-10-16):** pastel 2D basemap + no fake-3D rain in the 2D map + a third view "3D map" — 2D base switched to Esri World_Terrain_Base (`maxNativeZoom:13`) under a pastel CSS grade (`saturate(.62) brightness(1) contrast(.95)` on `.leaflet-tile-pane`, chosen by in-page canvas A/B); the 2D rain-streak renderer is deleted (per-state pools remain → 3D rain; `__rainDbg()` reshaped — see the rain bullet); new `map3d.js` = MapLibre GL JS 6.14.0 + OpenFreeMap `bright` + Mapterhorn DEM terrain + OSM building extrusions, keyless (credits: MapLibre · OpenFreeMap · Mapterhorn), toggled by a third stage button via `setTerrainView`; hook `window.__map3d`.
+**v7.6 SHIPPED (2026-10-17):** dam-release water simulation in the 3D map view — "Release water" at Hirakud dam runs a kinematic front down the REAL Mahanadi centre-line to the Bay of Bengal (`data/dam-route-hirakud.geo.json`, derived from the CWC "Mahanadi River" network by `data/_gen_dam_route.mjs`; 53 pts, 414.8 km, arrival ≈3.2 days at ≈1.5 m/s — illustrative); route/wet/head/end layers drape over terrain, "Day N" clock + km readout card, hook `window.__dam`; drive-by fix — the self-test line now reads `2D hidden (3D on)` in the 3D map view too. Verified headless (Edge 155 + SwiftShader WebGL2): 23/23 checks, 0 app console errors, journey 0→414.8 km over ≈25.6 s, day 3.201, wet line 53/53 coords, 2D⇄3D-map toggle round-trip ok.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -17,7 +18,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.6).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -34,12 +35,13 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-16, v7.5)
+## Current verified state (2026-10-17, v7.6)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
-  While 3D is on the vectors check reads `2D hidden (3D on)` (expected; the 3D
-  toggle refreshes the line at toggle-on and again ~350 ms after returning to 2D).
+  While 3D is on the vectors check reads `2D hidden (3D on)` (expected; both view
+  toggles refresh the line at toggle-on and again ~350 ms after returning to 2D;
+  v7.6 extended the check + refresh to the 3D MAP view — `map3d-on`).
 - v7.1 PHENOMENA: panel "Climate phenomena · 41" sits between the chip row and
   card-foot; default all unchecked; `localStorage phen.on` restores picks; season
   gate dims non-season items (opacity 0.12 / `.phenOff`) as the month slider moves —
@@ -102,6 +104,24 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
   contributors / © Mapterhorn) — keyless. Hook `window.__map3d` =
   {setActive(on)→Promise<map|null>, map(), ready(), style(), layers(): ["id:type"],
   terrain()}. `__t3` (mountains) untouched.
+- 3D DAM RELEASE (v7.6, illustrative travel — NOT measured, no inundation; grep `damStart`,`damTick`,`damSet`):
+  in the 3D map view `#damUI` (card + "Release water") runs a kinematic front from the Hirakud dam
+  along the REAL Mahanadi centre-line to the sea. Route = `data/dam-route-hirakud.geo.json` (53 pts,
+  414.8 km; provenance in properties; built once by `node data/_gen_dam_route.mjs` — greedy
+  downstream walk of the CWC "Mahanadi River" MultiLineString from the `Hirakud Dam` point in
+  dams.geo.json, then Douglas-Peucker ≈65 m; Natural Earth has NO Mahanadi feature — the CWC file
+  is the source). Model: ONE constant wave speed ≈1.5 m/s ("illustrative" in every readout) →
+  arrival = 414.8/129.6 ≈ 3.2 days; the journey plays in `DAM_SECONDS=24` real seconds, driven by
+  wall clock (`performance.now()`), so a slow/hidden tab jumps forward instead of stalling. Layers
+  (GeoJSON sources setData'd per tick, drape over terrain): `dam-route-line` (teal dashed full
+  course), `dam-wet-line` (sliced at the front), `dam-head-halo`/`-dot` (front point), `dam-end-dam`
+  (amber)/`dam-end-sea` (blue). fitBounds left padding 290 px for the card (instant under reduced
+  motion). Hook `window.__dam` = {start(),reset(),state(),route()}; state() = {running,day,km,
+  totalKm,arrivalDays,reached}. The route fetch is try/caught — a missing route file never breaks the
+  3D map. Verified headless (Edge 155 + SwiftShader, fresh load): route {n:53,totalKm:414.8,
+  speedKmDay:129.6,arrivalDays:3.2}; timeline 0→58.6→…→414.8 km over ≈25.6 s wall; `#damStat`
+  ="Reached the sea in ≈3.2 days (illustrative)", `#damDay`="Day 3.2"; reset() → {running:false,
+  km:0,reached:false}; wet 53/53 coords, `dam-head` [86.71,20.3] ≈ sea end; camera zoom 7.29; 0 app errors.
 - 3D WEATHER (v7.0, illustrative): rain = LineSegments `wxRGeo` N=36+330·rf falling to
   `wxFloor` (= terrain + MZ(90)); wind = LineSegments `wxWGeo` N=22+115·min(1.25,|vecFor(md)|)
   along `wxVec=(x:vx,z:vy)`; counts + vector set inside `applyHydro` (the month funnel),
@@ -252,12 +272,19 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
   reads `INDWeather.month` and pools exist only for months the 2D layer has visited (null →
   uniform fallback — never crash). Do NOT cache a month's rain pool before `window.__rainAvg`
   loads — pooled weights would freeze at 1.
+- v7.6 self-test: the `svgOk` check in `__applyLayers` must treat BOTH `.terrain-on` and
+  `.map3d-on` as "2D hidden (3D on)" — any later call while the 3D MAP is up (the 14.6 MB
+  CWC fetch lands seconds after boot, chip clicks, …) otherwise measures the hidden 2D
+  overlay SVG and prints `VECTORS-BROKEN`. The 3D-map toggle also refreshes the line at
+  toggle-on (mirrors the mountains toggle).
 
 ## Next up (for the next session)
-- v7.5 shipped (pastel 2D base + no 2D rain streaks + new 3D map view — state bullet above; commit pushed).
-- QUEUED 2026-10-16: dam-release water simulation — release water from a dam, it travels
-  along the river path, and the run records days-to-the-sea; the 3D map was named as a target.
-  Not designed yet — start at `DAM_RELEASE_TODO.md`.
+- v7.6 shipped (dam-release water simulation in the 3D map view + self-test-line fix; state
+  bullet above; committed locally — GitHub push hangs on this machine, do not retry).
+- v7.6 dam-release v2 ideas (not designed): month-coupled wave speed (reuse the hydro funnel
+  `fillOf`/`relOf` instead of one constant 1.5 m/s), a wide wave front instead of a line,
+  distance-to-go markers (Cuttack/Paradip), a second hero route (e.g. Ganga), optional CWC
+  release-rate input.
 - USER ACTION pending: restart OpenCode so the global claude-mem plugin loads in every
   project at startup (core features already live).
 - Otherwise pick from the standing optional items below.
@@ -332,15 +359,27 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
   (we once measured a bogus 48 s in a hidden tab) — always measure on a FOCUSED tab.
 - Self-test in 3D: expect `2D hidden (3D on)`; toggling back to 2D auto-refreshes
   to `vectors-ok` (~350 ms).
+- v7.6 dam release (measured headless Edge 155 + SwiftShader; 23/23 checks): fresh load → `3D map`
+  → wait `__map3d.ready()` → `__dam.route()` = {n:53,totalKm:414.8,speedKmDay:129.6,arrivalDays:3.2}
+  → `__dam.start()` → `__dam.state()` climbs (measured 0→58.6→…→414.8 km over ≈25.6 s wall;
+  24 s nominal — headless frame granularity) → reached:true, day:3.201 → `#damStat` = "Reached the
+  sea in ≈3.2 days (illustrative)", `#damDay` = "Day 3.2", `#damBtn` = "⟲ Release again" →
+  `__dam.reset()` → {running:false,km:0,reached:false} + stat back to "wave ≈1.5 m/s…≈3.2 days".
+  Source-data probe: `getSource(id).serialize().data` (v6 `._data` misbehaved in the probe); wet
+  line ends 53/53 coords, `dam-head` at [86.71,20.3]. Self-test must read `2D hidden (3D on)`
+  while the 3D map is up — ALSO after the 14.6 MB CWC fetch lands; the 2D⇄3D-map toggle round-trip
+  restores `vectors-ok` (~350 ms).
 - Commands used previously run clean: `node --check app.js`.
 
 ## Repo layout cheat-sheet
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
+- Dam route: `data/dam-route-hirakud.geo.json` (v7.6 hero route; provenance in properties)
+  + `data/_gen_dam_route.mjs` (re-runnable generator: CWC walk + DP simplify).
 - Rain averages: `data/rain-state-avg.json` (36 states × 12 months, mm/month) regenerated by
   `node data/_gen_rain_avg.mjs` from the fetched IMD 1901–2015 subdivision CSV kept local in
   git-ignored `data/_src/` (mirror URL in the JSON meta + CITATIONS 11).
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.2), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.6), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

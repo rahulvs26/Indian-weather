@@ -458,7 +458,7 @@ if(window.__damLbl)window.__damLbl(layers.dams);
 const n=[heatG,radarG,iodG,lpsG,mjoG,curG,textG,riverG,rivMaj,rivWest,basinG,dg0,waterG,cwcG].filter(g=>{try{return map.hasLayer(g);}catch(_){return false;}}).length;
 monthReadout.title=`layers on map: ${n}/14`;
 let svgOk="svg-?";
-try{if(document.querySelector("#map .stage").classList.contains("terrain-on"))svgOk="2D hidden (3D on)";else{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}}catch(_){}
+try{const stg=document.querySelector("#map .stage");if(stg.classList.contains("terrain-on")||stg.classList.contains("map3d-on"))svgOk="2D hidden (3D on)";else{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}}catch(_){}
 const dbg=$("layerDebug");
 if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · phen=${(window.__phen&&window.__phen.on)?window.__phen.on.size:0}/41 · rainavg=${window.__rainAvg?Object.keys(window.__rainAvg.states).length:0}/36 · zoom=${map.getZoom()} · ${svgOk}`;
 try{window.__phenEnv={map,month:(typeof INDWeather!=="undefined"&&INDWeather.month)||7};window.__phenEnv.rm=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);}catch(_){}
@@ -1050,6 +1050,7 @@ const stage=document.querySelector("#map .stage"),cap=$("map3dCap");
 if(!stage.classList.contains("map3d-on")){
 if(terrainOn)await setTerrainView(false);
 stage.classList.add("map3d-on");$("btn3dm").textContent="3D map…";if(cap)cap.textContent="";
+if(window.__applyLayers)window.__applyLayers();   /* refresh self-test: 2D hidden (3D on) */
 const ok=window.__map3d?await window.__map3d.setActive(true).catch(()=>false):false;
 if(stage.classList.contains("map3d-on")){   /* guard: user may have toggled back off while loading */
 if(!ok){stage.classList.remove("map3d-on");$("btn3dm").textContent="3D map";if(cap)cap.textContent="3D map needs network (OpenFreeMap tiles + Mapterhorn DEM) — staying on 2D.";}

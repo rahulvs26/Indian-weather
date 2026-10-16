@@ -9,6 +9,40 @@ Purpose: "help to understand" floods / river behaviour.
 pickup: run the house design conversation first (brainstorm → design → plan → build).
 Do NOT implement straight from this file.
 
+## §1 Design + as-built (v7.6, shipped 2026-10-17)
+The v7.6 session was handed the design defaults directly (venue, hero route candidates,
+kinematic model, readout) — this section records what shipped and what the data forced.
+- **Venue:** the 3D map ONLY (`map3d.js`, MapLibre view, hook `__map3d`). The 2D map,
+  the 3D mountains view (`__t3`), the phenomena module and the rain systems are untouched.
+- **Hero route:** Hirakud → Mahanadi → Bay of Bengal. What the data forced: the Natural
+  Earth file `data/india-rivers.geo.json` has NO feature named "Mahanadi" (its NE
+  "Mahäna Nadï" segments are upstream/degraded), so the route was derived from the repo's
+  CWC network instead — `data/rivers-cwc.geo.json`, feature `rivname="Mahanadi River"`
+  (subbasin "Major River", recorded len 1045.7 km, origin→sea). That feature is a 30-part
+  unordered MultiLineString; `data/_gen_dam_route.mjs` walks it greedily downstream from
+  the point nearest the Hirakud dam (hit distance 0.18 km) to the recorded sea end
+  (86.713, 20.295 — Mahanadi delta, near Paradip), snapping the exact dam point from
+  `data/dams.geo.json` ("Hirakud Dam", OD, river Mahanadi) as the first vertex.
+  Output: `data/dam-route-hirakud.geo.json` — 53 points, **414.8 km**, provenance in
+  properties. Sanity (drive-by distances to the route): Sambalpur 2.2 km, Cuttack 3.0 km,
+  Paradip 0.9 km, recorded sea end 0.6 km — the path follows the real bends.
+- **Model:** kinematic travel wave — the front advances along the polyline at ONE constant
+  **illustrative** speed ≈1.5 m/s (flood-wave celerity ballpark, NOT measured for this
+  release) → speedKmDay = 129.6 km/day → **arrival ≈3.2 days**. Travel only; no inundation,
+  no hydraulics. openswmm/SWMM NOT touched in v1 (the credit block there applies only if
+  that code is ever actually reused; none was).
+- **The record:** running "Day N" clock + "km / total" while the wave travels; final readout
+  "Reached the sea in ≈3.2 days (illustrative)". Small dark card + "Release water" button
+  (`#damUI`, `#damBtn`, 3D map view only), journey plays in 24 s real time, re-run via the
+  same button (reset → start).
+- **Render:** four GeoJSON sources/layers in `map3d.js` — `dam-route-line` (teal dashed
+  full route, drapes over terrain), `dam-wet-line` (brighter teal, re-`setData` sliced at
+  the advanced km), `dam-head-halo/dot` (front marker), `dam-end-dam/sea` (endpoint dots).
+  Hook `window.__dam = {start(),reset(),state(),route()}`; `state()` =
+  {running, day, km, totalKm, arrivalDays, reached}.
+- **Open for v2:** month-aware speed (monsoon vs dry), more hero routes (Narmada/Krishna
+  verified in the NE file), a day-per-second timeline scrub, maybe the real marcher later.
+
 ## What the deck already has that this can ride on
 - Rivers: `data/india-rivers.geo.json` (109 Natural Earth majors), `data/india-rivers-west.geo.json`
   (633 CWC west-flowing lines — live in 2D and 3D), `data/rivers-cwc.geo.json` (full CWC network,

@@ -740,7 +740,7 @@ _t3("preDams");
    its valley, none float. Reservoir level = crest − freeboard (12% of height, 1.5–15 m); the
    terrain itself carves the shoreline. The 240 longest lakes are month-animated meshes; all
    others merge into one static batch. Where the shapefile is silent the model is illustrative. */
-const resMeshes=[],relGates=[];
+const resMeshes=[],relGates=[],damHover=[];           /* v7.3: damHover = hover-label candidates (top-300 recorded heights) */
 const resMat=new THREE.MeshBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.8,side:THREE.DoubleSide});
 try{
 const dm3=await getJSON("data/dams.geo.json","dams");
@@ -758,6 +758,8 @@ const MB={eu:[],ed:[],ru:[],rd:[],cm:[],cr:[]};   /* 6 merged batches = ~6 draw 
 const lakes=[];let nRes=0,nWall=0,nHero=0,nTri=0;
 const tri=(b,p0,p1,p2)=>{b.push(p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]);nTri++;};
 const obox=(b,cx0,cy0,cz0,ha,ht,hy)=>{const v=[[cx0-ha,cy0,cz0-ht],[cx0+ha,cy0,cz0-ht],[cx0+ha,cy0,cz0+ht],[cx0-ha,cy0,cz0+ht],[cx0-ha,cy0+hy,cz0-ht],[cx0+ha,cy0+hy,cz0-ht],[cx0+ha,cy0+hy,cz0+ht],[cx0-ha,cy0+hy,cz0+ht]],F=[[0,1,2],[0,2,3],[4,6,5],[4,7,6],[0,4,5],[0,5,1],[1,5,6],[1,6,2],[2,6,7],[2,7,3],[3,7,4],[3,4,0]];for(const fc of F)tri(b,v[fc[0]],v[fc[1]],v[fc[2]]);};
+/* v7.3: hover-label set — the same top-300 recorded-height tier as the 2D dam labels (ranked) */
+const hovSet=new Set(dl.filter(f=>(f.properties.height||0)>0).sort((a,b)=>b.properties.height-a.properties.height).slice(0,300));
 dl.forEach(f=>{
 const c=f.geometry.coordinates,lo=c[0],la=c[1];
 if(!isFinite(lo)||!isFinite(la))return;
@@ -773,6 +775,7 @@ else cls=((f.properties.height)||0)>=80?"conc":"earth";
 const hm=(f.properties.height>0)?f.properties.height:H_MED[cls];
 const HU=hm*UPM;
 const x0=X(lo),z0=Z(la),gy=terrAt(lo,la);
+if(hovSet.has(f))damHover.push({x:x0,y:gy+HU,z:z0,n:f.properties.name,h:f.properties.height,s:f.properties.state||"",r:f.properties.river||""});
 /* upstream = the higher side: nearest river tangent (≤4 km) else the DEM gradient */
 let ux=0,uz=1;
 const rv=nearRiver(x0,z0,1.6e-5);
@@ -1014,11 +1017,29 @@ if(typeof lblRivers!=="undefined")lblRivers.forEach((r)=>{proj.set(r.mid.x,r.mid
 })();
 window.__terrainMonth=d=>{
 const m=d.m;
-cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m — true scale at ×1 (1 unit ≈ 950 km E-W; relief chips exaggerate only the vertical). Every CWC dam is a modelled cross-section at its real coordinates (CWC heights where the file has one, class medians elsewhere — illustrative); reservoir shorelines are carved by the terrain. River flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative).";
+cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m — true scale at ×1 (1 unit ≈ 950 km E-W; relief chips exaggerate only the vertical). Every CWC dam is a modelled cross-section at its real coordinates (CWC heights where the file has one, class medians elsewhere — illustrative); reservoir shorelines are carved by the terrain. River flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative). Hover a major dam (top-300 recorded heights — same tier as the 2D labels) for its name, height, state and river: recorded CWC fields.";
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
 _t3("tail");t3Stats.phases=_t3p;
 window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount})};
+/* v7.3: dam hover labels — the top-300 recorded-height tier (same set as the 2D dam labels).
+   Projection mirrors tag() exactly (y × REL, 420 px canvas); the label text is real CWC data. */
+const damTip=document.createElement("div");damTip.id="damTip";damTip.style.display="none";
+cv3.parentNode.appendChild(damTip);
+const pickDam=(mx,my)=>{let best=null,bd=324;const cw=cv3.clientWidth;for(let i=0;i<damHover.length;i++){const d=damHover[i];proj.set(d.x,d.y*REL,d.z).project(cam);if(proj.z>1)continue;const dx=(proj.x*0.5+0.5)*cw-mx,dy=(-proj.y*0.5+0.5)*420-my,dd=dx*dx+dy*dy;if(dd<bd){bd=dd;best=d;}}return best;};
+const hideDamTip=()=>{damTip.style.display="none";};
+cv3.addEventListener("pointermove",e=>{
+if(!terrainOn||drag){hideDamTip();return;}
+const cr=cv3.getBoundingClientRect(),wr=cv3.parentNode.getBoundingClientRect();
+const d=pickDam(e.clientX-cr.left,e.clientY-cr.top);
+if(!d){hideDamTip();return;}
+damTip.innerHTML=`<b>${d.n}</b> · <span class="dh">ht ${d.h} m</span><br><span class="dms">${d.s?d.s+" · ":""}river ${d.r||"—"} · CWC recorded</span>`;
+damTip.style.display="block";
+damTip.style.left=(e.clientX-wr.left+14)+"px";damTip.style.top=(e.clientY-wr.top+10)+"px";
+});
+cv3.addEventListener("pointerleave",hideDamTip);
+cv3.addEventListener("pointerdown",hideDamTip);
+window.__t3.dams={n:()=>damHover.length,pick:(x,y)=>{const d=pickDam(x,y);return d?{n:d.n,h:d.h}:null;},at:i=>{const d=damHover[i];if(!d)return null;proj.set(d.x,d.y*REL,d.z).project(cam);return{n:d.n,h:d.h,px:(proj.x*0.5+0.5)*cv3.clientWidth,py:(-proj.y*0.5+0.5)*420,z:proj.z};},tip:()=>damTip.style.display==="none"?null:damTip.textContent};
 }
 if($("btn3d"))$("btn3d").addEventListener("click",async()=>{
 terrainOn=!terrainOn;

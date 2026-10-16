@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri grey India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.2">
+<link rel="stylesheet" href="styles.css?v=7.3">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.2</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.3</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -67,7 +67,7 @@
 <div class="card-foot"><span>Hint: click radar / zone for source</span><span class="readout" id="monthReadout">—</span></div>
 <div class="fallback"><details><summary>Offline fallback — month table + sources</summary>
 <table class="mini" id="monthTable"><tr><th>M</th><th>IMD season</th><th>Wind</th><th>AS</th><th>BoB</th><th>Rain states</th><th>DMI-typ</th></tr></table>
-<div class="cap"><b>Symbols:</b> short arrows = wind flow (teal Arabian Sea / amber Bay of Bengal) · ┅ lines = sea currents, flip with month · white dots + rings = Doppler radars, static, C 250 km / X 100 km, city-approx (names at zoom ≥6) · dashed amber = heat zone · dashed blue = cold box · dashed ocean rectangles = IOD W/E boxes · blue rivers = living streams (dots = origins, rings = sea mouths, ▲ = flow dir; west-coast + Gujarat rivers from the CWC network) · rain streaks = falling on the month's rain states — density follows each state's monthly average rainfall (IMD 1901–2015 means mapped to states, approximate; illustrative animation) · teal wash = CWC basins (click = sub-basins) · amber pins = dams · blue fills = reservoirs/lakes · travelling teal blob + amber ghost = MJO enhanced / suppressed · teal states = receiving rain this month · tap a state for its name · equatorial arrows lean with DMI · click IOD boxes for live phase · zoom in: smaller rivers, all dams + names appear (fast hierarchy) · 3D: true-scale relief — the ×1 relief chip is real (1 unit ≈ 950 km E-W); ×5/×20/×100 exaggerate the vertical only · every CWC dam is a modelled cross-section at its real coordinates (earth / rockfill / CFRD / concrete-gravity stepped / arch — CWC heights where the file has one, class medians elsewhere, illustrative) · reservoir shorelines carved by the terrain; the 240 longest lakes rise and fall with the month · traceable rivers + month-driven rain/wind streaks (illustrative) · auto-spin is OFF — drag = rotate, right-drag (or shift+drag) = pan, wheel = zoom, double-click = fly.</div>
+<div class="cap"><b>Symbols:</b> short arrows = wind flow (teal Arabian Sea / amber Bay of Bengal) · ┅ lines = sea currents, flip with month · white dots + rings = Doppler radars, static, C 250 km / X 100 km, city-approx (names at zoom ≥6) · dashed amber = heat zone · dashed blue = cold box · dashed ocean rectangles = IOD W/E boxes · blue rivers = living streams (dots = origins, rings = sea mouths, ▲ = flow dir; west-coast + Gujarat rivers from the CWC network) · rain streaks = falling on the month's rain states — density follows each state's monthly average rainfall (IMD 1901–2015 means mapped to states, approximate; illustrative animation) · teal wash = CWC basins (click = sub-basins) · amber pins = dams · blue fills = reservoirs/lakes · travelling teal blob + amber ghost = MJO enhanced / suppressed · teal states = receiving rain this month · tap a state for its name · equatorial arrows lean with DMI · click IOD boxes for live phase · zoom in: smaller rivers, all dams + names appear (fast hierarchy) · 3D: true-scale relief — the ×1 relief chip is real (1 unit ≈ 950 km E-W); ×5/×20/×100 exaggerate the vertical only · every CWC dam is a modelled cross-section at its real coordinates (earth / rockfill / CFRD / concrete-gravity stepped / arch — CWC heights where the file has one, class medians elsewhere, illustrative; hover a major dam — top-300 recorded heights, same tier as the 2D labels — for its name, height, state and river) · reservoir shorelines carved by the terrain; the 240 longest lakes rise and fall with the month · traceable rivers + month-driven rain/wind streaks (illustrative) · auto-spin is OFF — drag = rotate, right-drag (or shift+drag) = pan, wheel = zoom, double-click = fly.</div>
 <div class="readout" id="layerDebug">self-test: waiting for map… (serve via http, hard-refresh once)</div></details></div>
 </div>
 <p class="cap"><b>How to read:</b> Jan–Feb NE→SW dry (Bay tail rains TN) · Mar–May variable/hot · Jun–Sep SW moist splits at peninsula, merges near Delhi. <span style="font-family:var(--mono)">IMD 4-season; Rao p39; met_monograph Ch.5</span>.</p>
@@ -249,7 +249,7 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data/embedded.js?v=7.2"></script>
-<script src="app.js?v=7.2" defer></script>
+<script src="data/embedded.js?v=7.3"></script>
+<script src="app.js?v=7.3" defer></script>
 </body>
 </html>

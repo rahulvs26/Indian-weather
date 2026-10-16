@@ -4,9 +4,10 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.2).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.3).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
-**v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`). No NEXT FEATURE queued.
+**v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
+**v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`. Remaining 3D-polish candidates: spillway glint, snow-cap tinting.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -14,7 +15,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -31,7 +32,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-16, v7.2)
+## Current verified state (2026-10-16, v7.3)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -112,7 +113,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
   cS #F2F3F5 at 400/1800/5200 m. `t3Stats.phases` = per-phase build ms (mesh ≈4.1 s,
   damLoop ≈1.0 s, tail ≈0.8 s; whole build ≈6.5 s on a VISIBLE tab — hidden tabs inflate
   timer measurements, so measure on a focused tab). Read-only hooks:
-  `window.__t3={hAt,yOf,stats,view,hydro,wx,nav,setRel,setSpin}`.
+  `window.__t3={hAt,yOf,stats,view,hydro,wx,nav,setRel,setSpin,dams}`.
 - 3D CAMERA PARAMS (v7.0; grep `tgt`,`fly`,`startFly`,`setRel`,`setSpin`,`panDrag` — inside `buildTerrain()`):
   orbit target `tgt` starts (0,0.0019,0) ≈1.9 km; wheel `R=max(0.01,min(12,R·e^{deltaY·0.003}))`;
   near plane `max(0.002,0.02·R)` refreshed each loop; **auto-spin OFF by default** (`spin=false`,
@@ -144,6 +145,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
   (≤0.05 u) stored as ORIENTED param t (rev flips 1−t). `stats` (build-time, month-independent):
   walls=13002, reservoirs≈1813, gates≈10630, animLakes=240, heroes=14, tris≈650926 (dam+lake).
   Basins block uses LOCAL XB/ZB helpers — do not "simplify" to X/Z (TDZ crash, fixed v5.3).
+- 3D DAM HOVER (v7.3): `damHover` (declared with `resMeshes`/`relGates`, filled in the dam
+  loop) holds the top-300 recorded-height dams — the SAME ranked tier as the 2D labels
+  (`hovSet` = in-bbox ∩ height>0, sort desc, slice 300; land-mine: `hovSet` must be built
+  from `dl` BEFORE `dl.forEach`, and the push sits right after `x0/z0/gy` because `HU` is
+  already defined there). Anchor = wall crest `gy+HU`. Hover: `cv3` pointermove guarded by
+  `terrainOn` && !`drag` → `pickDam()` projects all 300 like `tag()` does (y×REL,
+  `cv3.clientWidth`, 420 px, z>1 culled), nearest within 18 px wins; `#damTip` (appended to
+  `#terrainWrap`, z-index 7 above the HUD's 6; CSS mirrors the canvas labels) shows
+  "<name> · ht N m" / "state · river R · CWC recorded" (real fields); hides on miss /
+  pointerleave / pointerdown. Hook `__t3.dams` = {n(), pick(x,y), at(i), tip()}.
 - 3D HYDRO (v6.1, illustrative month-typical — NOT measured; grep `applyHydro`,`fillOf`,`relOf`,`relGates`):
   `fillOf(m)=0.28+0.72·e^(−(cd12(m,9.5)/2.3)²)` (fills Jun–Sep, peak late Sep/Oct, trough May);
   `relOf(m)=0.55+0.85·fillOf³` (release below a dam: ≈1.32 spills when full, ≈0.57 lean dry);
@@ -192,13 +203,12 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
   loads — pooled weights would freeze at 1.
 
 ## Next up (for the next session)
-- v7.0 is green (true-scale relief, all 13,002 dam models, spin-off by default + pan tools) —
-  commit + push done; site re-verified live (battery above).
+- v7.3 shipped (3D dam hover labels — state bullet + recipe above; commit pushed).
 - USER ACTION pending: restart OpenCode so the global claude-mem plugin loads in every
   project at startup (core features already live).
-- If asked to keep polishing the 3D view: candidates are hover labels for major dams, a soft
-  spillway glint, or snow-cap tinting tied to `yOf` bands — if any option conveys new info,
-  keep the "(illustrative)" label.
+- If asked to keep polishing the 3D view: remaining candidates are a soft spillway glint or
+  snow-cap tinting tied to `yOf` bands — if any option conveys new info, keep the
+  "(illustrative)" label.
 - Otherwise pick from the standing optional items below.
 
 ## Open items (not bugs)
@@ -228,6 +238,12 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
   closed valleys only. If they scream orange or protrude like pins, the palette/H constants
   regressed; if they look perpendicular-matchstick, check the `w2` mapping (`cosA=ax, sinA=-az`)
   and that `draped` is still in scope before them.
+- 3D dam hover (v7.3): `__t3.dams.n()` → 300. `__t3.dams.at(0)` → {n,h,px,py,z} (canvas
+  coords); dispatch `new PointerEvent("pointermove",{clientX:rect.left+px,clientY:rect.top+py})`
+  on `#terrain3d` → `__t3.dams.tip()` returns the name + "ht N m" and `#damTip` display=block at
+  pointer +14/+10; the same coords through `pick(px,py)` return the SAME dam as `at(i)`. Corner
+  dispatch / `pointerleave` → tip() null. (textContent glues `<br>` lines — "mAP" is height +
+  state "AP", not a bug.)
 - 3D deep zoom: `__t3.view()` starts {R≈4.4, near≈0.1, tgt=[0,0.0019,0]}. 25 negative wheel
   deltas on `#terrain3d` → R clamps 0.01, near settles 0.002; 25 positive → clamps 12. dblclick
   canvas centre → after ~0.8 s fly=false and tgt ≠ [0,0.0019,0]; dblclick a top corner (sky) →

@@ -53,7 +53,7 @@ const chips=[...document.querySelectorAll(".chip")];
 const layers={winds:true,heatcold:true,radar:true,iod:true,mjo:true,rivers:true,basins:true,dams:true,water:false};
 const FLY={heatcold:[[22.5,79.5],5],radar:[[22.5,79.5],5],iod:[[[-12,45],[12,112]],null],mjo:[[[-15,10],[15,140]],null],rivers:[[22.5,79.5],5],basins:[[22.5,79.5],5],dams:[[22.5,79.5],5],water:[[22.5,79.5],5]};
 chips.forEach(c=>c.addEventListener("click",()=>{const k=c.dataset.layer;layers[k]=!layers[k];c.setAttribute("aria-pressed",layers[k]);if(window.__applyLayers)window.__applyLayers();if(k==="water"&&layers[k]&&window.__loadWater)window.__loadWater();if(layers[k]&&map&&FLY[k]){const f=FLY[k];if(f[1])map.flyTo(f[0],f[1],{duration:1});else map.flyToBounds(f[0],{duration:1});}}));
-let map=null,windParts=[],wctx=null,curVec={vx:1,vy:-0.6},rainFx=[],rainInfo={m:0,n:0,pool:0,k:0};
+let map=null,windParts=[],wctx=null,curVec={vx:1,vy:-0.6};
 const ARAB_COL="#0F766E",BOB_COL="#6B7280",BOB_WIND="#B45309",HEAT_COL="#B91C1C",COLD_COL="#1D4ED8";
 function vecFor(d){
 let base;
@@ -82,30 +82,12 @@ wctx.lineTo(hx-Math.cos(a-0.42)*6,hy-Math.sin(a-0.42)*6);
 wctx.lineTo(hx-Math.cos(a+0.42)*6,hy-Math.sin(a+0.42)*6);
 wctx.closePath();wctx.fill();wctx.globalAlpha=1;
 }
-/* v6.2 rain streaks: fall over the month's rain-receiving states (illustrative animation —
-   same months.json rainStates list that drives the teal state highlight; density follows the
-   branch strengths (arabian+bay)/200, so monsoon months rain hard, winter months barely) */
-function stepRain(nowS){
-if(!rainFx.length||!map)return;
-const c=$("windCanvas");
-for(const d of rainFx){
-let p;try{p=map.latLngToContainerPoint([d.la,d.lo]);}catch(_){continue;}
-const off=(d.ph+nowS*d.sp)%1;
-const y=p.y+off*170-45;
-if(p.x<-30||p.x>c.width+30||y<-24||y>c.height+40)continue;
-const x=p.x+off*curVec.vx*26;
-wctx.strokeStyle="#0E7490";wctx.globalAlpha=0.32+0.2*rainInfo.k;
-wctx.lineWidth=1.1;wctx.beginPath();wctx.moveTo(x,y);wctx.lineTo(x+curVec.vx*1.7,y+d.ln);wctx.stroke();
-}
-wctx.globalAlpha=1;
-}
 function stepWind(){
 stepWind._t=true;
 if(!wctx){requestAnimationFrame(stepWind);return;}
 const c=$("windCanvas");
 if(!layers.winds){wctx.clearRect(0,0,c.width,c.height);requestAnimationFrame(stepWind);return;}
 wctx.clearRect(0,0,c.width,c.height);
-const nowS=Date.now()/1000;
 for(const p of windParts){
 const wob=Math.sin((p.x+p.y)*0.02+Date.now()*0.0004)*0.3;
 p.x+=(curVec.vx*p.sp+wob*0.3);p.y+=(curVec.vy*p.sp+wob*0.2);
@@ -114,7 +96,6 @@ wctx.fillStyle=p.west?ARAB_COL:BOB_WIND;wctx.globalAlpha=0.5;
 wctx.fillRect(p.x,p.y,2.2,1.4);
 }
 wctx.globalAlpha=1;
-stepRain(nowS);
 /* arrow grid mirrors the same vector (text equivalent lives in month readout) */
 const gx=90,gy=105;
 const MJO_ENH="#6D28D9";
@@ -168,7 +149,8 @@ setMonth(7);
 buildGraph();
 if(typeof L==="undefined")throw new Error("Leaflet CDN blocked");
 map=L.map("osmMap",{scrollWheelZoom:true}).setView([22.5,79.5],5);
-L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,attribution:'Tiles © <a href="https://www.esri.com/">Esri</a> — Esri, DeLorme, NAVTEQ'}).addTo(map);
+/* v7.5: pastel relief base (World Terrain Base — shaded relief + bathymetry, service levels 0-13) replaces the grey Canvas plate; CSS re-tints it pastel */
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:13,attribution:'Tiles © <a href="https://www.esri.com/">Esri</a> — Esri, USGS, NOAA'}).addTo(map);
 try{
 const reg=await getJSON("data/region.geo.json","region");
 L.geoJSON(reg,{style:{color:"#9CA3AF",weight:1,fillColor:"#E8E5DE",fillOpacity:0.5}}).addTo(map);
@@ -184,10 +166,12 @@ L.geoJSON(st,{style:{color:"#1A1A1A",weight:0.7,fillColor:"#FAF9F6",fillOpacity:
 window.__rainStates=d=>{
 const want=new Set(d.rainStates||[]);
 for(const n in stateLayers){const on=want.has(n);try{stateLayers[n].setStyle({fillColor:on?"#0F766E":"#FAF9F6",fillOpacity:on?0.45:0.12,weight:on?1.4:0.7});}catch(_){}}
-/* v6.2/v7.2 rain particles: sample points inside the month's rain-receiving states (IMD
-   month-typical list) and weight each state's particle count + fall speed by its monthly
-   average rainfall (data/rain-state-avg.json — IMD subdivision 1901-2015 means mapped to
-   states, approximate). Equal weights until the averages load. Cached per month. */
+/* v7.2 rain pools: sample points inside the month's rain-receiving states (IMD
+   month-typical list), each state weighted by its monthly average rainfall
+   (data/rain-state-avg.json — IMD subdivision 1901-2015 means mapped to states,
+   approximate). Equal weights until the averages load. Cached per month.
+   v7.5: the 2D falling-streak renderer was removed (read as fake-3D rain on the flat
+   map); the pools now feed the 3D relief rain only, via window.__rainSample. */
 try{
 const avg=window.__rainAvg&&window.__rainAvg.states,li=(d.m||1)-1;
 const wOf=n=>{const s=avg&&avg[n];return s&&s.m?Math.max(0,s.m[li]||0):0;};
@@ -210,23 +194,12 @@ if(pts.length){P.byState[n]={pts,w};if(w>P.max)P.max=w;}
 }
 if(haveAvg)cache[d.m]=P;
 }
-const rf=Math.max(0.12,Math.min(1,(d.arabian+d.bay)/200));
 const es=Object.entries(P.byState);
-let totW=0;for(const[,v]of es)totW+=Math.sqrt(v.w);
-const nAll=Math.min(340,Math.round((60+280*rf)*(RM?0.4:1)));
-rainFx=[];
-for(const[n2,v]of es){
-const sh=totW?Math.sqrt(v.w)/totW:1/es.length;
-const cnt=Math.max(1,Math.round(nAll*sh)),heavy=Math.min(1,Math.sqrt(v.w/P.max));
-for(let i=0;i<cnt;i++){const p=v.pts[(Math.random()*v.pts.length)|0];
-rainFx.push({la:p[0]+(Math.random()-0.5)*0.22,lo:p[1]+(Math.random()-0.5)*0.22,ph:Math.random(),sp:0.55+Math.random()*0.45+0.7*heavy,ln:6+Math.random()*4+5*heavy,st:n2});}
-}
-rainInfo={m:d.m,n:rainFx.length,pool:es.length,k:rf};
-window.__rainDbg=()=>({m:rainInfo.m,rain:rainInfo.n,states:rainInfo.pool,k:+rainInfo.k.toFixed(3),avg:!!avg,w:Object.fromEntries(es.map(([n2,v])=>[n2,Math.round(v.w)]))});
+window.__rainDbg=()=>({m:d.m,states:es.length,avg:!!avg,w:Object.fromEntries(es.map(([n2,v])=>[n2,Math.round(v.w)]))});
 window.__rainSample=()=>{const Q=window.__rainPoolCache&&window.__rainPoolCache[INDWeather.month||7];if(!Q)return null;const qs=Object.entries(Q.byState);if(!qs.length)return null;let t2=0;for(const[,v]of qs)t2+=v.w;let r=Math.random()*t2,uk=qs[qs.length-1];
 for(const kv of qs){uk=kv;r-=kv[1].w;if(r<=0)break;}
 const v=uk[1],p=v.pts[(Math.random()*v.pts.length)|0];return[p[0],p[1],Math.min(1,v.w/Q.max)];};
-}catch(e){rainFx=[];rainInfo={m:d.m,n:0,pool:0,k:0};}
+}catch(e){console.warn("rain pools failed",e);}
 };
 window.__rainStates(monthByNum(INDWeather.month||7));
 fetch("data/rain-state-avg.json?v=7.2").then(r=>r.json()).then(j=>{window.__rainAvg=j;try{window.__rainStates(monthByNum(INDWeather.month||7));}catch(_){}}).catch(e=>console.warn("rain-state-avg failed",e));
@@ -1058,13 +1031,34 @@ cv3.addEventListener("pointerleave",hideDamTip);
 cv3.addEventListener("pointerdown",hideDamTip);
 window.__t3.dams={n:()=>damHover.length,pick:(x,y)=>{const d=pickDam(x,y);return d?{n:d.n,h:d.h}:null;},at:i=>{const d=damHover[i];if(!d)return null;proj.set(d.x,d.y*REL,d.z).project(cam);return{n:d.n,h:d.h,px:(proj.x*0.5+0.5)*cv3.clientWidth,py:(-proj.y*0.5+0.5)*420,z:proj.z};},tip:()=>damTip.style.display==="none"?null:damTip.textContent};
 }
-if($("btn3d"))$("btn3d").addEventListener("click",async()=>{
-terrainOn=!terrainOn;
-document.querySelector("#map .stage").classList.toggle("terrain-on",terrainOn);
+async function setTerrainView(on){
+const stage=document.querySelector("#map .stage");
+if(on&&stage.classList.contains("map3d-on")){stage.classList.remove("map3d-on");if(window.__map3d)window.__map3d.setActive(false);if($("btn3dm"))$("btn3dm").textContent="3D map";}
+terrainOn=on;
+stage.classList.toggle("terrain-on",terrainOn);
 $("btn3d").textContent=terrainOn?"2D map":"3D mountains";
 if(terrainOn&&window.__applyLayers)window.__applyLayers();   /* refresh self-test: 2D hidden (3D on) */
-if(terrainOn){if(window.__terrainMonth)window.__terrainMonth(monthByNum(INDWeather.month||7));if(!terrainBuilt&&!terrainBuilding){terrainBuilding=true;try{await buildTerrain();terrainBuilt=true;}catch(e){console.warn(e);terrainBuilding=false;$("terrainCap").textContent="3D needs network for elevation tiles — back to 2D.";terrainOn=false;document.querySelector("#map .stage").classList.remove("terrain-on");$("btn3d").textContent="3D mountains";}}}
+if(terrainOn){if(window.__terrainMonth)window.__terrainMonth(monthByNum(INDWeather.month||7));if(!terrainBuilt&&!terrainBuilding){terrainBuilding=true;try{await buildTerrain();terrainBuilt=true;}catch(e){console.warn(e);terrainBuilding=false;$("terrainCap").textContent="3D needs network for elevation tiles — back to 2D.";terrainOn=false;stage.classList.remove("terrain-on");$("btn3d").textContent="3D mountains";}}}
 else if(map){map.invalidateSize();setTimeout(()=>window.__applyLayers&&window.__applyLayers(),350);}
+}
+if($("btn3d"))$("btn3d").addEventListener("click",()=>setTerrainView(!terrainOn));
+/* v7.5 third view: true-scale 3D map — MapLibre GL JS + OpenFreeMap vector tiles + Mapterhorn DEM
+   + OSM buildings (all keyless). Mutually exclusive with the 3D-mountains view; MapLibre (map3d.js)
+   loads lazily on first activation, and only the attribution obligation applies. */
+if($("btn3dm"))$("btn3dm").addEventListener("click",async()=>{
+const stage=document.querySelector("#map .stage"),cap=$("map3dCap");
+if(!stage.classList.contains("map3d-on")){
+if(terrainOn)await setTerrainView(false);
+stage.classList.add("map3d-on");$("btn3dm").textContent="3D map…";if(cap)cap.textContent="";
+const ok=window.__map3d?await window.__map3d.setActive(true).catch(()=>false):false;
+if(stage.classList.contains("map3d-on")){   /* guard: user may have toggled back off while loading */
+if(!ok){stage.classList.remove("map3d-on");$("btn3dm").textContent="3D map";if(cap)cap.textContent="3D map needs network (OpenFreeMap tiles + Mapterhorn DEM) — staying on 2D.";}
+else $("btn3dm").textContent="2D map";
+}
+}else{
+stage.classList.remove("map3d-on");if(window.__map3d)window.__map3d.setActive(false);$("btn3dm").textContent="3D map";
+if(map){map.invalidateSize();setTimeout(()=>window.__applyLayers&&window.__applyLayers(),350);}
+}
 });
 
 /* ================= Fig6 CLIMATE CONDUCTOR (links every phenomenon) ================= */

@@ -4,11 +4,12 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.4).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.5).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
 **v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
 **v7.4 SHIPPED (2026-10-16):** 3D crest polish + snow — spillway-pier width fixed to true scale (the v7.0 `ha` bug built ≈3,800 km slabs) and the 14 concrete/arch heroes (≥100 m) carry a soft pulsing crest glint (additive sprites, illustrative); terrain snow blends in from 4,400 m, fully white ≈5,700 m (schematic); near-plane floor fix (`max(2e-5,0.02·R)` — the old 0.002 floor sat at/above the orbit target below R≈0.1 and clipped crest-level detail); new hooks `__t3.colAt/flyTo/glint`.
+**v7.5 SHIPPED (2026-10-16):** pastel 2D basemap + no fake-3D rain in the 2D map + a third view "3D map" — 2D base switched to Esri World_Terrain_Base (`maxNativeZoom:13`) under a pastel CSS grade (`saturate(.62) brightness(1) contrast(.95)` on `.leaflet-tile-pane`, chosen by in-page canvas A/B); the 2D rain-streak renderer is deleted (per-state pools remain → 3D rain; `__rainDbg()` reshaped — see the rain bullet); new `map3d.js` = MapLibre GL JS 6.14.0 + OpenFreeMap `bright` + Mapterhorn DEM terrain + OSM building extrusions, keyless (credits: MapLibre · OpenFreeMap · Mapterhorn), toggled by a third stage button via `setTerrainView`; hook `window.__map3d`.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -16,7 +17,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.4).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -33,7 +34,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.4).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-16, v7.4)
+## Current verified state (2026-10-16, v7.5)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -50,15 +51,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.4).
   module is OUTSIDE the app.js IIFE — the self-test line stashes
   `window.__phenEnv={map,rm,month}` (self-heal retries 1.2/2.6/5 s). Never reference
   map/RM/INDWeather/CLIM directly in appended code — they are IIFE-scoped.
-- Map look (v6.1): Esri World Light Gray Canvas tiles (keyless
-  `server.arcgisonline.com/.../Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
-  maxNativeZoom 16, attribution "Tiles © Esri — Esri, DeLorme, NAVTEQ") re-tinted
-  soft grey via `#osmMap .leaflet-tile-pane{filter:grayscale(1) brightness(1.04) contrast(0.92)}`
-  in styles.css — the only colour on the map is the data overlays. Switched from OSM
-  volunteer tiles: tile.openstreetmap.org 403-BLOCKED the app on 2026-10-15 (tile usage
-  policy — heavy repeated test reloads). NEVER point the layer or a verification back at
-  OSM, and keep verification reloads minimal. CARTO Positron stays rejected (keyless =
-  "API KEY REQUIRED" watermarks); do not reintroduce it without a key.
+- Map look (v7.5): Esri World_Terrain_Base tiles (keyless
+  `server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}`,
+  `maxNativeZoom:13` — the service stops at z13; attribution "Tiles © Esri — Esri, USGS, NOAA")
+  graded pastel by `#osmMap .leaflet-tile-pane{filter:saturate(.62) brightness(1) contrast(.95)}`
+  in styles.css — teal bathymetry + pale relief under the data overlays (the grade was picked
+  by an in-page canvas A/B replaying the live tiles + filter). Replaced the v6.1 Light Gray
+  Canvas + grayscale filter. Esri-only stands: tile.openstreetmap.org 403-BLOCKED the app on
+  2026-10-15 (tile usage policy — heavy repeated test reloads). NEVER point the layer or a
+  verification back at OSM, and keep verification reloads minimal. CARTO Positron stays
+  rejected (keyless = "API KEY REQUIRED" watermarks); do not reintroduce it without a key.
 - MJO: tour (`▶ MJO` on map / `▶ propagate` in Fig5 loom) auto-fits the
   equatorial corridor, advances every 1.1 s (2.6 s + snap under reduced motion),
   wraps 8→1 with snap, glides otherwise; shuttle has CSS glide transition.
@@ -71,21 +73,35 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.4).
 - Zoom hierarchy (Google-Maps style): rivers rivMaj/rivMed(≥5)/rivMin(≥7) + rivWest
   (CWC west-flowing subset, ≥5); dams dg0(top40)/dg1(<400)/dg2(all, ≥8) + labels ≥7;
   CWC network ≥6 bg-load; water (reservoirs/glacial/TN) lazy on chip only.
-- 2D RAIN STREAKS (v6.2 pool / v7.2 per-state averages, illustrative): `stepRain(nowS)`
-  runs inside the wind-canvas loop (only while the Winds chip is on). Drops fall over the
-  month's `rainStates` (IMD month-typical teal list); pool sampled inside each state polygon
-  (area-weighted ring pick + even-odd test) and now cached WITH per-state weights in
+- 2D RAIN POOLS (v6.2 pool / v7.2 per-state averages, illustrative; v7.5: streak RENDERER
+  deleted — no falling lines in the 2D map; the streak spawn/lean/speed block, `stepRain`,
+  `nowS` and its call in `stepWind` are gone; the `(arabian+bay)` rf factor stays for the
+  3D weather field only). The teal "raining now" tint over the month's `rainStates` (IMD
+  month-typical teal list) is unchanged; the pool part builds/reseeds in ONE `__rainStates(d)`
+  pass: sampled inside each state polygon
+  (area-weighted ring pick + even-odd test) and cached WITH per-state weights in
   `window.__rainPoolCache[m]={byState:{state:{pts,w}},max}`. `w` = that state's mean rainfall
   for the month, mm, from `data/rain-state-avg.json` (IMD subdivision record 1901–2015, mapped
   to states — approximate; fetched once at map init into `window.__rainAvg`; pools are NOT
-  cached until the averages exist, so weights never go stale — equal-weight fallback before).
-  Spawn: total `min(340,60+280·rf)`, `rf=max(0.12,min(1,(arabian+bay)/200))`; per-state count
-  ∝ √w (min 1), fall speed `0.55+0.45·rnd+0.7·heavy`, streak `6+4·rnd+5·heavy`,
-  `heavy=√(w/max)`; streak lean follows `curVec`. Spawn happens inside `window.__rainStates(d)`.
-  `__rainDbg()` = {m,rain,states,k,avg,w:{state→mm}}; `window.__rainSample()` draws a point from
+  cached until the averages exist, so weights never go stale — equal-weight fallback before);
+  the pools feed the 3D relief rain only.
+  `__rainDbg()` = {m,states,avg,w:{state→mm}} (v7.5 shape — `.rain`/`.k` GONE);
+  `window.__rainSample()` draws a point from
   the CURRENT month's pool ∝ w → [lat,lng,weight] (3D uses this; null → uniform fallback).
   State popups now read "Avg <MON> rain ≈ N mm (IMD 1901–2015 subdivision mean, mapped to
   state — approximate)".
+- 3D MAP VIEW (v7.5, new `map3d.js` — ESM, loaded ONLY on first activation): a third stage
+  view "3D map" (buttons 2D ⇄ 3D mountains ⇄ 3D map, mutually exclusive via `setTerrainView`)
+  = MapLibre GL JS 6.14.0 (BSD-3; dynamic `import` from unpkg, worker same-origin) +
+  OpenFreeMap `bright` style/planet tiles + Mapterhorn terrarium DEM (`terrain`, exaggeration
+  1 = true scale) + `deck-3d-buildings` fill-extrusion from the OMT `building` source-layer
+  (minzoom 13.5, `render_height`, inserted before the first symbol layer). Sky =
+  `map.setSky({...})` (root property). Activation resolves on `style.load` + 20 s timeout —
+  NEVER `"load"` (see land-mines); `map.resize()` runs right after resolve. Credits:
+  "MapLibre GL JS · OpenFreeMap tiles · Mapterhorn DEM" (© OpenMapTiles / © OpenStreetMap
+  contributors / © Mapterhorn) — keyless. Hook `window.__map3d` =
+  {setActive(on)→Promise<map|null>, map(), ready(), style(), layers(): ["id:type"],
+  terrain()}. `__t3` (mountains) untouched.
 - 3D WEATHER (v7.0, illustrative): rain = LineSegments `wxRGeo` N=36+330·rf falling to
   `wxFloor` (= terrain + MZ(90)); wind = LineSegments `wxWGeo` N=22+115·min(1.25,|vecFor(md)|)
   along `wxVec=(x:vx,z:vy)`; counts + vector set inside `applyHydro` (the month funnel),
@@ -190,6 +206,17 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.4).
 - `.stage svg` CSS collapsed Leaflet vectors → keep `#osmMap svg` id-scoped rule.
 - Tile re-tint filter must stay scoped to `.leaflet-tile-pane` — on `#osmMap` or
   `.stage` it would re-tint the overlay SVG + markers too.
+- 2D tiles: `maxNativeZoom:13` on World_Terrain_Base is load-bearing — the service
+  stops at z13; without it the map blanks past z13 (tile 404s).
+- MapLibre v6 sky: `map.setSky({...})` — a `type:"sky"` LAYER THROWS ("expected one of
+  [fill, line, symbol, …]"); keep it a root property.
+- `map3d.js` activation must await `style.load`, not `"load"`: backgrounded/hidden tabs
+  never paint a frame, so `"load"` never fires and the button sticks at "3D map…" until
+  the tab is visible. Render checks in hidden tabs need a forced
+  `map._render(performance.now())` before `getCanvas().toDataURL()` (the draw buffer is
+  cleared by compositing; `queryRenderedFeatures` counts are frame-dependent too).
+- `__rainDbg()` v7.5 shape is {m,states,avg,w} — anything reading `.rain`/`.k` breaks
+  (the old shape is described only in history entries above).
 - `window.__mjo*` layer refs must be published AFTER creation (TDZ crash v3.7).
 - Wind loop global `mjoG` scope bug + 4 s watchdog (`stepWind._t`) — leave intact.
 - 3D terrain: `draped` scope; basins X/Z TDZ (use XB/ZB); the dams block reads

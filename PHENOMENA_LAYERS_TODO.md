@@ -1,4 +1,4 @@
-# PHENOMENA_LAYERS_TODO — v7.1 implementation plan (frozen)
+# PHENOMENA_LAYERS_TODO — v7.1 implementation plan (frozen; delivered 2026-10-16, commit `583ca9f`)
 
 **Goal (user's exact ask):** show all 41 researched climate phenomena on the map — in 2D *and* 3D — **animated, as user-pickable layers**.
 
@@ -157,38 +157,40 @@ Window notation: `6-9` = months 6,7,8,9; `11-3` = 11,12,1,2,3; `all` = `[]`.
 
 ## 3. Tasks (check as you go)
 
-### [ ] T1 — Write `data/phenomena.json` (41 items)
+**As-built:** T1–T7 all executed — 41 layers shipped, live-verified (reloads 1–3, zero console errors), docs updated; boxes ticked 2026-10-16 in the audit.
+
+### [x] T1 — Write `data/phenomena.json` (41 items)
 - **Recommended (token-cheap, reproducible):** create `data/_gen_phenomena.mjs` with the §2 rows as compact arrays, run `node data/_gen_phenomena.mjs > data/phenomena.json`, spot-check `node -e "const j=require('./data/phenomena.json');console.log(j.items.length, j.items.map(i=>i.id).join(','))"` (must print 41 and all IDs). Keep the generator committed (harmless; delete if asked).
 - `info` bodies: condense 1–2 sentences from the matching line in `CLIMATE_PHENOMENA_TODO.md`; every popup gets `src` + the note carries "(illustrative)".
 - All-year items: `"window":[]`. Add `"labelAt"` only where bbox centre is misleading (e.g. O3 west/east boxes → (0,60) and (-5,100)).
 - **Fallback:** write JSON directly in 2 `write`/`edit` passes (M/O/S then X/L) if the script route is unwanted.
 
-### [ ] T2 — `index.html`
+### [x] T2 — `index.html`
 - L10 → `styles.css?v=7.1`; L14 brand → `study deck · v7.1`; L238 → `embedded.js?v=7.1`; L239 → `app.js?v=7.1`.
 - Insert the §1.7 panel block between L52 (`</div>` closing chips) and L53 (`card-foot`).
 
-### [ ] T3 — `styles.css`
+### [x] T3 — `styles.css`
 - Append the §1.9 rules at end of file. Include `@keyframes phenDashMove` (stroke-dashoffset), `@keyframes phenDotPulse`. No new media query needed (L105 handles reduced motion).
 
-### [ ] T4 — `app.js` — 2D engine + UI + hooks
+### [x] T4 — `app.js` — 2D engine + UI + hooks
 - **4a.** In `setMonth`, after L43 (`__terrainMonth`) add: `if(window.__phenMonthSync)window.__phenMonthSync(m);`
 - **4b.** L472 self-test: append ` · phen=${(window.__phen&&window.__phen.on)?window.__phen.on.size:0}/41` inside the template string.
 - **4c.** Append module at **end of file** (after L1047): `/* ==== v7.1 phenomena layers ==== */` — `ptInPoly`, `PHEN`, `window.__phen`, `phenInit`, `phenBuild2`, `phenApply`, `phenSync`, `phenStep2`, `window.__phenMonthSync=phenSync`, UI builder (list grouped by cat, checkboxes, filters, clear), localStorage `phen.on` persistence, then `try{phenInit();}catch(e){console.warn("phen",e);}`.
 - **4d.** `node --check app.js` → fix any syntax issue before live test.
 - Live check (reload 1): panel shows 41 rows; toggle 3 items incl. O3/O4/S1 → shapes appear; `__phen.on.size` matches; self-test shows `phen=3/41`; no console errors. Month slider to 1 and 9 → O3 right style swaps bright/dim.
 
-### [ ] T5 — `app.js` — 3D engine
+### [x] T5 — `app.js` — 3D engine
 - Insert Splice A between L707 and L709 (after `_t3("markers")`).
 - Insert Splice B after `stepWx(dtS);` (L975).
 - Append `window.__phen3d={build,step,info}` to the §4c module (before its `phenInit()` call). Reuse `phenBuild2` item list; loop movers store cumulative lengths; pulses store phase offsets.
 - `node --check app.js`.
 - Live check (reload 2): enable 3D → `__phen3d.info()` `{built:true,objs:41,steps>0}`; toggle O4/M5/S4 → visible; month slider dims X3 vs X1 appropriately; `__t3.wx()` unchanged shape; no console errors.
 
-### [ ] T6 — Final verify (reload 3)
+### [x] T6 — Final verify (reload 3)
 - Fresh tab `index.html?live=3`: 0 console errors; self-test line intact + `phen=N/41`; `__phen.loaded===true`; O4 mover advances (watch `O4._2d.marker.getLatLng()` twice 2 s apart, changes); reduced-motion via devtools emulation optional.
 - Check 2D+3D co-existence: 3D on hides 2D (existing behavior) — toggling phenomena while 3D is on must not throw; back to 2D → layers re-render.
 
-### [ ] T7 — Docs + commit
+### [x] T7 — Docs + commit
 - `HANDOFF.md`: state line → v7.1; self-test expected string now ends `phen=n/41`; add recipes `window.__phen`, `__phen3d.info()`, panel behavior; note phenomena ≠ `layers` counts.
 - `INDIAN_WEATHER_SPEC.md`: header v7.0→v7.1 + 2-line feature note.
 - Commit 1 (if not yet): `research: 41 climate phenomena checklist + IMD sources` (CLIMATE_PHENOMENA_TODO.md).

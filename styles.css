@@ -164,6 +164,22 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damBtn:hover{background:rgba(15,118,110,.6)}
 .damBtn:focus-visible{outline:2px solid #5EEAD4;outline-offset:2px}
 .damBtn:disabled{opacity:.55;cursor:default}
+/* v7.9 any-dam picker: activation switch, name search, result list, status line */
+.damModeRow{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:10.5px;color:#cfe0d8;cursor:pointer;line-height:1.35}
+.damModeRow b{color:#E7E5E4}
+.damModeRow input{accent-color:#2DD4BF}
+.damSearch{width:100%;font:11px ui-monospace,monospace;padding:5px 7px;margin-top:6px;border-radius:6px;border:1px solid #2a3a34;background:rgba(6,12,10,.9);color:#E7E5E4}
+.damSearch::placeholder{color:#7d918a}
+.damResults{max-height:132px;overflow:auto;margin-top:5px;display:flex;flex-direction:column;gap:3px}
+.damResults:empty{display:none}
+.damRes{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:4px 6px;border-radius:5px;border:1px solid #26332f;background:rgba(9,16,14,.85);color:#E7E5E4;cursor:pointer;font:10.5px/1.35 ui-monospace,monospace}
+.damRes:hover{border-color:#2DD4BF;background:rgba(15,118,110,.28)}
+.damRes span{color:#9fb4c7;font-size:9.5px}
+.damNo{font-size:10px;color:#9fb4c7;padding:2px 4px}
+.damMsg{margin-top:5px;font-size:10px;color:#5EEAD4;min-height:12px}
+.damChkRow{display:flex;gap:12px;margin-top:7px;flex-wrap:wrap}
+.damChk{display:flex;align-items:center;gap:4px;font-size:10.5px;color:#cfe0d8;cursor:pointer}
+.damChk input{accent-color:#2DD4BF}
 .damNote{margin-top:7px;color:#9fb4c7;font-size:10px}
 
 /* v7.7: phenomena visibility + interference */

@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.8).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.9).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
 **v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
@@ -13,7 +13,8 @@ Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.8).
 **v7.6 SHIPPED (2026-10-17):** dam-release water simulation in the 3D map view — "Release water" at Hirakud dam runs a kinematic front down the REAL Mahanadi centre-line to the Bay of Bengal (`data/dam-route-hirakud.geo.json`, derived from the CWC "Mahanadi River" network by `data/_gen_dam_route.mjs`; 53 pts, 414.8 km, arrival ≈3.2 days at ≈1.5 m/s — illustrative); route/wet/head/end layers drape over terrain, "Day N" clock + km readout card, hook `window.__dam`; drive-by fix — the self-test line now reads `2D hidden (3D on)` in the 3D map view too. Verified headless (Edge 155 + SwiftShader WebGL2): 23/23 checks, 0 app console errors, journey 0→414.8 km over ≈25.6 s, day 3.201, wet line 53/53 coords, 2D⇄3D-map toggle round-trip ok.
 **v7.7 SHIPPED (2026-10-17):** climate phenomena are now actually visible on the map + their interference with weather patterns — (a) ON layers render at BOLD family colour (region 2.2/1/.22, dot mesh r3/.95, band 2.6/1, track 2.4/.9, sea 1.8/.9 fill .13, points r4.6 w1.2, pulse r3.4, rings 1.8/.65) instead of the old faint look; (b) month not in an item's window → off-season = ~half opacity + `5 6` dash + an always-open `ID · off-season (months)` tag at the item's anchor (`.phenOff` ≈50 % now — grep `st.tag`, `phenAnchorOf`); (c) five off-map drivers draw a dashed interference arrow to their landing point with a note tooltip — data-driven `link:[lat,lng,note]` in `data/phenomena.json`: O1 ENSO→(22,79), O2 Modoki→(15,87), O3 IOD→(19.5,78), O5 PDO→(23.5,75), O7 NAO/AMO→(19.5,75); (d) Fig6 "Season" shows `#graphPhenBands` strips (one rect per window run of each ON item) and `#graphReadout` ends " · ON <ids>" (wrapper on `__graphCursor`); (e) panel rows carry a family-colour dot. Verified live July (13 saved picks on): 14 band rects (M8 = 2 runs), M3 off-season sample dash 5 6 / opacity .45 / tag "M3 · off-season (Sep–Dec)", readout ON list = the in-window subset exactly, 4 link polylines + 4 arrowheads on the 2D map, `window.__dam` present in the same page, console clean.
 **v7.7.1 FIXES (2026-10-17):** gap fixes from the log review — (1) BOOT RACE (pre-existing since v7.1): `phenApply()` early-returns while `PHEN.env.map` is unset, the self-heal retries ran only at 1.2/2.6/5 s, and nothing applied the restored picks when the map bridge arrived → on a fresh load the panel read `0 / 41 on` with no layers for seconds while `#graphReadout` already listed `· ON …`. Now `__applyLayers` calls `__phen.apply()` right after it publishes `window.__phenEnv`, and the retry chain is 1.2/2.6/5/9/14 s (unconditional). (2) Fig6 season strips label each ON item ONCE (M8 has two runs → two identical `M8` labels before). (3) Log sync: SPEC ref, brand + `app.js?v=7.7.1`, a v7.7 verification recipe, the boot-race land-mine, and the corrected dim mechanism (shapes dim via INLINE opacity; `.phenOff` CSS class is dots/movers/rings ONLY — there is no double-dim). NOTE: the 5 driver arrows' landing points (22,79)/(15,87)/(19.5,78)/(23.5,75)/(19.5,75) are editorial placement — ILLUSTRATIVE; only the effect notes are sourced. VERIFIED: fresh load applies the picks at ≈0.7–0.95 s (`appliedAtMs` 716/947 — no 0/41 stall), Fig6 = 14 rects / 13 labels, and the 3D path was exercised for the first time (mountains build 6.5 s, `__phen3d.info()` → {built:true,objs:41}, toggle O7 with 3D up → on 13→14→13, self-test `2D hidden (3D on)`, 0 console errors).
-**v7.8 SHIPPED (2026-10-17):** 3D-mountains navigation rebuilt so a non-technical user can move around — (a) TOUCH/trackpad gestures via a `ptrs` map: 1 finger = look around, 2 fingers = slide across, pinch = zoom (none of this existed — a phone user could not zoom at all); (b) TAP-to-fly on touch (press <600 ms, <10 px) with double-click kept for the mouse; tap the sky = home, tap a DAM = read its label instead of flying (hover and tap share `showDamTip`); (c) on-screen **− Zoom out / + Zoom in** (R ×/÷ 0.72) and a **? How to move** card (`#t3helpbox`) that opens once per session (`sessionStorage.t3help`); (d) keyboard — arrows look, `+ −` zoom, `Home` start over, `Space` auto-spin — guarded against INPUT/TEXTAREA/SELECT/BUTTON so the month slider keeps its arrows; (e) HUD buttons 13 px / 36 px tall. Pinch maths commit only when BOTH pointers have new positions (or after 120 ms): ungated per-event maths read a lopsided intermediate state and drifted the zoom ~33 % during a parallel slide, and a rAF-frame version was rejected because the render loop freezes in a backgrounded tab. `__t3.view()` now also returns `th`/`ph`; `nav()` returns `ptrs`. Verified live: pinch 4.4→2.0 and 2.75→3.78, parallel slide pans with `R` held exactly, one-finger rotate th +0.72, tap dam-free → fly, tap Jalaput dam → label "ht 61 m · river Sileru · CWC recorded" and NO fly, keyboard + zoom buttons + help toggle all fire, `2D hidden (3D on)`, 0 console errors.
+**v7.8 SHIPPED (2026-10-17):** 3D-mountains navigation rebuilt so a non-technical user can move around — (a) TOUCH/trackpad gestures via a `ptrs` map: 1 finger = look around, 2 fingers = slide across, pinch = zoom (none of this existed — a phone user could not zoom at all); (b) TAP-to-fly on touch (press <600 ms, <10 px) with double-click kept for the mouse; tap the sky = home, tap a DAM = read its label instead of flying (hover and tap share `showDamTip`); (c) on-screen **− Zoom out / + Zoom in** (R ×/÷ 0.72) and a **? How to move** card (`#t3helpbox`) that opens once per session (`sessionStorage.t3help`); (d) keyboard — arrows look, `+ −` zoom, `Home` start over, `Space` auto-spin — guarded against INPUT/TEXTAREA/SELECT/BUTTON so the month slider keeps its arrows; (e) HUD buttons 13 px / 36 px tall. Pinch maths commit only when BOTH pointers have new positions (or after 120 ms): ungated per-event maths read a lopsided intermediate state and drifted the zoom ~33 % during a parallel slide, and a rAF-frame version was rejected because the render loop freezes in a backgrounded tab. `__t3.view()` now also returns `th`/`ph`; `nav()` returns `ptrs`. Verified live: pinch 4.4→2.0 and 2.75→3.78, parallel slide pans with `R` held exactly, one-finger rotate th +0.72, tap dam-free → fly, tap Jalaput dam → label "ht 61 m · river Sileru · CWC recorded" and NO fly, keyboard + zoom buttons + help toggle all fire, `2D hidden (3D on)`, 0 console errors).
+**v7.9 SHIPPED (2026-10-17):** dam release now works for **ANY dam** — pick it by tapping a dot on the 3D map or typing its name, and the river course is derived **on demand**. Nothing loads until the feature is activated ("Find a dam" switch): that fetches `data/dams.geo.json` (13,002 dams → searchable list + clickable dots, ~1.3 s), then `data/dam-router-worker.js` fetches `rivers-cwc.geo.json` + `india-detailed.geo.json` in a **worker**, indexes once and answers each dam in ~6 ms; the page never blocks and routes are cached per dam. ALGORITHM (`data/_route-engine.mjs`, shared by the browser and the offline checker): bbox grid over the 30,395 river features → nearest point on the dam's river (6 km, retried at 12 km) → greedy downstream walk over the river's unordered parts (always the part whose far end is nearest the recorded `en_lon/en_lat`) → **chain** into the next river within 9 km when the walk ends inland (≤6 rivers) → coast test against the outline (≤25 km) → Douglas-Peucker 65 m → km by haversine → days = km ÷ 129.6 (illustrative). Measured: **389/400 tallest dams route at 6 km, 398/400 at 10 km, ~6 ms each**; chains work (Tehri → Bhagirathi → **Ganga 1715 km / 13.2 d**, Subansiri → **Brahmaputra 558 km / 4.3 d**, Bhavani → Cauvery 606 km). Inland ends (e.g. Luni → Banas) say "recorded river end", never "sea". Also in v7.9: **bird's-eye is the release default** (pitch 0, bearing 0 over the whole course) and the **zoom travels** with the front (fit → 0.55× fit by the sea, eased every 150 ms), both as card checkboxes; the run is wall-clock with a 120 ms timer fallback so it advances in a background tab. Verified live: nothing dam-related in the resource list before activation; activation 1.27 s / 13,002 dams; typed "hirakud" → 413.0 km / 3.19 d; "bhakra" → **BHAKRA (BBMB) 251.55 km / 1.94 d on the Satluj — identical to the Node check**; tap-a-dot → Jhiria N → Brahmani River; run sampled day 0.37→3.19, km 47→413, pitch 0 throughout, zoom 6.59→5.21, "Reached the sea in ≈3.2 days", 7 dam layers, 0 console errors.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -21,7 +22,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.8).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.9).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -38,7 +39,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.8).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-17, v7.8)
+## Current verified state (2026-10-17, v7.9)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -294,6 +295,11 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.8).
   tab (verified: a frame-batched build did nothing there).
 - v7.8 build order: `window.__t3.dams` is assigned AFTER `window.__t3={…view…}`, so wait for
   `__t3.dams.at(0)` in probes — `__t3.view` existing does not mean the dam picker does.
+- v7.9 two host quirks the dam code had to absorb: (1) the rAF timestamp is NOT on `performance.now()`'s
+  clock in every host — taking it verbatim made runs finish instantly with NaN day/km; `damTick` now uses
+  `performance.now()` only, with a 120 ms `setInterval` fallback because rAF freezes in background tabs;
+  (2) `map.addSource` throws while the style is still loading, so `damStart` retries `addDamLayers()` for
+  up to 6 s instead of failing on the first call.
 - v7.2 rain weights: `applyHydro` also reseeds 3D drops (`wxRDrop.fill(null)`) — applyHydro is
   defined before `wxRDrop` exists but is only CALLED after the wx block (first call = the seed
   line right after it); never call applyHydro earlier or the reseed hits a TDZ. `__rainSample`
@@ -311,6 +317,8 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.8).
   driver interference arrows, Fig6 season bands, ON readout; state bullet above; committed locally).
 - v7.8 shipped (3D-mountains navigation for non-technical users — 1-finger look, 2-finger slide, pinch
   zoom, tap-to-fly, on-screen zoom buttons + help card, keyboard; state bullet above; committed locally).
+- v7.9 shipped (dam release for ANY dam — tap a dot or type a name, course derived on demand in a worker,
+  bird's-eye default + travelling zoom; state bullet above; committed locally).
 - v7.7.1 shipped (phenomena boot-race fix + Fig6 label dedupe + log sync; `app.js?v=7.7.1`;
   committed locally).
 - v7.6 shipped (dam-release water simulation in the 3D map view + self-test-line fix; state
@@ -412,6 +420,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.8).
   tap `__t3.dams.at(0)`'s pixel → fly stays false AND `dams.tip()` returns "… · ht N m · river R · CWC recorded";
   keys `ArrowRight` (th +0.14), `+` (R ×0.8), `Home` (fly), `Space` (spin); `#t3zin`/`#t3zout` → ×0.72 / ÷0.72;
   `#t3help` toggles `.open` on `#t3helpbox`.
+- v7.9 any-dam release (fresh load → 3D map): `performance.getEntriesByType("resource")` must show NO
+  `dams.geo.json` / `rivers-cwc.geo.json` / `dam-router-worker.js` before activation. `__dam.mode(true)` →
+  `__dam.damCount()` = 13002 and `dam-pts` layer appears. `__dam.search("hirakud")` → 2 hits; click →
+  `__dam.route()` = {totalKm:≈413, arrivalDays:≈3.19, coastal:true, chains:["Mahanadi River"]};
+  `__dam.search("bhakra")` → BHAKRA (BBMB) 251.55 km / 1.94 d on the Satluj (must match
+  `node data/_route_engine_check.mjs` exactly — browser and Node share the engine). `__dam.start()` →
+  sample every ~3 s: `day` and `km` climb linearly to 413 / 3.19, `pitch` stays 0, `zoom` falls from
+  ≈6.6 to ≈5.2, `reached` true, `#damStat` = "Reached the sea in ≈3.2 days (illustrative)", `#damDay`
+  = "Day 3.2", layers `dam-route-line / dam-wet-line / dam-head-* / dam-end-*` present, 0 console errors.
+  Tap-a-dot: `map.queryRenderedFeatures([x,y],{layers:["dam-pts"]})` then a canvas click selects it.
 
 - v7.7 phenomena visibility (2D + Fig6 + boot): with saved picks on, a FRESH load must
   reach `#phenCount` = `13 / 41 on` (or `N / 41 on`) within ~2 s of the map bridge — poll
@@ -433,9 +451,12 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.8).
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
 - Dam route: `data/dam-route-hirakud.geo.json` (v7.6 hero route; provenance in properties)
   + `data/_gen_dam_route.mjs` (re-runnable generator: CWC walk + DP simplify).
+- v7.9 any-dam routing: `data/_route-engine.mjs` (shared solver — bbox grid, greedy walk, chaining,
+  coast test, DP), `data/dam-router-worker.js` (module worker owning the 14 MB network),
+  `data/_route_engine_check.mjs` (read-only coverage check: run `node data/_route_engine_check.mjs`).
 - Rain averages: `data/rain-state-avg.json` (36 states × 12 months, mm/month) regenerated by
   `node data/_gen_rain_avg.mjs` from the fetched IMD 1901–2015 subdivision CSV kept local in
   git-ignored `data/_src/` (mirror URL in the JSON meta + CITATIONS 11).
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.8), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.9), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

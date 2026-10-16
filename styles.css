@@ -58,9 +58,17 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 /* v7.0 3D HUD: spin toggle (off by default), relief exaggeration, home */
 .t3hud{position:absolute;left:8px;top:8px;display:none;gap:6px;align-items:center;flex-wrap:wrap;max-width:72%;z-index:6}
 .stage.terrain-on .t3hud{display:flex}
-.t3b{font-size:11px;padding:4px 9px;background:rgba(12,18,16,.72);color:#E7E5E4;border:1px solid #3a4a44;border-radius:6px;cursor:pointer;font-family:ui-monospace,monospace}
+.t3b{font-size:13px;padding:8px 12px;min-height:36px;background:rgba(12,18,16,.72);color:#E7E5E4;border:1px solid #3a4a44;border-radius:6px;cursor:pointer;font-family:ui-monospace,monospace}
 .t3b:hover{border-color:#7DD3FC;color:#fff}
-.t3hint{font:10px ui-monospace,monospace;color:#9fb4c7;text-shadow:0 1px 3px #000}
+.t3b:active{transform:translateY(1px)}
+.t3z{font-size:14px;font-weight:600;min-width:92px}
+.t3hint{font:11px ui-monospace,monospace;color:#9fb4c7;text-shadow:0 1px 3px #000}
+.t3helpbox{position:absolute;left:8px;top:52px;display:none;max-width:340px;background:rgba(10,16,14,.94);color:#E7E5E4;border:1px solid #3a4a44;border-radius:8px;padding:12px 14px;font:12px/1.55 ui-monospace,monospace;z-index:8;box-shadow:0 6px 22px rgba(0,0,0,.5)}
+.t3helpbox.open{display:block}
+.t3helpbox b{color:#7DD3FC}
+.t3helpbox ul{margin:8px 0 0;padding-left:18px}
+.t3helpbox li{margin:3px 0}
+.t3helpclose{margin-top:9px;font-size:10px;color:#9fb4c7}
 .leaflet-container .river-flow{stroke-dasharray:7 9;animation:flow 1.1s linear infinite}
 @keyframes flow{to{stroke-dashoffset:-16}}
 #osmMap{width:100%;height:420px;background:#EDEBE4;z-index:1}

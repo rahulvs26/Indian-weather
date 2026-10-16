@@ -967,19 +967,65 @@ let fly=null;
 const startFly=(tt,tr)=>{fly={t0:performance.now(),ft:tgt.clone(),tt:tt.clone(),fr:R,tr};};
 const cv3=$("terrain3d");
 const fit=()=>{const w=cv3.clientWidth||cv3.parentElement.clientWidth;if(w===lastW)return;lastW=w;renderer.setSize(w,420,false);cam.aspect=w/420;cam.updateProjectionMatrix();};
-cv3.addEventListener("pointerdown",e=>{fly=null;drag=true;panDrag=(e.button===1||e.button===2||e.shiftKey);px=e.clientX;py=e.clientY;try{cv3.setPointerCapture(e.pointerId);}catch(_){}});
-cv3.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;if(panDrag){const kp=0.0018*R;tgt.x+=kp*(Math.cos(th)*dx+Math.sin(th)*dy);tgt.z+=kp*(-Math.sin(th)*dx+Math.cos(th)*dy);}else{th+=dx*0.008;ph=Math.max(0.25,Math.min(1.25,ph-dy*0.006));}});
-addEventListener("pointerup",()=>{drag=false;panDrag=false;});
-cv3.addEventListener("contextmenu",e=>e.preventDefault());
-cv3.addEventListener("wheel",e=>{e.preventDefault();fly=null;R=Math.max(0.01,Math.min(12,R*Math.exp(e.deltaY*0.003)));},{passive:false});
+/* v7.8 LAYMAN NAVIGATION — one finger / left-drag = look around; TWO fingers (or shift / right / middle-drag)
+   = slide across; pinch or scroll or the +/− buttons = zoom; tap (touch) or double-click (mouse) = fly there,
+   tap the sky = come home. Arrow keys / + − / Home / Space work too, so no gesture is required. */
+const ptrs=new Map();let ppd=0,pcx=0,pcy=0,pAt=0,showDamTip=null,tapT=0,tapX=0,tapY=0,tapMv=0,tapOn=false;
+const clampR=v=>Math.max(0.01,Math.min(12,v));
+const panBy=(dx,dy)=>{const kp=0.0018*R;tgt.x+=kp*(Math.cos(th)*dx+Math.sin(th)*dy);tgt.z+=kp*(-Math.sin(th)*dx+Math.cos(th)*dy);};
+/* v7.8 two-finger maths: commit only when BOTH pointers have new positions (or after 120 ms), so a pair of
+   moves arriving in the same frame is measured from the previous COMMITTED pair — a parallel two-finger slide
+   then pans with exactly zero zoom, and a pinch zooms. Per-event (ungated) maths read a lopsided intermediate
+   state and drifted the zoom ~30 % during a slide; a rAF-frame version froze in background tabs (no rAF). */
+const applyPinch=()=>{const a=[...ptrs.values()];if(a.length<2)return;
+ const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2;
+ if(ppd>0&&d>0){R=clampR(R*(ppd/d));panBy(mx-pcx,my-pcy);}
+ ppd=d;pcx=mx;pcy=my;pAt=performance.now();for(const p of a)p.seen=false;};
 const ray=new THREE.Raycaster();
-cv3.addEventListener("dblclick",e=>{const r=cv3.getBoundingClientRect();ray.setFromCamera({x:((e.clientX-r.left)/r.width)*2-1,y:-((e.clientY-r.top)/r.height)*2+1},cam);const hit=ray.intersectObject(tMesh)[0];hit?startFly(hit.point,Math.max(0.01,R*0.35)):startFly(HOME,4.4);});
+const flyToPt=(fx,fy)=>{const r=cv3.getBoundingClientRect();let onDam=false;try{onDam=!!pickDam(fx-r.left,fy-r.top);}catch(_){}
+ if(onDam){try{if(showDamTip)showDamTip(fx,fy);}catch(_){}return;}   /* v7.8: tapping a dam reads out its label instead of flying */
+ ray.setFromCamera({x:((fx-r.left)/r.width)*2-1,y:-((fy-r.top)/r.height)*2+1},cam);
+ const hit=ray.intersectObject(tMesh)[0];hit?startFly(hit.point,Math.max(0.01,R*0.35)):startFly(HOME,4.4);};
+cv3.addEventListener("pointerdown",e=>{try{cv3.setPointerCapture(e.pointerId);}catch(_){}
+ const first=ptrs.size===0;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,seen:false});
+ if(ptrs.size===2){const a=[...ptrs.values()];ppd=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);pcx=(a[0].x+a[1].x)/2;pcy=(a[0].y+a[1].y)/2;pAt=performance.now();}
+ if(first){fly=null;drag=true;panDrag=(e.button===1||e.button===2||e.shiftKey);px=e.clientX;py=e.clientY;
+  tapT=performance.now();tapX=e.clientX;tapY=e.clientY;tapMv=0;tapOn=(e.pointerType||"mouse")!=="mouse";}});
+cv3.addEventListener("pointermove",e=>{const q=ptrs.get(e.pointerId);if(q){q.x=e.clientX;q.y=e.clientY;q.seen=true;}
+ if(ptrs.size>=2){const a=[...ptrs.values()];if(a.every(p=>p.seen)||performance.now()-pAt>120)applyPinch();
+  drag=true;panDrag=true;tapOn=false;return;}
+ if(!drag)return;const dx=e.clientX-px,dy=e.clientY-py;px=e.clientX;py=e.clientY;tapMv+=Math.abs(dx)+Math.abs(dy);
+ if(panDrag)panBy(dx,dy);else{th+=dx*0.008;ph=Math.max(0.25,Math.min(1.25,ph-dy*0.006));}});
+const endPtr=e=>{const had=ptrs.size;ptrs.delete(e.pointerId);
+ if(!ptrs.size){drag=false;panDrag=false;ppd=0;
+  if(tapOn&&had===1&&tapMv<10&&performance.now()-tapT<600)flyToPt(tapX,tapY);
+  tapOn=false;}};
+addEventListener("pointerup",endPtr);addEventListener("pointercancel",endPtr);
+cv3.addEventListener("contextmenu",e=>e.preventDefault());
+cv3.addEventListener("wheel",e=>{e.preventDefault();fly=null;R=clampR(R*Math.exp(e.deltaY*0.003));},{passive:false});
+cv3.addEventListener("dblclick",e=>{if((e.pointerType||"mouse")==="mouse")flyToPt(e.clientX,e.clientY);});
 /* v7.0 HUD: spin (default OFF), relief-exaggeration chips ×1…×100 (×1 = true 1:1), home */
 const setRel=r=>{r=Math.max(1,r);const kr=r/REL;REL=r;relG.scale.y=r;tgt.y*=kr;HOME.y*=kr;const b=$("t3rel");if(b)b.textContent=r===1?"×1 relief · true":"×"+r+" relief";};
 const setSpin=v=>{spin=v;const b=$("t3spin");if(b)b.textContent=v?"⟳ spin: on":"⟳ spin: off";};
 if($("t3rel"))$("t3rel").addEventListener("click",()=>{const RELS=[1,5,20,100],i=RELS.indexOf(REL);setRel(RELS[(i+1)%RELS.length]);});
 if($("t3spin"))$("t3spin").addEventListener("click",()=>setSpin(!spin));
 if($("t3home"))$("t3home").addEventListener("click",()=>startFly(HOME,4.4));
+/* v7.8: zoom buttons, the help card, and keyboard equivalents — nothing needs a mouse drag */
+if($("t3zin"))$("t3zin").addEventListener("click",()=>{fly=null;R=clampR(R*0.72);});
+if($("t3zout"))$("t3zout").addEventListener("click",()=>{fly=null;R=clampR(R/0.72);});
+const helpBox=$("t3helpbox");
+if($("t3help")&&helpBox)$("t3help").addEventListener("click",()=>helpBox.classList.toggle("open"));
+addEventListener("keydown",e=>{if(!terrainOn)return;
+ const tag=(e.target&&e.target.tagName)||"";if(/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tag))return;
+ const k=e.key;
+ if(k==="ArrowLeft"){th-=0.14;fly=null;e.preventDefault();}
+ else if(k==="ArrowRight"){th+=0.14;fly=null;e.preventDefault();}
+ else if(k==="ArrowUp"){ph=Math.max(0.25,Math.min(1.25,ph+0.07));fly=null;e.preventDefault();}
+ else if(k==="ArrowDown"){ph=Math.max(0.25,Math.min(1.25,ph-0.07));fly=null;e.preventDefault();}
+ else if(k==="+"||k==="="){fly=null;R=clampR(R*0.8);e.preventDefault();}
+ else if(k==="-"||k==="_"){fly=null;R=clampR(R*1.25);e.preventDefault();}
+ else if(k==="Home"||k==="0"){startFly(HOME,4.4);}
+ else if(k===" "){setSpin(!spin);e.preventDefault();}});
 const proj=new THREE.Vector3();let tmLast=performance.now()/1000;
 (function loop(){
 requestAnimationFrame(loop);
@@ -1012,22 +1058,23 @@ cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rain
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
 _t3("tail");t3Stats.phases=_t3p;
-window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount}),colAt:h=>"#"+terrCol(h,new THREE.Color()).getHexString(),flyTo:(lo,la,r)=>startFly(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))*REL,Z(la)),r||0.004),glint:{n:heroGl.length,o:()=>glintMat?+glintMat.opacity.toFixed(3):null,at:i=>{const g=heroGl[i];return g?{x:+g[0].toFixed(5),y:+g[1].toFixed(6),z:+g[2].toFixed(5),s:+g[3].toFixed(6),py:g[4]?+g[4].position.y.toFixed(6):null}:null},sp:i=>heroGl[i]?heroGl[i][4]:null,mat:()=>glintMat}};
+window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly,th:+th.toFixed(3),ph:+ph.toFixed(3)}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag,ptrs:ptrs.size}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount}),colAt:h=>"#"+terrCol(h,new THREE.Color()).getHexString(),flyTo:(lo,la,r)=>startFly(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))*REL,Z(la)),r||0.004),glint:{n:heroGl.length,o:()=>glintMat?+glintMat.opacity.toFixed(3):null,at:i=>{const g=heroGl[i];return g?{x:+g[0].toFixed(5),y:+g[1].toFixed(6),z:+g[2].toFixed(5),s:+g[3].toFixed(6),py:g[4]?+g[4].position.y.toFixed(6):null}:null},sp:i=>heroGl[i]?heroGl[i][4]:null,mat:()=>glintMat}};
 /* v7.3: dam hover labels — the top-300 recorded-height tier (same set as the 2D dam labels).
    Projection mirrors tag() exactly (y × REL, 420 px canvas); the label text is real CWC data. */
 const damTip=document.createElement("div");damTip.id="damTip";damTip.style.display="none";
 cv3.parentNode.appendChild(damTip);
 const pickDam=(mx,my)=>{let best=null,bd=324;const cw=cv3.clientWidth;for(let i=0;i<damHover.length;i++){const d=damHover[i];proj.set(d.x,d.y*REL,d.z).project(cam);if(proj.z>1)continue;const dx=(proj.x*0.5+0.5)*cw-mx,dy=(-proj.y*0.5+0.5)*420-my,dd=dx*dx+dy*dy;if(dd<bd){bd=dd;best=d;}}return best;};
 const hideDamTip=()=>{damTip.style.display="none";};
-cv3.addEventListener("pointermove",e=>{
-if(!terrainOn||drag){hideDamTip();return;}
-const cr=cv3.getBoundingClientRect(),wr=cv3.parentNode.getBoundingClientRect();
-const d=pickDam(e.clientX-cr.left,e.clientY-cr.top);
-if(!d){hideDamTip();return;}
+showDamTip=(mx2,my2)=>{const cr2=cv3.getBoundingClientRect(),wr=cv3.parentNode.getBoundingClientRect();
+const d=pickDam(mx2-cr2.left,my2-cr2.top);
+if(!d){hideDamTip();return null;}
 damTip.innerHTML=`<b>${d.n}</b> · <span class="dh">ht ${d.h} m</span><br><span class="dms">${d.s?d.s+" · ":""}river ${d.r||"—"} · CWC recorded</span>`;
 damTip.style.display="block";
-damTip.style.left=(e.clientX-wr.left+14)+"px";damTip.style.top=(e.clientY-wr.top+10)+"px";
-});
+damTip.style.left=(mx2-wr.left+14)+"px";damTip.style.top=(my2-wr.top+10)+"px";
+return d;};   /* v7.8: shared by hover AND tap so touch users can read a dam too */
+cv3.addEventListener("pointermove",e=>{
+if(!terrainOn||drag){hideDamTip();return;}
+showDamTip(e.clientX,e.clientY);});
 cv3.addEventListener("pointerleave",hideDamTip);
 cv3.addEventListener("pointerdown",hideDamTip);
 window.__t3.dams={n:()=>damHover.length,pick:(x,y)=>{const d=pickDam(x,y);return d?{n:d.n,h:d.h}:null;},at:i=>{const d=damHover[i];if(!d)return null;proj.set(d.x,d.y*REL,d.z).project(cam);return{n:d.n,h:d.h,px:(proj.x*0.5+0.5)*cv3.clientWidth,py:(-proj.y*0.5+0.5)*420,z:proj.z};},tip:()=>damTip.style.display==="none"?null:damTip.textContent};
@@ -1039,6 +1086,7 @@ terrainOn=on;
 stage.classList.toggle("terrain-on",terrainOn);
 $("btn3d").textContent=terrainOn?"2D map":"3D mountains";
 if(terrainOn&&window.__applyLayers)window.__applyLayers();   /* refresh self-test: 2D hidden (3D on) */
+ if(terrainOn){try{if(!sessionStorage.getItem("t3help")){sessionStorage.setItem("t3help","1");const hb=$("t3helpbox");if(hb)hb.classList.add("open");}}catch(_){}}   /* v7.8: show the plain-language help card once per session */
 if(terrainOn){if(window.__terrainMonth)window.__terrainMonth(monthByNum(INDWeather.month||7));if(!terrainBuilt&&!terrainBuilding){terrainBuilding=true;try{await buildTerrain();terrainBuilt=true;}catch(e){console.warn(e);terrainBuilding=false;$("terrainCap").textContent="3D needs network for elevation tiles — back to 2D.";terrainOn=false;stage.classList.remove("terrain-on");$("btn3d").textContent="3D mountains";}}}
 else if(map){map.invalidateSize();setTimeout(()=>window.__applyLayers&&window.__applyLayers(),350);}
 }

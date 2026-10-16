@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.7">
+<link rel="stylesheet" href="styles.css?v=7.8">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.7.1</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.8</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -28,7 +28,7 @@
 <p class="sub">Real geography: minimal pastel relief tiles (Esri World Terrain Base) + local <code>india-detailed.geo.json</code> outline. Particles + arrows = simulated monthly wind (arrow direction = flow). Teal = Arabian Sea branch, amber = Bay of Bengal branch (PMF IAS / IMD). Violet arrows = MJO-enhanced zone near the pulse (Ph1–3); grey = MJO-suppressed (Ph4–5). Drag to pan, scroll to zoom — or open the true-scale 3D map.</p>
 <div class="card">
 <div class="card-head"><span>Fig 0</span><strong>ESRI · INDIA · MONTHLY WINDS JAN–DEC</strong></div>
-<div class="stage"><div id="osmMap" role="application" aria-label="Map of India with monthly wind simulation and layers."></div><canvas id="windCanvas" aria-hidden="true"></canvas><div id="terrainWrap" aria-hidden="true"><canvas id="terrain3d"></canvas><div class="t3hud" id="t3hud"><button class="t3b" id="t3spin" type="button">⟳ spin: off</button><button class="t3b" id="t3rel" type="button">×1 relief · true</button><button class="t3b" id="t3home" type="button">⌂ home</button><span class="t3hint">drag rotate · right-drag pan · wheel zoom · dbl-click fly</span></div><div id="peakLbls"></div><div id="riverList"><b>RIVERS · tap to trace</b><div id="riverListItems"></div></div><div class="readout" id="terrainCap"></div></div><div id="map3d" role="application" aria-label="3D map of India — MapLibre GL + OpenFreeMap tiles + Mapterhorn terrain + OpenStreetMap buildings. Drag rotate · right-drag pan · scroll zoom."></div><div class="readout" id="map3dCap"></div><div id="damUI" class="damUI" aria-label="Dam release simulation — Hirakud dam to the Bay of Bengal">
+<div class="stage"><div id="osmMap" role="application" aria-label="Map of India with monthly wind simulation and layers."></div><canvas id="windCanvas" aria-hidden="true"></canvas><div id="terrainWrap" aria-hidden="true"><canvas id="terrain3d"></canvas><div class="t3hud" id="t3hud"><button class="t3b" id="t3home" type="button">⌂ Start over</button><button class="t3b t3z" id="t3zout" type="button">− Zoom out</button><button class="t3b t3z" id="t3zin" type="button">+ Zoom in</button><button class="t3b" id="t3spin" type="button">⟳ spin: off</button><button class="t3b" id="t3rel" type="button">×1 relief · true</button><button class="t3b" id="t3help" type="button">? How to move</button><span class="t3hint">drag = look · tap = go there · 2 fingers / shift-drag = slide · scroll or +− = zoom</span></div><div class="t3helpbox" id="t3helpbox"><b>Moving around the 3D mountains</b><ul><li><b>Drag</b> (mouse or one finger) — look around</li><li><b>Tap</b> a place — fly there · tap the <b>sky</b> — come back home</li><li><b>Two fingers</b> or <b>shift-drag</b> — slide across the map</li><li><b>Pinch</b>, <b>scroll</b> or the <b>+ −</b> buttons — zoom</li><li><b>Arrow keys</b> look · <b>+ −</b> zoom · <b>Home</b> start over · <b>Space</b> auto-spin</li><li>Hover or tap a dam for its name, height and river</li></ul><div class="t3helpclose">Tap ? to close</div></div><div id="peakLbls"></div><div id="riverList"><b>RIVERS · tap to trace</b><div id="riverListItems"></div></div><div class="readout" id="terrainCap"></div></div><div id="map3d" role="application" aria-label="3D map of India — MapLibre GL + OpenFreeMap tiles + Mapterhorn terrain + OpenStreetMap buildings. Drag rotate · right-drag pan · scroll zoom."></div><div class="readout" id="map3dCap"></div><div id="damUI" class="damUI" aria-label="Dam release simulation — Hirakud dam to the Bay of Bengal">
 <div class="damHead"><b>💧 Hirakud dam release</b><span class="damDay" id="damDay">Day 0.0</span></div>
 <div class="damSub" id="damSub">Mahanadi → Bay of Bengal · route loading…</div>
 <div class="damStat" id="damStat">—</div>
@@ -257,7 +257,7 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
-<script src="app.js?v=7.7.1" defer></script>
+<script src="app.js?v=7.8" defer></script>
 <script type="module" src="map3d.js?v=7.6"></script>
 </body>
 </html>

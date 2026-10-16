@@ -636,6 +636,8 @@ const geo=new THREE.PlaneGeometry(W,D,SX,SY);geo.rotateX(-Math.PI/2);
 const pos=geo.attributes.position,cols=[];
 const cA=new THREE.Color("#5B8C5A"),cB=new THREE.Color("#A08B62"),cC=new THREE.Color("#8A8F98"),cS=new THREE.Color("#F2F3F5"),tc=new THREE.Color();
 const UPM=1e-6;                          /* metres → world units (true scale: 1 u ≈ 954 km) */
+/* v7.4 snow caps: the old hard step at 5200 m becomes a smooth cC→cS ramp (full white ≈5,700 m) */
+const terrCol=(h,c)=>{if(h>1800)c.copy(cC).lerp(cS,Math.min(1,(h-1800)/3400*0.3+Math.max(0,h-4400)/2000));else if(h>400)c.copy(cB).lerp(cC,(h-400)/1400*0.5);else c.copy(cA).lerp(cB,Math.min(1,h/400)*0.5);return c;};
 const yOf=h=>Math.max(0,h)*UPM;          /* v7.0 true metres: Everest 8849 m = 0.008849 u (was 1.15 u) — unclipped */
 const MZ=m=>m*UPM;                       /* metric offsets: sea level, water levels, label lifts */
 for(let k=0;k<pos.count;k++){
@@ -643,7 +645,7 @@ const ix=k%(SX+1),iz=Math.floor(k/(SX+1));
 const lon=TB.lon0+(TB.lon1-TB.lon0)*ix/SX,lat=TB.lat1-(TB.lat1-TB.lat0)*iz/SY;
 const h=Math.max(0,hAt(lon,lat));
 pos.setY(k,yOf(h));
-if(h>5200)tc.copy(cS);else if(h>1800)tc.copy(cC).lerp(cS,(h-1800)/3400*0.3);else if(h>400)tc.copy(cB).lerp(cC,(h-400)/1400*0.5);else tc.copy(cA).lerp(cB,Math.min(1,h/400)*0.5);
+terrCol(h,tc);
 cols.push(tc.r,tc.g,tc.b);
 }
 geo.setAttribute("color",new THREE.Float32BufferAttribute(cols,3));
@@ -740,7 +742,7 @@ _t3("preDams");
    its valley, none float. Reservoir level = crest − freeboard (12% of height, 1.5–15 m); the
    terrain itself carves the shoreline. The 240 longest lakes are month-animated meshes; all
    others merge into one static batch. Where the shapefile is silent the model is illustrative. */
-const resMeshes=[],relGates=[],damHover=[];           /* v7.3: damHover = hover-label candidates (top-300 recorded heights) */
+const resMeshes=[],relGates=[],damHover=[],heroGl=[];let glintMat=null;   /* v7.3: damHover = hover-label candidates (top-300 recorded heights); v7.4: heroGl = spillway-glint anchors */
 const resMat=new THREE.MeshBasicMaterial({color:0x2dd4bf,transparent:true,opacity:0.8,side:THREE.DoubleSide});
 try{
 const dm3=await getJSON("data/dams.geo.json","dams");
@@ -757,7 +759,7 @@ const H_MED={earth:16.5,rock:19.5,cfrd:31.7,conc:90,arch:168.9};
 const MB={eu:[],ed:[],ru:[],rd:[],cm:[],cr:[]};   /* 6 merged batches = ~6 draw calls */
 const lakes=[];let nRes=0,nWall=0,nHero=0,nTri=0;
 const tri=(b,p0,p1,p2)=>{b.push(p0[0],p0[1],p0[2],p1[0],p1[1],p1[2],p2[0],p2[1],p2[2]);nTri++;};
-const obox=(b,cx0,cy0,cz0,ha,ht,hy)=>{const v=[[cx0-ha,cy0,cz0-ht],[cx0+ha,cy0,cz0-ht],[cx0+ha,cy0,cz0+ht],[cx0-ha,cy0,cz0+ht],[cx0-ha,cy0+hy,cz0-ht],[cx0+ha,cy0+hy,cz0-ht],[cx0+ha,cy0+hy,cz0+ht],[cx0-ha,cy0+hy,cz0+ht]],F=[[0,1,2],[0,2,3],[4,6,5],[4,7,6],[0,4,5],[0,5,1],[1,5,6],[1,6,2],[2,6,7],[2,7,3],[3,7,4],[3,4,0]];for(const fc of F)tri(b,v[fc[0]],v[fc[1]],v[fc[2]]);};
+const obox=(b,cx0,cy0,cz0,fx,fz,ha,ht,hy)=>{/* v7.4: box aligned to the dam axis (f); vertex ring matches the old axis-aligned layout when fx=1,fz=0 */const gx=-fz,gz=fx,P=[[-1,-1],[1,-1],[1,1],[-1,1]],v=[];for(let u2=0;u2<2;u2++)for(const p of P)v.push([cx0+fx*ha*p[0]+gx*ht*p[1],cy0+hy*u2,cz0+fz*ha*p[0]+gz*ht*p[1]]);const F=[[0,1,2],[0,2,3],[4,6,5],[4,7,6],[0,4,5],[0,5,1],[1,5,6],[1,6,2],[2,6,7],[2,7,3],[3,7,4],[3,4,0]];for(const fc of F)tri(b,v[fc[0]],v[fc[1]],v[fc[2]]);};
 /* v7.3: hover-label set — the same top-300 recorded-height tier as the 2D dam labels (ranked) */
 const hovSet=new Set(dl.filter(f=>(f.properties.height||0)>0).sort((a,b)=>b.properties.height-a.properties.height).slice(0,300));
 dl.forEach(f=>{
@@ -827,8 +829,10 @@ if(j===J-1){const P0=toUB,P1=crUB,P2=crDB,P3=toDB;tri(bD,P0,P1,P2);tri(bD,P0,P2,
 nWall++;
 /* hero extras (h ≥ 100 m concrete/arch): three crest piers hint the spillway */
 if((cls==="conc"||cls==="arch")&&hm>=100){nHero++;
-const ha=Math.max(4,span*0.012),ht=5*UPM,hy=7*UPM;
-[-0.12,0,0.12].forEach(fr=>{const s=span*fr;obox(MB.cm,x0+ax*s,crest,z0+az*s,ha,ht,hy);});
+/* v7.4 fix: ha was missing ×UPM — `Math.max(4,…)` built 4-unit (≈3,800 km) slabs; now 8–48 m wide crest piers */
+const ha=Math.max(4*UPM,Math.min(24*UPM,span*0.012)),ht=5*UPM,hy=7*UPM;
+[-0.12,0,0.12].forEach(fr=>{const s=span*fr;obox(MB.cm,x0+ax*s,crest,z0+az*s,ax,az,ha,ht,hy);});
+heroGl.push([x0,crest,z0,Math.max(0.00025,Math.min(0.0008,span*0.3))]);   /* v7.4: glint anchor = centre pier */
 }
 /* reservoir: water level = crest − freeboard; walk upstream until the valley closes, then
    fit the lens to the real shoreline at every station (the terrain carves it — nothing floats) */
@@ -870,6 +874,18 @@ const addB=(v,col,ro)=>{if(!v.length)return;const gB=new THREE.BufferGeometry();
 addB(MB.eu,0x6f6a60,0.95);addB(MB.ed,0x6f8058,1.0);addB(MB.ru,0x63686d,0.85);addB(MB.rd,0x7a8086,0.9);addB(MB.cm,0x999fa5,0.62);addB(MB.cr,0xd9dcdf,0.7);_t3("damBuild");
 t3Stats.walls=nWall;t3Stats.reservoirs=nRes;t3Stats.gates=relGates.length;t3Stats.tris=nTri;t3Stats.animLakes=Math.min(240,lakes.length);t3Stats.heroes=nHero;
 }catch(e){console.warn("terrain dams",e);}
+/* v7.4: soft spillway glint — one additive billboard per hero dam, over the centre pier (illustrative).
+   Sprites sit at SCENE level so billboarding isn't squashed by relG's vertical exaggeration; their
+   y is re-applied per frame as (crest+3 m)×REL, and opacity pulses in the loop (fixed under RM). */
+{
+const gcv=document.createElement("canvas");gcv.width=gcv.height=64;
+const gcx=gcv.getContext("2d"),grg=gcx.createRadialGradient(32,32,2,32,32,30);
+grg.addColorStop(0,"rgba(255,246,218,0.95)");grg.addColorStop(0.45,"rgba(255,240,200,0.32)");grg.addColorStop(1,"rgba(255,240,200,0)");
+gcx.fillStyle=grg;gcx.fillRect(0,0,64,64);
+glintMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(gcv),transparent:true,opacity:0.18,blending:THREE.AdditiveBlending,depthWrite:false});
+heroGl.forEach(g=>{const sp=new THREE.Sprite(glintMat);sp.scale.set(g[3],g[3],1);sp.position.set(g[0],(g[1]+MZ(3))*REL,g[2]);scene.add(sp);g[4]=sp;});
+_t3("glint");
+}
 /* v6.1 hydro (illustrative, month-typical — NOT measured): river flow follows the rainfall
    month (rf=(arabian+bay)/200); reservoir level follows a monsoon fill curve (fills Jun–Sep,
    peaks late Sep/Oct, trough May, fillOf); reaches downstream of a dam follow that dam's
@@ -996,7 +1012,7 @@ requestAnimationFrame(loop);
 if(!terrainOn||document.hidden)return;
 if(spin&&!drag&&!RM&&!fly)th+=0.0012*Math.min(1,R/2.6);   /* v7.0: auto-rotation OFF by default — the ⟳ chip turns it on */
 if(fly){const k=Math.min(1,(performance.now()-fly.t0)/600),e=k*k*(3-2*k);tgt.lerpVectors(fly.ft,fly.tt,e);R=fly.fr+(fly.tr-fly.fr)*e;if(k>=1)fly=null;}
-const nNear=Math.max(0.002,R*0.02);if(Math.abs(cam.near-nNear)>nNear*0.05){cam.near=nNear;cam.updateProjectionMatrix();}
+const nNear=Math.max(2e-5,R*0.02);if(Math.abs(cam.near-nNear)>nNear*0.05){cam.near=nNear;cam.updateProjectionMatrix();}   /* v7.4: floor 2e-5 (was 0.002) — the old floor sat AT/above the orbit target once R<0.1, clipping crest-level detail (piers/glint) in front of it */
 cam.position.set(tgt.x+R*Math.sin(ph)*Math.sin(th),tgt.y+R*Math.cos(ph),tgt.z+R*Math.sin(ph)*Math.cos(th));
 const mNow=INDWeather.month||7;
 applyHydro(mNow);                                            /* v6.1: flow + reservoir levels follow the month (no-op unless changed) */
@@ -1009,6 +1025,7 @@ pktGeo.attributes.position.needsUpdate=true;
 /* v7.0: markers & packets resize per frame — true scale at every zoom (radius-1 spheres,
    flat in Y so vertical exaggeration can't turn them into eggs) */
 {const mr=Math.max(0.0005,0.0045*R);pkObjs.forEach(o=>o.s.scale.set(mr,mr/REL,mr));const mc=Math.max(0.0004,0.0037*R);ctObjs.forEach(o=>o.s.scale.set(mc,mc/REL,mc));pktPts.material.size=Math.max(0.0008,(0.0052+0.0072*hydroRF)*R);}
+if(glintMat){glintMat.opacity=RM?0.18:0.18+0.08*Math.sin(tw*1.6);heroGl.forEach(g=>{if(g[4])g[4].position.y=(g[1]+MZ(3))*REL;});}   /* v7.4 spillway glint */
 cam.lookAt(tgt);fit();renderer.render(scene,cam);
 const w=cv3.clientWidth,h=420;
 const tag=(arr,pre)=>arr.forEach((p,i)=>{proj.set(p.s.position.x,p.s.position.y*REL,p.s.position.z).project(cam);const el=document.getElementById(pre+i);if(!el)return;if(proj.z>1){el.style.display="none";return;}el.style.display="block";el.style.left=((proj.x*0.5+0.5)*w)+"px";el.style.top=((-proj.y*0.5+0.5)*h)+"px";el.style.marginTop=((i%3)*13)+"px";});
@@ -1017,11 +1034,11 @@ if(typeof lblRivers!=="undefined")lblRivers.forEach((r)=>{proj.set(r.mid.x,r.mid
 })();
 window.__terrainMonth=d=>{
 const m=d.m;
-cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m — true scale at ×1 (1 unit ≈ 950 km E-W; relief chips exaggerate only the vertical). Every CWC dam is a modelled cross-section at its real coordinates (CWC heights where the file has one, class medians elsewhere — illustrative); reservoir shorelines are carved by the terrain. River flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative). Hover a major dam (top-300 recorded heights — same tier as the 2D labels) for its name, height, state and river: recorded CWC fields.";
+cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rains swell the Ganga–Brahmaputra; Ghats force orographic rain (see windward tags).`:(m>=10&&m<=12)?`${d.label}: retreat — northern rivers recede; Kaveri peaks with the NE rains.`:(m<=2)?`${d.label}: winter — high Himalaya snowbound; lean river flows.`:`${d.label}: pre-monsoon — lean flows, first melt; peninsular rivers at their lowest.`)+" Relief vs Indian MSL datum; sea plane = 0 m — true scale at ×1 (1 unit ≈ 950 km E-W; relief chips exaggerate only the vertical). Every CWC dam is a modelled cross-section at its real coordinates (CWC heights where the file has one, class medians elsewhere — illustrative); reservoir shorelines are carved by the terrain. River flow, reservoir levels, rain and wind streaks follow the rainfall month + dam release (illustrative). Hover a major dam (top-300 recorded heights — same tier as the 2D labels) for its name, height, state and river: recorded CWC fields. Crest detail: concrete/arch dams ≥100 m carry spillway piers and a soft crest glint (illustrative); snow caps fade in from ≈4,400 m, fully white ≈5,700 m (schematic).";
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
 _t3("tail");t3Stats.phases=_t3p;
-window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount})};
+window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount}),colAt:h=>"#"+terrCol(h,new THREE.Color()).getHexString(),flyTo:(lo,la,r)=>startFly(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))*REL,Z(la)),r||0.004),glint:{n:heroGl.length,o:()=>glintMat?+glintMat.opacity.toFixed(3):null,at:i=>{const g=heroGl[i];return g?{x:+g[0].toFixed(5),y:+g[1].toFixed(6),z:+g[2].toFixed(5),s:+g[3].toFixed(6),py:g[4]?+g[4].position.y.toFixed(6):null}:null},sp:i=>heroGl[i]?heroGl[i][4]:null,mat:()=>glintMat}};
 /* v7.3: dam hover labels — the top-300 recorded-height tier (same set as the 2D dam labels).
    Projection mirrors tag() exactly (y × REL, 420 px canvas); the label text is real CWC data. */
 const damTip=document.createElement("div");damTip.id="damTip";damTip.style.display="none";

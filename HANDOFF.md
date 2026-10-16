@@ -4,10 +4,11 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.3).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.4).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
-**v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`. Remaining 3D-polish candidates: spillway glint, snow-cap tinting.
+**v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
+**v7.4 SHIPPED (2026-10-16):** 3D crest polish + snow — spillway-pier width fixed to true scale (the v7.0 `ha` bug built ≈3,800 km slabs) and the 14 concrete/arch heroes (≥100 m) carry a soft pulsing crest glint (additive sprites, illustrative); terrain snow blends in from 4,400 m, fully white ≈5,700 m (schematic); near-plane floor fix (`max(2e-5,0.02·R)` — the old 0.002 floor sat at/above the orbit target below R≈0.1 and clipped crest-level detail); new hooks `__t3.colAt/flyTo/glint`.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -15,7 +16,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.4).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -32,7 +33,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-16, v7.3)
+## Current verified state (2026-10-16, v7.4)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -109,14 +110,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
   8849 m = 0.008849 u; `MZ=m=>m*UPM`. ALL 3D content is parented to `relG` (`relG.scale.y=REL`);
   `REL=1` default = honest scale; relief chips cycle `RELS=[1,5,20,100]` (vertical exaggeration
   ONLY — the old `/8849*1.15` units are DEAD: an old recipe value ×0.007695 → new). `hAt` is
-  bilinear (4-corner). Terrain bands unchanged: cA #5B8C5A / cB #A08B62 / cC #8A8F98 /
-  cS #F2F3F5 at 400/1800/5200 m. `t3Stats.phases` = per-phase build ms (mesh ≈4.1 s,
-  damLoop ≈1.0 s, tail ≈0.8 s; whole build ≈6.5 s on a VISIBLE tab — hidden tabs inflate
-  timer measurements, so measure on a focused tab). Read-only hooks:
-  `window.__t3={hAt,yOf,stats,view,hydro,wx,nav,setRel,setSpin,dams}`.
+  bilinear (4-corner). Terrain bands: cA #5B8C5A / cB #A08B62 / cC #8A8F98 / cS #F2F3F5 at
+  400/1800/5200 m, plus v7.4 snow — `terrCol(h,c)` blends toward #F2F3F5 with
+  `t=min(1,(h−1800)/3400·0.3+max(0,h−4400)/2000)` (faint from 4,400 m, full ≈5,700 m,
+  schematic; `__t3.colAt(h)` reads it). `t3Stats.phases` = per-phase build ms (mesh ≈1.3 s
+  warm-cache, damLoop ≈1.2 s, tail ≈0.9 s; whole ≈4.3 s on a VISIBLE focused tab — hidden
+  tabs inflate timer measurements). Read-only hooks:
+  `window.__t3={hAt,yOf,stats,view,hydro,wx,nav,setRel,setSpin,dams,colAt,flyTo,glint}`.
 - 3D CAMERA PARAMS (v7.0; grep `tgt`,`fly`,`startFly`,`setRel`,`setSpin`,`panDrag` — inside `buildTerrain()`):
   orbit target `tgt` starts (0,0.0019,0) ≈1.9 km; wheel `R=max(0.01,min(12,R·e^{deltaY·0.003}))`;
-  near plane `max(0.002,0.02·R)` refreshed each loop; **auto-spin OFF by default** (`spin=false`,
+  near plane `max(2e-5,0.02·R)` refreshed each loop (v7.4 floor fix — see land-mines); **auto-spin OFF by default** (`spin=false`,
   HUD `#t3spin` = "⟳ spin: off/on"; spin condition `if(spin&&!drag&&!RM&&!fly)`); PAN = middle/right
   button or shift+left drag (`panDrag`, `kp=0.0018·R` px→world; contextmenu prevented); dblclick =
   raycast `tMesh` → 600 ms smoothstep fly to hit, `tr=max(0.01,R·0.35)`; dblclick miss (sky) → HOME,
@@ -141,7 +144,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
   world-baked, pivot at dam mouth, `matrixAutoUpdate=false`, carry `hm`), the rest merge into ONE
   static batch (static lakes do NOT draw down). 6 merged section batches
   `MB={eu,ed,ru,rd,cm,cr}` (earth 0x6f6a60/0x6f8058, rock 0x63686d/0x7a8086, conc 0x999fa5,
-  crest 0xd9dcdf); hero piers for conc/arch hm≥100 (=14). Gates: `nearRiver(x0,z0,0.0025)`
+  crest 0xd9dcdf); hero piers for conc/arch hm≥100 (=14; width/obox fixed v7.4 — see crest-detail bullet). Gates: `nearRiver(x0,z0,0.0025)`
   (≤0.05 u) stored as ORIENTED param t (rev flips 1−t). `stats` (build-time, month-independent):
   walls=13002, reservoirs≈1813, gates≈10630, animLakes=240, heroes=14, tris≈650926 (dam+lake).
   Basins block uses LOCAL XB/ZB helpers — do not "simplify" to X/Z (TDZ crash, fixed v5.3).
@@ -154,7 +157,20 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
   `cv3.clientWidth`, 420 px, z>1 culled), nearest within 18 px wins; `#damTip` (appended to
   `#terrainWrap`, z-index 7 above the HUD's 6; CSS mirrors the canvas labels) shows
   "<name> · ht N m" / "state · river R · CWC recorded" (real fields); hides on miss /
-  pointerleave / pointerdown. Hook `__t3.dams` = {n(), pick(x,y), at(i), tip()}.
+  pointerleave / pointerdown. Hook `__t3.dams` = {n(), pick(x,y), at(i), tip()} — `dams.n` is a FUNCTION (call it; the glint sibling `glint.n` is a NUMBER — they burned us once).
+- 3D CREST DETAIL + SNOW (v7.4): spillway piers on the 14 conc/arch heroes (hm≥100) had a v7.0
+  units bug — `ha` missed its `*UPM` (`Math.max(4,…)` raw → ≈3,800 km slabs); now
+  `ha=Math.max(4*UPM,Math.min(24*UPM,span*0.012))` (≈46 m-wide nubs) and the pier `obox` is
+  axis-aligned to the dam axis f, g=(−fz,fx). Crest glint: 14 scene-level additive sprites on
+  ONE shared SpriteMaterial (64 px radial-gradient canvas), `s=clamp(span*0.3,2.5e-4,8e-4)`,
+  anchored `(x0,crest+MZ(3),z0)`, y re-applied every frame `×REL` (scene-level precisely so the
+  `relG.scale.y` chips cannot deform the billboards); `glintMat.opacity=RM?0.18:0.18+0.08·sin(tw·1.6)`
+  (0.10–0.26, period ≈3.9 s) — illustrative. Snow: `terrCol(h,c)` `t=min(1,(h−1800)/3400·0.3+
+  max(0,h−4400)/2000)` — faint from 4,400 m, fully white ≈5,700 m (schematic). Hooks: `__t3.colAt(h)`,
+  `__t3.flyTo(lo,la,r)` (r default 0.004), `__t3.glint` = {n NUMBER, o(), at(i)→{x,y,z,s,py},
+  sp(i)→live sprite, mat()→live material}. Verified live at r=0.002 top-down: glint renders +
+  pulses — A/B/A captures 252,565 / 239,873 / 235,464 bytes at opacity ≈0.26 / 0.19 / 0.10 —
+  piers visible, no slab, near=4e-5.
 - 3D HYDRO (v6.1, illustrative month-typical — NOT measured; grep `applyHydro`,`fillOf`,`relOf`,`relGates`):
   `fillOf(m)=0.28+0.72·e^(−(cd12(m,9.5)/2.3)²)` (fills Jun–Sep, peak late Sep/Oct, trough May);
   `relOf(m)=0.55+0.85·fillOf³` (release below a dam: ≈1.32 spills when full, ≈0.57 lean dry);
@@ -195,6 +211,14 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
   screen-relative — when touching any 3D size constant, divide by `REL` (`/REL`) or exaggeration
   chips will visually stretch/detach the animation. `relG` holds the terrain, dams, lakes,
   rivers, markers, weather — scene-level objects are only backdrop (sea, stars, lights).
+- v7.4 near-plane floor: keep `cam.near=Math.max(2e-5,0.02·R)` — the v6.0 floor 0.002 exceeded R
+  below R≈0.1, so the near plane sat at/above the orbit target and silently clipped everything
+  raised toward the camera (crest, piers, glints); a sprite fully behind the near plane vanishes
+  regardless of scale, and numbers can't see it — a screenshot A/B caught it (frames stayed
+  byte-identical even after forcing a 19 km-wide sprite). Never let the floor approach R.
+- v7.4 glint sprites are a sanctioned SCENE-level exception (sprites only — `relG.scale.y=REL`
+  would vertically deform the billboards); their y is instead re-applied each loop as
+  `(crest+MZ(3))·REL`. Keep both halves of that pair.
 - v7.2 rain weights: `applyHydro` also reseeds 3D drops (`wxRDrop.fill(null)`) — applyHydro is
   defined before `wxRDrop` exists but is only CALLED after the wx block (first call = the seed
   line right after it); never call applyHydro earlier or the reseed hits a TDZ. `__rainSample`
@@ -203,12 +227,10 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.3).
   loads — pooled weights would freeze at 1.
 
 ## Next up (for the next session)
-- v7.3 shipped (3D dam hover labels — state bullet + recipe above; commit pushed).
+- v7.4 shipped (crest-pier fix + pulsing glint + snow + near-plane fix — state bullet above; commit pushed).
 - USER ACTION pending: restart OpenCode so the global claude-mem plugin loads in every
   project at startup (core features already live).
-- If asked to keep polishing the 3D view: remaining candidates are a soft spillway glint or
-  snow-cap tinting tied to `yOf` bands — if any option conveys new info, keep the
-  "(illustrative)" label.
+- The v7.3-era 3D-polish candidates (spillway glint, snow caps) shipped in v7.4 — queue empty.
 - Otherwise pick from the standing optional items below.
 
 ## Open items (not bugs)

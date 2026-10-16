@@ -1077,7 +1077,19 @@ for(let m=1;m<=12;m++)h+=`<text x="${X(m)}" y="218" font-size="9" text-anchor="m
 h+=`<g font-family="monospace" font-size="10"><circle cx="70" cy="18" r="4" fill="#0F766E"/><text x="78" y="22" fill="#1A1A1A">SW rain</text><circle cx="165" cy="18" r="4" fill="#6B7280"/><text x="173" y="22" fill="#1A1A1A">NE rain</text><circle cx="258" cy="18" r="4" fill="#B45309"/><text x="266" y="22" fill="#1A1A1A">Heat risk</text><circle cx="358" cy="18" r="4" fill="#1D4ED8"/><text x="366" y="22" fill="#1A1A1A">Cold risk</text><text x="458" y="22" fill="#6B7280">- - DMI typical</text></g>`;
 h+=`<line id="graphCursor" x1="${X(7)}" y1="30" x2="${X(7)}" y2="205" stroke="#1A1A1A" stroke-width="2"/>`;
 $("graphLines").innerHTML=h;
+window.__graphBands=function(){
+const host=$("graphLines");if(!host)return;
+const oldB=document.getElementById("graphPhenBands");if(oldB&&oldB.parentNode)oldB.parentNode.removeChild(oldB);
+let g='<g id="graphPhenBands" pointer-events="none">';
+if(window.__phen)for(const it of PHEN.items){if(!PHEN.on.has(it.id))continue;
+ for(const r of phenWinRuns(it.window)){const x1=Math.max(70,X(r[0])-26.4),x2=Math.min(650,X(r[1])+26.4);if(x2-x1<6)continue;
+  g+=`<rect x="${x1.toFixed(1)}" y="60" width="${(x2-x1).toFixed(1)}" height="140" fill="${it.color}" opacity="0.07" rx="2"/>`;
+  g+=`<text x="${(x1+3).toFixed(1)}" y="70" font-size="8" font-family="monospace" fill="${it.color}" opacity="0.9">${it.id}</text>`;}}
+g+="</g>";host.insertAdjacentHTML("afterbegin",g);
+};
+try{window.__graphBands();}catch(_){}
 window.__graphCursor=m=>{const c=$("graphCursor");if(c){c.setAttribute("x1",X(m));c.setAttribute("x2",X(m));}const d=monthByNum(m);if(d&&$("graphReadout"))$("graphReadout").textContent=`${d.label}: SW flow ${((d.arabian+d.bay)/2).toFixed(0)}% · NE bay ${d.bay}% · heat ${(HEAT_K[m]*100).toFixed(0)}% · cold ${(COLD_K[m]*100).toFixed(0)}% · DMI-typ ${d.dmiTyp} · MJO Ph${INDWeather.mjo} · rain-states ${(d.rainStates||[]).length}`;};
+{const _gc=window.__graphCursor;window.__graphCursor=m=>{_gc(m);const d=monthByNum(m);if(d&&$("graphReadout")&&window.__phen){try{const act=PHEN.items.filter(x=>PHEN.on.has(x.id)&&(!(x.window||[]).length||x.window.indexOf(m)>=0)).map(x=>x.id);if(act.length)$("graphReadout").textContent+=" · ON "+act.join(",");}catch(_){}}}};
 window.__graphCursor(INDWeather.month||7);
 const svg=$("graphSvg");
 const toMonth=e=>{const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*720;return Math.max(1,Math.min(12,Math.round((x-70)/(580/11))+1));};
@@ -1134,35 +1146,65 @@ function phenIdxAt(pts,idx){const i0=Math.max(0,Math.min(pts.length-1,Math.floor
 const PHEN={items:[],on:new Set(),g2:null,loaded:false,env:{map:null,rm:false,m:7}};
 window.__phen={items:PHEN.items,on:PHEN.on,loaded:false,toggle:null,apply:null,month:null};
 
+const PHEN_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function phenWinRuns(w){w=(w||[]).slice().sort((a,b)=>a-b);if(!w.length)return [[1,12]];
+ const runs=[];let a=w[0],p=w[0];
+ for(let i=1;i<=w.length;i++){const c=w[i];if(c===p+1){p=c;continue;}runs.push([a,p]);a=c;p=c;}
+ return runs;}
+function phenWinText(w){const runs=phenWinRuns(w);
+ if(!(w&&w.length))return "all year";
+ if(runs.length>1&&runs[0][0]===1&&runs[runs.length-1][1]===12){const fr=runs.shift(),lr=runs.pop();runs.push([lr[0],fr[1]]);}
+ return runs.map(s=>s[0]===s[1]?PHEN_MON[s[0]-1]:PHEN_MON[s[0]-1]+"–"+PHEN_MON[s[1]-1]).join(", ");}
+function phenAnchorOf(it){const g=it.geo||{};
+ if(g.pts&&g.pts.length)return [g.pts[0].la,g.pts[0].lo];
+ if(g.boxes&&g.boxes.length){const b0=g.boxes[0];return [(b0[0]+b0[2])/2,(b0[1]+b0[3])/2];}
+ if(it.labelAt)return it.labelAt;
+ if(g.line&&g.line.length)return g.line[Math.floor(g.line.length/2)];
+ const P=phenPolyOf(it),p0=P&&P[0];
+ if(p0&&p0.length){let la=0,lo=0;for(const p of p0){la+=p[0]/p0.length;lo+=p[1]/p0.length;}return [la,lo];}
+ return [15,80];}
+function phenArrowDeg(a,b){const dN=b[0]-a[0],dE=(b[1]-a[1])*Math.cos((a[0]+b[0])*Math.PI/360);return Math.atan2(-dN,dE)*180/Math.PI;}
+
 function phenBuild2(){
 for(const it of PHEN.items){
  const st={group:L.layerGroup(),paths:[],dots:[],mover:null,rings:[],cum:null};
  const bind=l=>{l.bindPopup(phenPopup(it));return l;};
  const reg=l=>{st.paths.push(l);st.group.addLayer(l);return l;};
  if(it.kind==="region"){
-  for(const poly of phenPolyOf(it))reg(bind(L.polygon(poly,{color:it.color,weight:1.6,opacity:.85,fillColor:it.color,fillOpacity:.16,interactive:true})));
+  for(const poly of phenPolyOf(it))reg(bind(L.polygon(poly,{color:it.color,weight:2.2,opacity:1,fillColor:it.color,fillOpacity:.22,interactive:true})));
   if(it.geo.dot&&it.geo.poly){const poly=it.geo.poly;let mn=[1e9,1e9],mx=[-1e9,-1e9];for(const p of poly){mn[0]=Math.min(mn[0],p[0]);mn[1]=Math.min(mn[1],p[1]);mx[0]=Math.max(mx[0],p[0]);mx[1]=Math.max(mx[1],p[1]);}
-   for(let la=mn[0];la<=mx[0];la+=1.15)for(let lo=mn[1];lo<=mx[1];lo+=1.15){if(!ptInPoly([la,lo],poly))continue;const d=L.circleMarker([la,lo],{radius:2.6,stroke:false,fillColor:it.color,fillOpacity:.9,interactive:false,className:"phenDot"});st.dots.push(d);st.group.addLayer(d);}}
+   for(let la=mn[0];la<=mx[0];la+=1.15)for(let lo=mn[1];lo<=mx[1];lo+=1.15){if(!ptInPoly([la,lo],poly))continue;const d=L.circleMarker([la,lo],{radius:3,stroke:false,fillColor:it.color,fillOpacity:.95,interactive:false,className:"phenDot"});st.dots.push(d);st.group.addLayer(d);}}
  }else if(it.kind==="band"){
-  reg(bind(L.polyline(it.geo.line,{color:it.color,weight:2.2,opacity:.85,dashArray:"6 7",className:"phenDash",interactive:true})));
+  reg(bind(L.polyline(it.geo.line,{color:it.color,weight:2.6,opacity:1,dashArray:"6 7",className:"phenDash",interactive:true})));
  }else if(it.kind==="track"){
-  reg(bind(L.polyline(it.geo.line,{color:it.color,weight:2,opacity:.75,interactive:true})));
+  reg(bind(L.polyline(it.geo.line,{color:it.color,weight:2.4,opacity:.9,interactive:true})));
   st.cum=phenCum(it.geo.line);
   st.mover=L.marker(it.geo.line[0],{icon:L.divIcon({className:"",html:`<span class="phenMover" style="--pc:${it.color}"></span>`,iconSize:[10,10],iconAnchor:[5,5]}),interactive:false,keyboard:false});
   st.group.addLayer(st.mover);
  }else if(it.kind==="sea"){
   const cs=it.geo.colors||[it.color];
   it.geo.boxes.forEach((b,k)=>{const s=b[0],w=b[1],n=b[2],e=b[3],c=cs[k]||cs[0];
-   reg(bind(L.polygon([[s,w],[s,e],[n,e],[n,w]],{color:c,weight:1.5,opacity:.8,fillColor:c,fillOpacity:.08,interactive:true})));});
+   reg(bind(L.polygon([[s,w],[s,e],[n,e],[n,w]],{color:c,weight:1.8,opacity:.9,fillColor:c,fillOpacity:.13,interactive:true})));});
  }else if(it.kind==="points"){
-  for(const p of it.geo.pts){const mk=bind(L.circleMarker([p.la,p.lo],{radius:4,color:"#1A1A1A",weight:1,fillColor:it.color,fillOpacity:.95,interactive:true}));if(p.t)mk.bindTooltip(p.t,{className:"phenTag",direction:"top",offset:[0,-6]});reg(mk);}
+  for(const p of it.geo.pts){const mk=bind(L.circleMarker([p.la,p.lo],{radius:4.6,color:"#1A1A1A",weight:1.2,fillColor:it.color,fillOpacity:1,interactive:true}));if(p.t)mk.bindTooltip(p.t,{className:"phenTag",direction:"top",offset:[0,-6]});reg(mk);}
  }else if(it.kind==="pulse"){
   for(const p of it.geo.pts){
-   reg(bind(L.circleMarker([p.la,p.lo],{radius:3,stroke:false,fillColor:it.color,fillOpacity:.95,interactive:true})));
-   for(let k=0;k<2;k++){const r=L.circle([p.la,p.lo],{radius:0,color:it.color,weight:1.6,opacity:.55,fill:false,interactive:false,className:"phenRing"});st.rings.push({r,km:p.r,ph:k*0.5});st.group.addLayer(r);}
+   reg(bind(L.circleMarker([p.la,p.lo],{radius:3.4,stroke:false,fillColor:it.color,fillOpacity:1,interactive:true})));
+   for(let k=0;k<2;k++){const r=L.circle([p.la,p.lo],{radius:0,color:it.color,weight:1.8,opacity:.65,fill:false,interactive:false,className:"phenRing"});st.rings.push({r,km:p.r,ph:k*0.5});st.group.addLayer(r);}
   }
  }
- for(const l of st.paths)l._base={o:(l.options.opacity!=null?l.options.opacity:.85),f:l.options.fillOpacity};
+  if(it.link){
+  const a0=phenAnchorOf(it),b0=it.link.to;
+  reg(L.polyline([a0,b0],{color:it.color,weight:1.6,opacity:.7,dashArray:"2 6",className:"phenLink",interactive:false}));
+  const rot=phenArrowDeg(a0,b0);
+  const am=L.marker(b0,{icon:L.divIcon({className:"",html:`<span class="phenArrow" style="--pc:${it.color};transform:rotate(${rot.toFixed(1)}deg)"></span>`,iconSize:[12,12],iconAnchor:[6,6]}),interactive:false,keyboard:false});
+  am.bindTooltip(`<b>${it.id}</b> → ${it.link.note} (illustrative)`,{permanent:true,className:"phenTag",direction:"right",offset:[8,0]});
+  st.group.addLayer(am);
+ }
+ for(const l of st.paths)l._base={o:(l.options.opacity!=null?l.options.opacity:.85),f:l.options.fillOpacity,d:l.options.dashArray||null};
+  st.tag=L.marker(phenAnchorOf(it),{icon:L.divIcon({className:"",html:"",iconSize:[2,2],iconAnchor:[1,1]}),interactive:false,keyboard:false});
+ st.tag.bindTooltip(`${it.id} · off-season (${phenWinText(it.window)})`,{permanent:true,className:"phenTag",direction:"top",offset:[0,-8]});
+ st.group.addLayer(st.tag);
  it._2d=st;
 }
 }
@@ -1177,13 +1219,15 @@ for(const it of PHEN.items){const on=PHEN.on.has(it.id),g=it._2d.group;
 }
 const c=document.getElementById("phenCount");if(c)c.textContent=`${PHEN.on.size} / ${PHEN.items.length} on`;
 if(PHEN.items.length)phenSync(PHEN.env.m);
+try{if(window.__graphBands)window.__graphBands();}catch(_){}
 try{if(window.__phen3d&&window.__phen3d.refresh)window.__phen3d.refresh();}catch(_){}
 }
 
 function phenSync(m){
 for(const it of PHEN.items){
  const w=it.window||[],bright=!w.length||w.indexOf(m)>=0;
- for(const l of it._2d.paths){const b=l._base;l.setStyle(bright?{opacity:b.o,fillOpacity:(b.f!=null?b.f:1)}:{opacity:.12,fillOpacity:(b.f!=null?Math.max(.04,b.f*.2):1)});}
+ for(const l of it._2d.paths){const b=l._base;l.setStyle(bright?{opacity:b.o,fillOpacity:(b.f!=null?b.f:1),dashArray:b.d}:{opacity:Math.max(.4,b.o*.5),fillOpacity:(b.f!=null?Math.max(.06,b.f*.5):1),dashArray:b.d||"5 6"});}
+ if(it._2d.tag){if(PHEN.on.has(it.id)&&!bright)it._2d.tag.openTooltip();else it._2d.tag.closeTooltip();}
  for(const d of it._2d.dots){const el=d.getElement&&d.getElement();if(el)el.classList.toggle("phenOff",!bright);}
  if(it._2d.mover){const el=it._2d.mover.getElement&&it._2d.mover.getElement();if(el)el.classList.toggle("phenOff",!bright);
   if(it.geo.motion==="loop"&&PHEN.env.rm)it._2d.mover.setLatLng(phenPtAt(it.geo.line,it._2d.cum,0.5));
@@ -1204,7 +1248,7 @@ const t=ts||performance.now();
 for(const it of PHEN.items){
  if(!PHEN.on.has(it.id))continue;
  if(it._2d.cum&&it.geo.motion==="loop"){const per=(it.geo.period||12)*1000;const f=((t/per)%1+1)%1;it._2d.mover.setLatLng(phenPtAt(it.geo.line,it._2d.cum,f));}
- for(const x of it._2d.rings){const ph=((t/2600)+x.ph)%1;x.r.setRadius(ph*x.km);x.r.setStyle({opacity:.55*(1-ph)});}
+ for(const x of it._2d.rings){const ph=((t/2600)+x.ph)%1;x.r.setRadius(ph*x.km);x.r.setStyle({opacity:.65*(1-ph)});}
 }
 }
 
@@ -1212,7 +1256,7 @@ function phenBuildPanel(cats){
 const list=document.getElementById("phenList");if(!list)return;
 let h="";
 for(const c of ["M","O","S","X","L"]){h+=`<div class="phenHead" data-cat="${c}">${cats[c]||c}</div>`;
- for(const it of PHEN.items)if(it.cat===c)h+=`<label class="phenItem" data-cat="${c}" title="${it.label}"><input type="checkbox" data-id="${it.id}" ${PHEN.on.has(it.id)?"checked":""}><span class="pid">${it.id}</span><span>${it.name}</span></label>`;}
+ for(const it of PHEN.items)if(it.cat===c)h+=`<label class="phenItem" data-cat="${c}" title="${it.label}"><input type="checkbox" data-id="${it.id}" ${PHEN.on.has(it.id)?"checked":""}><span class="pdot" style="background:${it.color}"></span><span class="pid">${it.id}</span><span>${it.name}</span></label>`;}
 list.innerHTML=h;
 list.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.id&&window.__phen.toggle)window.__phen.toggle(t.dataset.id,t.checked);});
 for(const ch of document.querySelectorAll(".pchip[data-cat]"))ch.addEventListener("click",()=>{
@@ -1229,7 +1273,7 @@ window.__phen.apply=phenApply;
 window.__phen.month=phenSync;
 
 async function phenInit(){
-const data=await (await fetch("data/phenomena.json?v=7.1")).json();
+const data=await (await fetch("data/phenomena.json?v=7.7")).json();
 for(const it of data.items)PHEN.items.push(it);
 try{const saved=JSON.parse(localStorage.getItem("phen.on")||"[]");if(Array.isArray(saved))for(const id of saved)if(PHEN.items.some(i=>i.id===id))PHEN.on.add(id);}catch(_){}
 phenBuild2();
@@ -1304,7 +1348,7 @@ if(!built||!phenG)return;steps++;
 const m=PHEN.env.m||7;
 if(m!==lastM){lastM=m;
  for(const rec of matRecs){const w=rec.it.window||[],bright=!w.length||w.indexOf(m)>=0;
-  for(const mm of rec.my)mm.m.opacity=bright?mm.o:Math.max(.03,mm.o*.15);}
+  for(const mm of rec.my)mm.m.opacity=bright?mm.o:Math.max(.2,mm.o*.55);}
 }
 const t=performance.now();
 for(const mv of movers){if(!PHEN.on.has(mv.it.id))continue;

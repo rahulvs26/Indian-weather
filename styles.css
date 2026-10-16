@@ -137,13 +137,14 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .phenDot{transform-box:fill-box;transform-origin:center;animation:phenDotPulse 2.4s ease-in-out infinite}
 .phenMover{display:block;width:10px;height:10px;border-radius:50%;background:var(--pc,#0F766E);box-shadow:0 0 6px 2px var(--pc,#0F766E);opacity:.95}
 .phenRing{opacity:.6}
-.phenOff{opacity:.22!important}
+.phenOff{opacity:.5!important}
 .leaflet-tooltip.phenTag{font-size:11px;padding:2px 6px;background:var(--paper);border:1px solid var(--line);color:inherit;box-shadow:none;font-family:var(--mono)}
 
 /* v7.3: 3D dam hover tooltip (matches the in-canvas label typography) */
 #damTip{position:absolute;display:none;z-index:7;pointer-events:none;font:600 11px ui-monospace,monospace;color:#fff;text-shadow:0 1px 3px #000;white-space:nowrap}
 #damTip .dh{color:#FDE68A}
 #damTip .dms{font-weight:500;font-size:10px;color:#D6D3D1}
+
 /* v7.6: dam-release travel simulation card (3D map view only) — matches the dark overlay style of #riverList */
 .damUI{position:absolute;left:8px;top:8px;width:252px;display:none;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:8px;padding:10px 12px;color:#E7E5E4;font:11px/1.5 ui-monospace,monospace;z-index:8}
 .stage.map3d-on .damUI{display:block}
@@ -157,3 +158,8 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damBtn:disabled{opacity:.55;cursor:default}
 .damNote{margin-top:7px;color:#9fb4c7;font-size:10px}
 
+/* v7.7: phenomena visibility + interference */
+.phenItem .pdot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;margin-top:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.phenLink{stroke-linecap:round}
+.phenArrow{display:block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:9px solid var(--pc,#6B7280);filter:drop-shadow(0 0 1px rgba(255,255,255,.9))}
+.leaflet-tooltip.phenTag b{font-weight:600}

@@ -4,13 +4,14 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.6).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.7).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
 **v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
 **v7.4 SHIPPED (2026-10-16):** 3D crest polish + snow — spillway-pier width fixed to true scale (the v7.0 `ha` bug built ≈3,800 km slabs) and the 14 concrete/arch heroes (≥100 m) carry a soft pulsing crest glint (additive sprites, illustrative); terrain snow blends in from 4,400 m, fully white ≈5,700 m (schematic); near-plane floor fix (`max(2e-5,0.02·R)` — the old 0.002 floor sat at/above the orbit target below R≈0.1 and clipped crest-level detail); new hooks `__t3.colAt/flyTo/glint`.
 **v7.5 SHIPPED (2026-10-16):** pastel 2D basemap + no fake-3D rain in the 2D map + a third view "3D map" — 2D base switched to Esri World_Terrain_Base (`maxNativeZoom:13`) under a pastel CSS grade (`saturate(.62) brightness(1) contrast(.95)` on `.leaflet-tile-pane`, chosen by in-page canvas A/B); the 2D rain-streak renderer is deleted (per-state pools remain → 3D rain; `__rainDbg()` reshaped — see the rain bullet); new `map3d.js` = MapLibre GL JS 6.14.0 + OpenFreeMap `bright` + Mapterhorn DEM terrain + OSM building extrusions, keyless (credits: MapLibre · OpenFreeMap · Mapterhorn), toggled by a third stage button via `setTerrainView`; hook `window.__map3d`.
 **v7.6 SHIPPED (2026-10-17):** dam-release water simulation in the 3D map view — "Release water" at Hirakud dam runs a kinematic front down the REAL Mahanadi centre-line to the Bay of Bengal (`data/dam-route-hirakud.geo.json`, derived from the CWC "Mahanadi River" network by `data/_gen_dam_route.mjs`; 53 pts, 414.8 km, arrival ≈3.2 days at ≈1.5 m/s — illustrative); route/wet/head/end layers drape over terrain, "Day N" clock + km readout card, hook `window.__dam`; drive-by fix — the self-test line now reads `2D hidden (3D on)` in the 3D map view too. Verified headless (Edge 155 + SwiftShader WebGL2): 23/23 checks, 0 app console errors, journey 0→414.8 km over ≈25.6 s, day 3.201, wet line 53/53 coords, 2D⇄3D-map toggle round-trip ok.
+**v7.7 SHIPPED (2026-10-17):** climate phenomena are now actually visible on the map + their interference with weather patterns — (a) ON layers render at BOLD family colour (region 2.2/1/.22, dot mesh r3/.95, band 2.6/1, track 2.4/.9, sea 1.8/.9 fill .13, points r4.6 w1.2, pulse r3.4, rings 1.8/.65) instead of the old faint look; (b) month not in an item's window → off-season = ~half opacity + `5 6` dash + an always-open `ID · off-season (months)` tag at the item's anchor (`.phenOff` ≈50 % now — grep `st.tag`, `phenAnchorOf`); (c) five off-map drivers draw a dashed interference arrow to their landing point with a note tooltip — data-driven `link:[lat,lng,note]` in `data/phenomena.json`: O1 ENSO→(22,79), O2 Modoki→(15,87), O3 IOD→(19.5,78), O5 PDO→(23.5,75), O7 NAO/AMO→(19.5,75); (d) Fig6 "Season" shows `#graphPhenBands` strips (one rect per window run of each ON item) and `#graphReadout` ends " · ON <ids>" (wrapper on `__graphCursor`); (e) panel rows carry a family-colour dot. Verified live July (13 saved picks on): 14 band rects (M8 = 2 runs), M3 off-season sample dash 5 6 / opacity .45 / tag "M3 · off-season (Sep–Dec)", readout ON list = the in-window subset exactly, 4 link polylines + 4 arrowheads on the 2D map, `window.__dam` present in the same page, console clean.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -18,7 +19,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.6).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -35,7 +36,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.6).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-17, v7.6)
+## Current verified state (2026-10-17, v7.7)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -43,9 +44,10 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.6).
   toggles refresh the line at toggle-on and again ~350 ms after returning to 2D;
   v7.6 extended the check + refresh to the 3D MAP view — `map3d-on`).
 - v7.1 PHENOMENA: panel "Climate phenomena · 41" sits between the chip row and
-  card-foot; default all unchecked; `localStorage phen.on` restores picks; season
-  gate dims non-season items (opacity 0.12 / `.phenOff`) as the month slider moves —
-  they never hide. Debug: `window.__phen` (items/on/loaded/toggle(id,on)/apply()/
+  card-foot; default all unchecked; `localStorage phen.on` restores picks; v7.7 look:
+  ON = bold family colour; off-season = ~half strength + dashed + open `ID · off-season
+  (months)` tag at the anchor (`.phenOff` ≈50 %, no longer the old 0.12 dim) as the
+  month slider moves — they never hide. Debug: `window.__phen` (items/on/loaded/toggle(id,on)/apply()/
   month(m)), `__phen3d.info()` → `{built,objs:41,steps,on}`. Recipes:
   `__phen.toggle("M1",true)` → polygon + dot field appears; `__phenMonthSync(1)`
   dims M1 (window 6–9), `__phenMonthSync(7)` restores; after the 3D chip first
@@ -279,6 +281,8 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.6).
   toggle-on (mirrors the mountains toggle).
 
 ## Next up (for the next session)
+- v7.7 shipped (phenomena visibility + interference — bold ON, off-season tags + dashes,
+  driver interference arrows, Fig6 season bands, ON readout; state bullet above; committed locally).
 - v7.6 shipped (dam-release water simulation in the 3D map view + self-test-line fix; state
   bullet above; committed locally — GitHub push hangs on this machine, do not retry).
 - v7.6 dam-release v2 ideas (not designed): month-coupled wave speed (reuse the hydro funnel

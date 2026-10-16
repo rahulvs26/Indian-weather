@@ -1,5 +1,5 @@
 {
- "v": "7.1",
+ "v": "7.7",
  "note": "Schematic/illustrative geometry for study. Seasons follow the month slider. Sources: CLIMATE_PHENOMENA_TODO.md",
  "cats": {
   "M": "Monsoon",
@@ -644,6 +644,10 @@
    "label": "ENSO (Pacific, off-map edge)",
    "info": "Coupled Pacific ocean–atmosphere mode, events recur every 2–7 yrs, peak Nov–Feb. El Niño generally suppresses the ISM (droughts 1982/87/2002/09/15); La Niña strengthens it. Inverse but not deterministic (~42% of El Niño years below normal, IMD Pune).",
    "src": "CLIMATE_PHENOMENA_TODO.md · O1",
+   "link": {
+    "to": [22, 79],
+    "note": "El Niño → weak SW monsoon; La Niña → strong (not deterministic)"
+   },
    "geo": {
     "pts": [
      {
@@ -663,6 +667,10 @@
    "label": "ENSO Modoki",
    "info": "Central-Pacific warm tripole (ENSO Modoki Index, Ashok et al. 2007) with distinct teleconnections; Modoki–IOD combinations make NIO cyclogenesis complex (more frequent cyclones in some combinations).",
    "src": "CLIMATE_PHENOMENA_TODO.md · O2",
+   "link": {
+    "to": [15, 87],
+    "note": "Modoki–IOD combos → NIO cyclone activity (complex)"
+   },
    "geo": {
     "pts": [
      {
@@ -689,6 +697,10 @@
    "label": "IOD poles — DMI = west−east SST anomaly",
    "info": "SST seesaw: western pole 50–70°E/10°S–10°N, eastern pole 90–110°E/10°S–0°; DMI = west − east anomaly (event when |DMI|≥0.4 °C sustained). Positive IOD favours above-normal ISMR and can offset El Niño (1997, 2019, DMI to +1.78).",
    "src": "CLIMATE_PHENOMENA_TODO.md · O3",
+   "link": {
+    "to": [19.5, 78],
+    "note": "+IOD → above-normal monsoon (can offset El Niño); −IOD → below"
+   },
    "geo": {
     "boxes": [
      [
@@ -782,6 +794,10 @@
    "label": "PDO (Pacific)",
    "info": "Slow Pacific SST pattern; IMD's Monsoon FAQ lists PDO among the year-to-year ISM factors (with NAO). IPO: no direct IMD material found (marginal).",
    "src": "CLIMATE_PHENOMENA_TODO.md · O5",
+   "link": {
+    "to": [23.5, 75],
+    "note": "PDO is one of the year-to-year ISM factors (with NAO)"
+   },
    "geo": {
     "pts": [
      {
@@ -827,6 +843,10 @@
    "label": "NAO / AMO (Atlantic, off-map edge)",
    "info": "NAO is listed by IMD among ISM-influencing factors (no strong deterministic fetched link). Positive AMO decades coincide with wetter ISM (e.g. 1926–65); paleo-records show coherent response over central India.",
    "src": "CLIMATE_PHENOMENA_TODO.md · O7",
+   "link": {
+    "to": [19.5, 75],
+    "note": "+AMO decades → wetter ISM; NAO listed as an ISM factor"
+   },
    "geo": {
     "pts": [
      {

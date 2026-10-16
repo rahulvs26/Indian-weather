@@ -4,8 +4,9 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.1).
-**v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record). No NEXT FEATURE queued.
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.2).
+**v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
+**v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`). No NEXT FEATURE queued.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -13,7 +14,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.2).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -30,9 +31,9 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-16, v7.1)
+## Current verified state (2026-10-16, v7.2)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
-  basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · zoom=<z> · vectors-ok`.
+  basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
   While 3D is on the vectors check reads `2D hidden (3D on)` (expected; the 3D
   toggle refreshes the line at toggle-on and again ~350 ms after returning to 2D).
@@ -68,19 +69,32 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
 - Zoom hierarchy (Google-Maps style): rivers rivMaj/rivMed(≥5)/rivMin(≥7) + rivWest
   (CWC west-flowing subset, ≥5); dams dg0(top40)/dg1(<400)/dg2(all, ≥8) + labels ≥7;
   CWC network ≥6 bg-load; water (reservoirs/glacial/TN) lazy on chip only.
-- 2D RAIN STREAKS (v6.2, illustrative): `stepRain(nowS)` runs inside the wind-canvas
-  loop (only while the Winds chip is on). Drops fall over the month's `rainStates` —
-  the same IMD month-typical list as the teal highlight. Pool sampled inside each state
-  polygon (area-weighted ring pick + even-odd test), cached per month in
-  `window.__rainPoolCache`; count `min(320,40+250·rf)`, `rf=max(0.12,min(1,(arabian+bay)/200))`;
-  streak lean follows `curVec`. Rebuild happens inside `window.__rainStates`. `__rainDbg()`
-  = {m,rain,pool,k}.
+- 2D RAIN STREAKS (v6.2 pool / v7.2 per-state averages, illustrative): `stepRain(nowS)`
+  runs inside the wind-canvas loop (only while the Winds chip is on). Drops fall over the
+  month's `rainStates` (IMD month-typical teal list); pool sampled inside each state polygon
+  (area-weighted ring pick + even-odd test) and now cached WITH per-state weights in
+  `window.__rainPoolCache[m]={byState:{state:{pts,w}},max}`. `w` = that state's mean rainfall
+  for the month, mm, from `data/rain-state-avg.json` (IMD subdivision record 1901–2015, mapped
+  to states — approximate; fetched once at map init into `window.__rainAvg`; pools are NOT
+  cached until the averages exist, so weights never go stale — equal-weight fallback before).
+  Spawn: total `min(340,60+280·rf)`, `rf=max(0.12,min(1,(arabian+bay)/200))`; per-state count
+  ∝ √w (min 1), fall speed `0.55+0.45·rnd+0.7·heavy`, streak `6+4·rnd+5·heavy`,
+  `heavy=√(w/max)`; streak lean follows `curVec`. Spawn happens inside `window.__rainStates(d)`.
+  `__rainDbg()` = {m,rain,states,k,avg,w:{state→mm}}; `window.__rainSample()` draws a point from
+  the CURRENT month's pool ∝ w → [lat,lng,weight] (3D uses this; null → uniform fallback).
+  State popups now read "Avg <MON> rain ≈ N mm (IMD 1901–2015 subdivision mean, mapped to
+  state — approximate)".
 - 3D WEATHER (v7.0, illustrative): rain = LineSegments `wxRGeo` N=36+330·rf falling to
   `wxFloor` (= terrain + MZ(90)); wind = LineSegments `wxWGeo` N=22+115·min(1.25,|vecFor(md)|)
   along `wxVec=(x:vx,z:vy)`; counts + vector set inside `applyHydro` (the month funnel),
   positions integrated by `stepWx(dtS)` in the loop; extras hidden via `setDrawRange`.
   v7.0: ALL wx distances/sizes are divided by `REL` (screen-relative — exaggeration chips
-  must not stretch weather). `__t3.wx()` = {m,rf,rain,wind,vx,vz,pkt,west}.
+  must not stretch weather). `__t3.wx()` = {m,rf,rain,wind,vx,vz,pkt,west}. v7.2: raindrops
+  SEED from the same per-state pool — `wxResetR` calls `window.__rainSample()` and maps
+  lat/lng → X/Z via the wxInvLon/wxInvLat inverse (clamped ±0.49·W/D; uniform fallback when
+  the pool is absent), storing `w` per drop; fall speed scales `×(0.7+0.6·w)`; `applyHydro`
+  reseeds ALL drops on every month change (`wxRDrop.fill(null)`) so positions + weights follow
+  the season.
 - 3D WEST RIVERS (v6.2): `neCount=draped.length` is captured right after the Natural Earth
   drape and the CWC subset is appended AFTER it. Land-mine: packet seeding used one 200-cap
   fed in `draped` order — appended west lines would have been starved to ZERO packets; it now
@@ -170,6 +184,12 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
   screen-relative — when touching any 3D size constant, divide by `REL` (`/REL`) or exaggeration
   chips will visually stretch/detach the animation. `relG` holds the terrain, dams, lakes,
   rivers, markers, weather — scene-level objects are only backdrop (sea, stars, lights).
+- v7.2 rain weights: `applyHydro` also reseeds 3D drops (`wxRDrop.fill(null)`) — applyHydro is
+  defined before `wxRDrop` exists but is only CALLED after the wx block (first call = the seed
+  line right after it); never call applyHydro earlier or the reseed hits a TDZ. `__rainSample`
+  reads `INDWeather.month` and pools exist only for months the 2D layer has visited (null →
+  uniform fallback — never crash). Do NOT cache a month's rain pool before `window.__rainAvg`
+  loads — pooled weights would freeze at 1.
 
 ## Next up (for the next session)
 - v7.0 is green (true-scale relief, all 13,002 dam models, spin-off by default + pan tools) —
@@ -223,10 +243,15 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
   `__t3.wx().west` must equal it; self-test reads `rivers=109+633west`; at z5 the overlay pane
   shows ~880 paths (≈633 west + 109 NE + 36 states + markers) — the Konkan/Goa/Karnataka/Kerala
   coast now carries rivers (rivWest, 2D only).
-- v6.2 weather animations: `__rainDbg()` month 7 → {m:7, rain≈278, pool≈360}; slider 1 →
-  {m:1, rain≈103, pool≈48}. 3D on: `__t3.wx()` month 7 → {rain≈350, wind≈166, vx≈1.45, vz≈-0.84};
-  slider 1 → {rain≈119, wind≈61, vx≈-0.26, vz≈0.21}. Values are ballpark — the month-to-month
-  FLIP in density/direction is what must hold; console stays clean.
+- v7.2 per-state rain: `__rainDbg()` month 7 → {m:7, rain≈325, states:30, avg:true,
+  w:{Kerala:701, Goa:1073, Meghalaya:495, Rajasthan:153, ...}}; slider 11 → {rain≈193, states:7,
+  w:{TamilNadu:177, Puducherry:177, AndamanandNicobar:234, Kerala:164, ...}}. `__rainSample()`
+  ×300 in Nov → lats 7–19 (peninsula + Andaman only); Jul samples span lats 7–35. State popup
+  (reach layers via `__phenEnv.map`) reads "Avg JUL rain ≈ 701 mm". 3D on: `__t3.wx()` month 7
+  → {rain:350, wind:166, vx:1.45, vz:-0.84}; slider 11 → {m:11, rain:193, rf:0.475, vx:-0.5,
+  vz:0.36}. Values are ballpark — the month-to-month FLIP in density/direction is what must
+  hold; console stays clean. GOTCHA: the 3D loop is rAF-driven — a BACKGROUNDED tab freezes it
+  (`wx()` then keeps reporting the old month); focus the tab before asserting.
 - v7.0 true scale + navigation: fresh load → `__t3.yOf(8849)` exactly `0.008849`;
   `__t3.nav()` → {spin:false, rel:1, relScale:1, pan:false} (auto-spin OFF by default);
   `__t3.setRel(5)` → relScale 5, `__t3.view().tgt[1]` goes 0.0019→0.0095 (×5), `#t3rel` reads
@@ -246,6 +271,9 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.1), `SHAPE_INTEGRATION.md`
+- Rain averages: `data/rain-state-avg.json` (36 states × 12 months, mm/month) regenerated by
+  `node data/_gen_rain_avg.mjs` from the fetched IMD 1901–2015 subdivision CSV kept local in
+  git-ignored `data/_src/` (mirror URL in the JSON meta + CITATIONS 11).
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.2), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

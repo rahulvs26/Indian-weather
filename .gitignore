@@ -8,3 +8,5 @@ __pycache__/
 Thumbs.db
 # Local live config (keys stay out of git)
 data/live.json
+# Fetched source copies (like pdf/, kept out of git)
+data/_src/

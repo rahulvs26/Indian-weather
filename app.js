@@ -179,40 +179,57 @@ L.geoJSON(ind,{style:{color:"#1A1A1A",weight:1.6,fillColor:"#0F766E",fillOpacity
 let stateLayers={};
 try{
 const st=await getJSON("data/india-states.geo.json","indiaStates");
-L.geoJSON(st,{style:{color:"#1A1A1A",weight:0.7,fillColor:"#FAF9F6",fillOpacity:0.12}}).eachLayer(l=>{const n=l.feature&&l.feature.properties&&l.feature.properties.NAME_1;if(n){stateLayers[n]=l;l.bindPopup(`<b>${n.replace(/([a-z])([A-Z])/g,"$1 $2")}</b><br>State boundary (GADM). Teal = receiving rain this month.`);}}).addTo(map);
+L.geoJSON(st,{style:{color:"#1A1A1A",weight:0.7,fillColor:"#FAF9F6",fillOpacity:0.12}}).eachLayer(l=>{const n=l.feature&&l.feature.properties&&l.feature.properties.NAME_1;if(n){stateLayers[n]=l;l.bindPopup(()=>{const mm=INDWeather.month||7,sc=window.__rainAvg&&window.__rainAvg.states&&window.__rainAvg.states[n],rv=sc&&sc.m?sc.m[mm-1]:null,lab=(MONTHS.find(x=>x.m===mm)||{}).label||("m"+mm);return `<b>${n.replace(/([a-z])([A-Z])/g,"$1 $2")}</b><br>State boundary (GADM). Teal = receiving rain this month.`+(rv!=null?`<br>Avg ${lab} rain ≈ <b>${Math.round(rv)} mm</b> (IMD 1901–2015 subdivision mean, mapped to state — approximate).`:`<br>Avg monthly rain: loading…`);});}}).addTo(map);
 }catch(e){console.warn("states overlay failed",e);}
 window.__rainStates=d=>{
 const want=new Set(d.rainStates||[]);
 for(const n in stateLayers){const on=want.has(n);try{stateLayers[n].setStyle({fillColor:on?"#0F766E":"#FAF9F6",fillOpacity:on?0.45:0.12,weight:on?1.4:0.7});}catch(_){}}
-/* v6.2 rain particles: sample points inside the month's rain-receiving states (the same
-   IMD month-typical list as the teal highlight; illustrative animation, cached per month) */
+/* v6.2/v7.2 rain particles: sample points inside the month's rain-receiving states (IMD
+   month-typical list) and weight each state's particle count + fall speed by its monthly
+   average rainfall (data/rain-state-avg.json — IMD subdivision 1901-2015 means mapped to
+   states, approximate). Equal weights until the averages load. Cached per month. */
 try{
+const avg=window.__rainAvg&&window.__rainAvg.states,li=(d.m||1)-1;
+const wOf=n=>{const s=avg&&avg[n];return s&&s.m?Math.max(0,s.m[li]||0):0;};
 const cache=window.__rainPoolCache||(window.__rainPoolCache={});
-let pool=cache[d.m];
-if(!pool){
-pool=[];
+let P=cache[d.m];
+if(!P){
+P={byState:{},max:1};const haveAvg=!!avg;
 for(const n of (d.rainStates||[])){
 const ly=stateLayers[n];if(!ly)continue;
-const rings=[];(function w(a){if(!a||!a.length)return;if(typeof a[0].lat==="number"){rings.push(a);return;}for(const x of a)w(x);})(ly.getLatLngs());
+const w=haveAvg?wOf(n):1;if(haveAvg&&w<=0)continue;
+const rings=[];(function w2(a){if(!a||!a.length)return;if(typeof a[0].lat==="number"){rings.push(a);return;}for(const x of a)w2(x);})(ly.getLatLngs());
 if(!rings.length)continue;
 const boxes=rings.map(a=>{let a1=91,a2=-91,b1=999,b2=-999;for(const p of a){if(p.lat<a1)a1=p.lat;if(p.lat>a2)a2=p.lat;if(p.lng<b1)b1=p.lng;if(p.lng>b2)b2=p.lng;}return[a1,a2,b1,b2,Math.max(0.0001,(a2-a1)*(b2-b1))];});
-const totA=boxes.reduce((s,b)=>s+b[4],0);let got=0,tries=0;
-while(got<12&&tries<260){tries++;let rr=Math.random()*totA,bi=0;while(bi<boxes.length-1&&rr>boxes[bi][4]){rr-=boxes[bi][4];bi++;}
+const totA=boxes.reduce((s,b)=>s+b[4],0),pts=[];let got=0,tries=0;
+while(got<14&&tries<300){tries++;let rr=Math.random()*totA,bi=0;while(bi<boxes.length-1&&rr>boxes[bi][4]){rr-=boxes[bi][4];bi++;}
 const b=boxes[bi],la=b[0]+Math.random()*(b[1]-b[0]),lo=b[2]+Math.random()*(b[3]-b[2]);
 let c=false;const r=rings[bi];for(let i=0,j=r.length-1;i<r.length;j=i++){const xi=r[i].lng,yi=r[i].lat,xj=r[j].lng,yj=r[j].lat;if((yi>la)!==(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)c=!c;}
-if(c){pool.push([la,lo]);got++;}}
+if(c){pts.push([la,lo]);got++;}}
+if(pts.length){P.byState[n]={pts,w};if(w>P.max)P.max=w;}
 }
-cache[d.m]=pool;}
+if(haveAvg)cache[d.m]=P;
+}
 const rf=Math.max(0.12,Math.min(1,(d.arabian+d.bay)/200));
-const n=Math.min(320,Math.round((40+250*rf)*(RM?0.4:1)));
+const es=Object.entries(P.byState);
+let totW=0;for(const[,v]of es)totW+=Math.sqrt(v.w);
+const nAll=Math.min(340,Math.round((60+280*rf)*(RM?0.4:1)));
 rainFx=[];
-for(let i=0;i<n;i++){if(!pool.length)break;const p=pool[i%pool.length];
-rainFx.push({la:p[0]+(Math.random()-0.5)*0.22,lo:p[1]+(Math.random()-0.5)*0.22,ph:Math.random(),sp:0.6+Math.random()*0.5+rf*0.5,ln:7+Math.random()*5});}
-rainInfo={m:d.m,n:rainFx.length,pool:pool.length,k:rf};
-window.__rainDbg=()=>({m:rainInfo.m,rain:rainInfo.n,pool:rainInfo.pool,k:+rainInfo.k.toFixed(3)});
+for(const[n2,v]of es){
+const sh=totW?Math.sqrt(v.w)/totW:1/es.length;
+const cnt=Math.max(1,Math.round(nAll*sh)),heavy=Math.min(1,Math.sqrt(v.w/P.max));
+for(let i=0;i<cnt;i++){const p=v.pts[(Math.random()*v.pts.length)|0];
+rainFx.push({la:p[0]+(Math.random()-0.5)*0.22,lo:p[1]+(Math.random()-0.5)*0.22,ph:Math.random(),sp:0.55+Math.random()*0.45+0.7*heavy,ln:6+Math.random()*4+5*heavy,st:n2});}
+}
+rainInfo={m:d.m,n:rainFx.length,pool:es.length,k:rf};
+window.__rainDbg=()=>({m:rainInfo.m,rain:rainInfo.n,states:rainInfo.pool,k:+rainInfo.k.toFixed(3),avg:!!avg,w:Object.fromEntries(es.map(([n2,v])=>[n2,Math.round(v.w)]))});
+window.__rainSample=()=>{const Q=window.__rainPoolCache&&window.__rainPoolCache[INDWeather.month||7];if(!Q)return null;const qs=Object.entries(Q.byState);if(!qs.length)return null;let t2=0;for(const[,v]of qs)t2+=v.w;let r=Math.random()*t2,uk=qs[qs.length-1];
+for(const kv of qs){uk=kv;r-=kv[1].w;if(r<=0)break;}
+const v=uk[1],p=v.pts[(Math.random()*v.pts.length)|0];return[p[0],p[1],Math.min(1,v.w/Q.max)];};
 }catch(e){rainFx=[];rainInfo={m:d.m,n:0,pool:0,k:0};}
 };
 window.__rainStates(monthByNum(INDWeather.month||7));
+fetch("data/rain-state-avg.json?v=7.2").then(r=>r.json()).then(j=>{window.__rainAvg=j;try{window.__rainStates(monthByNum(INDWeather.month||7));}catch(_){}}).catch(e=>console.warn("rain-state-avg failed",e));
 [["ARABIAN SEA",12.5,62],["BAY OF BENGAL",14.5,88.5],["INDIAN OCEAN",-3,74]].forEach(([t,la,lo])=>L.marker([la,lo],{interactive:false,icon:L.divIcon({className:"oceanLbl",html:t})}).addTo(map));
 /* branch flows with head markers (sized by month); small text labels live in textG (zoom>=5 only) */
 const textG=L.layerGroup();
@@ -470,7 +487,7 @@ monthReadout.title=`layers on map: ${n}/14`;
 let svgOk="svg-?";
 try{if(document.querySelector("#map .stage").classList.contains("terrain-on"))svgOk="2D hidden (3D on)";else{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}}catch(_){}
 const dbg=$("layerDebug");
-if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · phen=${(window.__phen&&window.__phen.on)?window.__phen.on.size:0}/41 · zoom=${map.getZoom()} · ${svgOk}`;
+if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · phen=${(window.__phen&&window.__phen.on)?window.__phen.on.size:0}/41 · rainavg=${window.__rainAvg?Object.keys(window.__rainAvg.states).length:0}/36 · zoom=${map.getZoom()} · ${svgOk}`;
 try{window.__phenEnv={map,month:(typeof INDWeather!=="undefined"&&INDWeather.month)||7};window.__phenEnv.rm=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);}catch(_){}
 };
 window.__applyLayers();
@@ -870,7 +887,7 @@ resMat.opacity=0.45+0.42*hydroF;
 pktPts.material.opacity=0.45+0.5*hydroRF;
 const vd=md?vecFor(md):curVec;
 wxVec={x:vd.vx,z:vd.vy};
-wxRN=Math.round((36+330*hydroRF)*(RM?0.5:1));
+wxRN=Math.round((36+330*hydroRF)*(RM?0.5:1));if(wxRDrop)wxRDrop.fill(null);   /* v7.2: reseed from per-state averages */
 wxWN=Math.round(22+115*Math.min(1.25,Math.hypot(vd.vx,vd.vy)));
 };
 /* named river labels + tap-to-trace list */
@@ -922,12 +939,18 @@ let wxRN=0,wxWN=0,wxVec={x:0,z:0};
 const wxInvLon=x=>(x/W)*(TB.lon1-TB.lon0)+(TB.lon0+TB.lon1)/2;
 const wxInvLat=z=>(TB.lat0+TB.lat1)/2-(z/D)*(TB.lat1-TB.lat0);
 const wxFloor=(x,z)=>yOf(Math.max(0,hAt(wxInvLon(x),wxInvLat(z))))+MZ(90);
-const wxResetR=i=>{wxRDrop[i]={x:(Math.random()-0.5)*W*0.96,z:(Math.random()-0.5)*D*0.96,y:(tgt.y+R*(0.15+0.40*Math.random()))/REL};};
+const wxResetR=i=>{/* v7.2: seed 3D raindrops from the per-state average pool (same weights as 2D,
+   lat/lng -> terrain X/Z via the wxInvLon/wxInvLat inverse); uniform fallback without the pool */
+const s=window.__rainSample?window.__rainSample():null;
+if(s){const x=Math.max(-W*0.49,Math.min(W*0.49,(s[1]-(TB.lon0+TB.lon1)/2)/(TB.lon1-TB.lon0)*W));
+const z=Math.max(-D*0.49,Math.min(D*0.49,((TB.lat0+TB.lat1)/2-s[0])/(TB.lat1-TB.lat0)*D));
+wxRDrop[i]={x,z,y:(tgt.y+R*(0.15+0.40*Math.random()))/REL,w:s[2]};return;}
+wxRDrop[i]={x:(Math.random()-0.5)*W*0.96,z:(Math.random()-0.5)*D*0.96,y:(tgt.y+R*(0.15+0.40*Math.random()))/REL,w:0.4};};
 const wxResetW=i=>{wxWDrop[i]={x:(Math.random()-0.5)*W*0.94,z:(Math.random()-0.5)*D*0.94,y:MZ(1400+5200*Math.random())};};
 const stepWx=dt=>{
 if(wxRN>0){wxRGeo.setDrawRange(0,Math.min(wxRN,wxRMax)*2);
 for(let i=0;i<wxRN&&i<wxRMax;i++){const d=wxRDrop[i]||(wxResetR(i),wxRDrop[i]);
-d.y-=(R*(0.35+0.20*hydroRF)/REL)*dt;if(d.y<wxFloor(d.x,d.z)){wxResetR(i);continue;}
+d.y-=(R*(0.35+0.20*hydroRF)*(0.7+0.6*(d.w==null?0.4:d.w))/REL)*dt;if(d.y<wxFloor(d.x,d.z)){wxResetR(i);continue;}
 const ln=Math.max(0.0006,0.0102*R)/REL;
 const o=i*6;wxRPos[o]=d.x;wxRPos[o+1]=d.y;wxRPos[o+2]=d.z;wxRPos[o+3]=d.x+wxVec.x*ln*0.25;wxRPos[o+4]=d.y+ln;wxRPos[o+5]=d.z+wxVec.z*ln*0.25;}
 wxRGeo.attributes.position.needsUpdate=true;}

@@ -39,7 +39,7 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
    v7.0 uses `data/dams.geo.json` — 13,002 CWC/WRIS dam, barrage and weir points
    (names, types, 6,333 recorded heights) — to place a modelled dam cross-section at
    every real coordinate in the 3D relief; the missing heights use class medians
-   (labelled illustrative). Section conventions: §11.
+   (labelled illustrative). Section conventions: §12.
 
 ## Open data & services (accessed Oct 2026)
 
@@ -53,10 +53,19 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
 10. Bureau of Meteorology (Australia) — IOD definition, ±0.4 °C event rule;
     NOAA Climate.gov — IOD history; PIB/MoES — DWR counts and ranges;
     PMF IAS / IMD materials — monsoon branch dates.
+11. India Meteorological Department — subdivision-wise monthly rainfall 1901–2015,
+    published as Government of India open data (data.gov.in); fetched CSV mirror:
+    https://raw.githubusercontent.com/ayushmauryaiitj/Monsoon-Drought-Analytics
+    (Kaggle "rainfall-in-india-1901-2015"); local copy kept in git-ignored
+    `data/_src/`. v7.2 derives each state's monthly mean from it — per subdivision,
+    mean of all yearly values (NA skipped), combined with approximate area weights
+    (or shared-subdivision values) where the mapping is not 1:1; built by
+    `data/_gen_rain_avg.mjs` → `data/rain-state-avg.json`. Approximate mapping; a
+    1901–2015 record mean, not the official 1971–2000 LPA.
 
 ## Engineering conventions for the 3D dam cross-sections (profiles illustrative)
 
-11. Bureau of Reclamation — *Design of Small Dams* (3rd ed., 1987): earthfill
+12. Bureau of Reclamation — *Design of Small Dams* (3rd ed., 1987): earthfill
     embankments commonly ≈2.5–3H:1V upstream / 2–2.5H:1V downstream, with a
     freeboard allowance above the design flood; *Design of Gravity Dams* (1976):
     near-vertical upstream and ≈0.75H:1V battered downstream faces for concrete

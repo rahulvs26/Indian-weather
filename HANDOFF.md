@@ -254,10 +254,12 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.5).
   loads — pooled weights would freeze at 1.
 
 ## Next up (for the next session)
-- v7.4 shipped (crest-pier fix + pulsing glint + snow + near-plane fix — state bullet above; commit pushed).
+- v7.5 shipped (pastel 2D base + no 2D rain streaks + new 3D map view — state bullet above; commit pushed).
+- QUEUED 2026-10-16: dam-release water simulation — release water from a dam, it travels
+  along the river path, and the run records days-to-the-sea; the 3D map was named as a target.
+  Not designed yet — start at `DAM_RELEASE_TODO.md`.
 - USER ACTION pending: restart OpenCode so the global claude-mem plugin loads in every
   project at startup (core features already live).
-- The v7.3-era 3D-polish candidates (spillway glint, snow caps) shipped in v7.4 — queue empty.
 - Otherwise pick from the standing optional items below.
 
 ## Open items (not bugs)

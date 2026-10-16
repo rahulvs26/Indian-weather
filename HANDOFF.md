@@ -1,10 +1,11 @@
 # HANDOFF — read this file first, nothing else
 
 One-page state so a fresh session (or another agent) needs ~2k tokens instead of
-re-reading the codebase. Do NOT read `app.js` end-to-end (~760 lines) — grep for
+re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.0).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.1).
+**v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record). No NEXT FEATURE queued.
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -12,7 +13,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.0).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.1).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -29,12 +30,23 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.0).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-16, v7.0)
+## Current verified state (2026-10-16, v7.1)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
-  basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> layers on=12/14 vectors-ok`.
+  basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
   While 3D is on the vectors check reads `2D hidden (3D on)` (expected; the 3D
   toggle refreshes the line at toggle-on and again ~350 ms after returning to 2D).
+- v7.1 PHENOMENA: panel "Climate phenomena · 41" sits between the chip row and
+  card-foot; default all unchecked; `localStorage phen.on` restores picks; season
+  gate dims non-season items (opacity 0.12 / `.phenOff`) as the month slider moves —
+  they never hide. Debug: `window.__phen` (items/on/loaded/toggle(id,on)/apply()/
+  month(m)), `__phen3d.info()` → `{built,objs:41,steps,on}`. Recipes:
+  `__phen.toggle("M1",true)` → polygon + dot field appears; `__phenMonthSync(1)`
+  dims M1 (window 6–9), `__phenMonthSync(7)` restores; after the 3D chip first
+  builds, `__phen3d.info().built===true` (objs 41, steps climbing). BRIDGE: the
+  module is OUTSIDE the app.js IIFE — the self-test line stashes
+  `window.__phenEnv={map,rm,month}` (self-heal retries 1.2/2.6/5 s). Never reference
+  map/RM/INDWeather/CLIM directly in appended code — they are IIFE-scoped.
 - Map look (v6.1): Esri World Light Gray Canvas tiles (keyless
   `server.arcgisonline.com/.../Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
   maxNativeZoom 16, attribution "Tiles © Esri — Esri, DeLorme, NAVTEQ") re-tinted
@@ -234,6 +246,6 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.0).
 - Site: `index.html`, `styles.css`, `app.js`
 - Data: `data/embedded.js` (bundle), `data/*.geo.json` (shapefile extracts —
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.0), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.1), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

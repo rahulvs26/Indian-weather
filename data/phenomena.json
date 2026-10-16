@@ -1,0 +1,1647 @@
+{
+ "v": "7.1",
+ "note": "Schematic/illustrative geometry for study. Seasons follow the month slider. Sources: CLIMATE_PHENOMENA_TODO.md",
+ "cats": {
+  "M": "Monsoon",
+  "O": "Oscillations",
+  "S": "Storms",
+  "X": "Heat & cold",
+  "L": "Climate trends"
+ },
+ "items": [
+  {
+   "id": "M1",
+   "cat": "M",
+   "name": "Southwest monsoon onset over Kerala",
+   "kind": "region",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "SW monsoon onset — Kerala (normal 1 Jun)",
+   "info": "IMD declares onset when 60% of 14 designated Kerala stations report ≥2.5 mm rain for 2 consecutive days, westerlies hold to 600 hPa and INSAT OLR <200 W m⁻². Normal date 1 June; opens India's principal rainy season.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M1",
+   "geo": {
+    "poly": [
+     [
+      12.8,
+      74.9
+     ],
+     [
+      12,
+      75.2
+     ],
+     [
+      10.5,
+      76.2
+     ],
+     [
+      8.3,
+      76.9
+     ],
+     [
+      8.1,
+      77.6
+     ],
+     [
+      9.6,
+      77.1
+     ],
+     [
+      11.3,
+      75.8
+     ]
+    ],
+    "dot": 1
+   }
+  },
+  {
+   "id": "M2",
+   "cat": "M",
+   "name": "Northern Limit of Monsoon (progressive advance)",
+   "kind": "band",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7
+   ],
+   "label": "NLM — normal mid-Jul cover",
+   "info": "Monsoon advances in surges; the Northern Limit of Monsoon is the northernmost position reached. The country is normally fully covered around 8 July (2020 revised normals; legacy normal 15 July).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M2",
+   "geo": {
+    "line": [
+     [
+      23,
+      68.5
+     ],
+     [
+      25.5,
+      71.5
+     ],
+     [
+      28,
+      76
+     ],
+     [
+      28.8,
+      81
+     ],
+     [
+      28.3,
+      85.5
+     ],
+     [
+      27.5,
+      88.5
+     ],
+     [
+      26.5,
+      89.8
+     ]
+    ]
+   }
+  },
+  {
+   "id": "M3",
+   "cat": "M",
+   "name": "Withdrawal of SW monsoon (retreating monsoon)",
+   "kind": "track",
+   "color": "#0F766E",
+   "window": [
+    9,
+    10,
+    11,
+    12
+   ],
+   "label": "Withdrawal Oct–Dec (NW first, peninsula last)",
+   "info": "No withdrawal before 1 Sept; declared on 5-day rainfall cessation + 850-hPa anticyclone. NW India withdraws first (delayed >2 weeks vs the legacy 1 Sept normal); country-wide withdrawal only after 1 Oct, completed ~15 Oct.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M3",
+   "geo": {
+    "line": [
+     [
+      31,
+      72.5
+     ],
+     [
+      27,
+      74
+     ],
+     [
+      23,
+      76
+     ],
+     [
+      18,
+      78.5
+     ],
+     [
+      13,
+      79.5
+     ],
+     [
+      9,
+      77.5
+     ]
+    ],
+    "motion": "month",
+    "anchors": [
+     {
+      "m": 9,
+      "i": 0
+     },
+     {
+      "m": 10,
+      "i": 2
+     },
+     {
+      "m": 11,
+      "i": 3.5
+     },
+     {
+      "m": 12,
+      "i": 5
+     }
+    ]
+   }
+  },
+  {
+   "id": "M4",
+   "cat": "M",
+   "name": "Active & break monsoon spells (intraseasonal variability)",
+   "kind": "region",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "Active/break core — central India",
+   "info": "Active/vigorous spells: rainfall 1.5–4× / >4× normal; break monsoon: trough shifts to the Himalayan foothills → foothill floods + dry central India. Driven by the 40-day mode, 14–15-day quasi-biweekly oscillation and the MJO.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M4",
+   "geo": {
+    "poly": [
+     [
+      23.5,
+      73.5
+     ],
+     [
+      24.5,
+      78
+     ],
+     [
+      23,
+      82
+     ],
+     [
+      20,
+      82.5
+     ],
+     [
+      17.8,
+      79
+     ],
+     [
+      19,
+      74.5
+     ]
+    ],
+    "dot": 1
+   }
+  },
+  {
+   "id": "M5",
+   "cat": "M",
+   "name": "Monsoon trough",
+   "kind": "band",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "Monsoon trough — Ganganagar→Head Bay",
+   "info": "Semi-permanent elongated low from the heat low (NW Rajasthan–Pakistan) to the Head Bay; normal axis Ganganagar–Allahabad–Kolkata–Head Bay, oscillating ~5° daily. South of axis = active monsoon; north/foothills = break.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M5",
+   "geo": {
+    "line": [
+     [
+      29.9,
+      73.9
+     ],
+     [
+      27.5,
+      78
+     ],
+     [
+      25.4,
+      81.9
+     ],
+     [
+      23.5,
+      85.5
+     ],
+     [
+      22.6,
+      88.4
+     ],
+     [
+      21.6,
+      89.6
+     ]
+    ]
+   }
+  },
+  {
+   "id": "M6",
+   "cat": "M",
+   "name": "Monsoon lows & depressions",
+   "kind": "pulse",
+   "color": "#0F766E",
+   "window": [
+    7,
+    8,
+    9
+   ],
+   "label": "NW Bay genesis zone",
+   "info": "Principal rain-bearing systems; lows intensify into depressions (17–33 kt), ~2 per monsoon month. Genesis north of 18°N in the NW Bay (Jul–Aug), shifting to the central Bay in Sept; heaviest rain in the SW quadrant.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M6",
+   "geo": {
+    "pts": [
+     {
+      "la": 17.5,
+      "lo": 86.5,
+      "r": 260
+     }
+    ]
+   }
+  },
+  {
+   "id": "M7",
+   "cat": "M",
+   "name": "Northeast (winter) monsoon",
+   "kind": "region",
+   "color": "#0F766E",
+   "window": [
+    10,
+    11,
+    12
+   ],
+   "label": "NE monsoon — Oct–Dec",
+   "info": "Oct–Dec reversal to northeasterlies — main rainy season of the south peninsula, ~60% of coastal Tamil Nadu annual rain. 2025 commencement announced 16 Oct over TN–Puducherry, coastal AP, Rayalaseema, S interior Karnataka, Kerala.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M7",
+   "geo": {
+    "poly": [
+     [
+      13.5,
+      74.6
+     ],
+     [
+      15.8,
+      77.2
+     ],
+     [
+      15.6,
+      80.2
+     ],
+     [
+      13.5,
+      80.3
+     ],
+     [
+      11,
+      79.6
+     ],
+     [
+      8.8,
+      77.6
+     ],
+     [
+      9.8,
+      76.1
+     ],
+     [
+      12.2,
+      75
+     ]
+    ],
+    "dot": 1
+   }
+  },
+  {
+   "id": "M8",
+   "cat": "M",
+   "name": "Subtropical westerly jet (winter)",
+   "kind": "band",
+   "color": "#0F766E",
+   "window": [
+    12,
+    1,
+    2
+   ],
+   "label": "Westerly jet ~27N, ~12 km (winter)",
+   "h3d": 12000,
+   "info": "Steady westerly jet at ~27°N, ~200 hPa (~12 km). Shifts north of the Himalayas at monsoon onset (permitting the SW monsoon); dips south in winter and break phases with western disturbances.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M8",
+   "geo": {
+    "line": [
+     [
+      27,
+      68
+     ],
+     [
+      27.5,
+      75
+     ],
+     [
+      28,
+      82
+     ],
+     [
+      27.5,
+      89
+     ],
+     [
+      27,
+      95
+     ]
+    ]
+   }
+  },
+  {
+   "id": "M9",
+   "cat": "M",
+   "name": "Tropical easterly jet (summer)",
+   "kind": "band",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "Easterly jet ~13N, ~15 km (Jul)",
+   "h3d": 15000,
+   "info": "Upper-level easterly jet at ~150 hPa in July, centred near Chennai's latitude, Vietnam → West Africa (Tibetan High outflow). Strong/south of normal in active spells; weak/shifted north (~20°N) in breaks.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M9",
+   "geo": {
+    "line": [
+     [
+      13,
+      60
+     ],
+     [
+      13,
+      70
+     ],
+     [
+      13,
+      80
+     ],
+     [
+      13,
+      90
+     ],
+     [
+      13,
+      98
+     ]
+    ]
+   }
+  },
+  {
+   "id": "M10",
+   "cat": "M",
+   "name": "ITCZ shift over India",
+   "kind": "band",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "ITCZ at Jul normal (~13N)",
+   "h3d": 1500,
+   "info": "The equatorial trough/ITCZ migrates from ~5°S (January) to 12–15°N (July); its northward march and merging with the heat trough governs onset and advance. Drawn at the July normal; the slider gates its season.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M10",
+   "geo": {
+    "line": [
+     [
+      13,
+      58
+     ],
+     [
+      13,
+      70
+     ],
+     [
+      13,
+      82
+     ],
+     [
+      13,
+      94
+     ]
+    ]
+   }
+  },
+  {
+   "id": "M11",
+   "cat": "M",
+   "name": "Tibetan Plateau heating (Tibetan High)",
+   "kind": "region",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "Tibetan High",
+   "h3d": 4500,
+   "info": "Intense heating of the elevated plateau builds a warm upper anticyclone (max intensity 200 hPa); outflow feeds the easterly jet and its position steers monsoon lows and rainfall.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M11",
+   "geo": {
+    "poly": [
+     [
+      30.5,
+      79
+     ],
+     [
+      33,
+      78
+     ],
+     [
+      35,
+      76.5
+     ],
+     [
+      35.5,
+      81
+     ],
+     [
+      34,
+      87
+     ],
+     [
+      31,
+      92
+     ],
+     [
+      28.5,
+      89
+     ],
+     [
+      28,
+      83
+     ]
+    ],
+    "dot": 1
+   }
+  },
+  {
+   "id": "M12",
+   "cat": "M",
+   "name": "Heat low over NW India & seasonal migration",
+   "kind": "track",
+   "color": "#0F766E",
+   "window": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "label": "Heat low migration Mar→Jun",
+   "h3d": 300,
+   "info": "Land–ocean thermal contrast drives the seasonal wind reversal; the shallow heat low (to 850 hPa) over NW Rajasthan–Pakistan acts as a suction device along the trough. Migrates: Mar peninsula → Apr Vidarbha/MP → May Punjab → Jun–Sep NW Rajasthan.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M12",
+   "geo": {
+    "line": [
+     [
+      18,
+      76
+     ],
+     [
+      20.5,
+      79
+     ],
+     [
+      27,
+      74.5
+     ],
+     [
+      28.5,
+      72.5
+     ]
+    ],
+    "motion": "month",
+    "anchors": [
+     {
+      "m": 3,
+      "i": 0
+     },
+     {
+      "m": 4,
+      "i": 1
+     },
+     {
+      "m": 5,
+      "i": 2
+     },
+     {
+      "m": 6,
+      "i": 3
+     }
+    ]
+   }
+  },
+  {
+   "id": "M13",
+   "cat": "M",
+   "name": "Western Ghats orography, off-shore trough & rain shadow",
+   "kind": "band",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "Western Ghats orographic rain + rain shadow",
+   "info": "Monsoon winds striking the Ghats form an off-shore vortex; the off-shore trough (to ~0.9 km) gives heavy west-coast rain (Mahabaleshwar extreme; Pune in rain shadow).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M13",
+   "geo": {
+    "line": [
+     [
+      8.6,
+      77
+     ],
+     [
+      11,
+      76.5
+     ],
+     [
+      14,
+      75.5
+     ],
+     [
+      17,
+      74.3
+     ],
+     [
+      20,
+      73.7
+     ],
+     [
+      21.2,
+      73
+     ]
+    ]
+   }
+  },
+  {
+   "id": "M14",
+   "cat": "M",
+   "name": "Mawsynram & Cherrapunji (Khasi Hills) extreme rainfall",
+   "kind": "points",
+   "color": "#0F766E",
+   "window": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "label": "Mawsynram / Cherrapunji",
+   "info": "The Khasi Hills of Meghalaya funnel the monsoon; Cherrapunji and Mawsynram record world-class rainfall totals, studied in IMD's MAUSAM journal.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · M14",
+   "geo": {
+    "pts": [
+     {
+      "la": 25.28,
+      "lo": 91.73,
+      "t": "Mawsynram"
+     },
+     {
+      "la": 25.27,
+      "lo": 91.72,
+      "t": "Cherrapunji"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O1",
+   "cat": "O",
+   "name": "El Niño–Southern Oscillation (ENSO)",
+   "kind": "points",
+   "color": "#6B7280",
+   "window": [],
+   "label": "ENSO (Pacific, off-map edge)",
+   "info": "Coupled Pacific ocean–atmosphere mode, events recur every 2–7 yrs, peak Nov–Feb. El Niño generally suppresses the ISM (droughts 1982/87/2002/09/15); La Niña strengthens it. Inverse but not deterministic (~42% of El Niño years below normal, IMD Pune).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O1",
+   "geo": {
+    "pts": [
+     {
+      "la": 12,
+      "lo": 101.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "O2",
+   "cat": "O",
+   "name": "ENSO Modoki (central-Pacific El Niño)",
+   "kind": "points",
+   "color": "#6B7280",
+   "window": [],
+   "label": "ENSO Modoki",
+   "info": "Central-Pacific warm tripole (ENSO Modoki Index, Ashok et al. 2007) with distinct teleconnections; Modoki–IOD combinations make NIO cyclogenesis complex (more frequent cyclones in some combinations).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O2",
+   "geo": {
+    "pts": [
+     {
+      "la": 9,
+      "lo": 102.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "O3",
+   "cat": "O",
+   "name": "Indian Ocean Dipole (IOD; 'Indian Niño')",
+   "kind": "sea",
+   "color": "#6B7280",
+   "window": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ],
+   "label": "IOD poles — DMI = west−east SST anomaly",
+   "info": "SST seesaw: western pole 50–70°E/10°S–10°N, eastern pole 90–110°E/10°S–0°; DMI = west − east anomaly (event when |DMI|≥0.4 °C sustained). Positive IOD favours above-normal ISMR and can offset El Niño (1997, 2019, DMI to +1.78).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O3",
+   "geo": {
+    "boxes": [
+     [
+      -10,
+      50,
+      10,
+      70
+     ],
+     [
+      -10,
+      90,
+      0,
+      110
+     ]
+    ],
+    "colors": [
+     "#B45309",
+     "#1D4ED8"
+    ]
+   }
+  },
+  {
+   "id": "O4",
+   "cat": "O",
+   "name": "Madden–Julian Oscillation (MJO)",
+   "kind": "track",
+   "color": "#6D28D9",
+   "window": [],
+   "label": "MJO — eastward 30–60-day pulse",
+   "h3d": 3000,
+   "info": "Eastward-moving planetary pulse (8 phases, ~7–8 days each). Drives active/break spells beyond ~1 week; monsoon genesis favoured in phases 4–5, post-monsoon phases 3–4.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O4",
+   "geo": {
+    "line": [
+     [
+      -5,
+      45
+     ],
+     [
+      0,
+      55
+     ],
+     [
+      5,
+      65
+     ],
+     [
+      10,
+      73
+     ],
+     [
+      12,
+      80
+     ],
+     [
+      12,
+      88
+     ],
+     [
+      8,
+      95
+     ],
+     [
+      3,
+      105
+     ],
+     [
+      2,
+      115
+     ],
+     [
+      5,
+      125
+     ],
+     [
+      8,
+      134
+     ]
+    ],
+    "motion": "loop",
+    "period": 12
+   }
+  },
+  {
+   "id": "O5",
+   "cat": "O",
+   "name": "Pacific Decadal Oscillation (PDO)",
+   "kind": "points",
+   "color": "#6B7280",
+   "window": [],
+   "label": "PDO (Pacific)",
+   "info": "Slow Pacific SST pattern; IMD's Monsoon FAQ lists PDO among the year-to-year ISM factors (with NAO). IPO: no direct IMD material found (marginal).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O5",
+   "geo": {
+    "pts": [
+     {
+      "la": 6,
+      "lo": 103.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "O6",
+   "cat": "O",
+   "name": "Indian Ocean Basin Mode (IOBM) / Indian Ocean warming",
+   "kind": "sea",
+   "color": "#6B7280",
+   "window": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "label": "IOBM — basin-wide warm mode",
+   "info": "Dominant interannual tropical-Indian-Ocean SST mode; warm IOB peaks in spring and its extra moisture is transported to South Asia. Post-1951 ~1 °C warming weakens the land–sea thermal gradient (IITM), drying central-east India.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O6",
+   "geo": {
+    "boxes": [
+     [
+      -10,
+      40,
+      20,
+      100
+     ]
+    ]
+   }
+  },
+  {
+   "id": "O7",
+   "cat": "O",
+   "name": "North Atlantic Oscillation (NAO) & AMO",
+   "kind": "points",
+   "color": "#6B7280",
+   "window": [],
+   "label": "NAO / AMO (Atlantic, off-map edge)",
+   "info": "NAO is listed by IMD among ISM-influencing factors (no strong deterministic fetched link). Positive AMO decades coincide with wetter ISM (e.g. 1926–65); paleo-records show coherent response over central India.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · O7",
+   "geo": {
+    "pts": [
+     {
+      "la": 34,
+      "lo": 58
+     }
+    ]
+   }
+  },
+  {
+   "id": "S1",
+   "cat": "S",
+   "name": "Tropical cyclones over the North Indian Ocean",
+   "kind": "pulse",
+   "color": "#B45309",
+   "window": [
+    4,
+    5,
+    10,
+    11,
+    12
+   ],
+   "label": "NIO cyclone seasons (Nov & May peaks)",
+   "info": "RSMC New Delhi watches the basin round-the-clock: two peaks (Apr–May, Oct–Dec; November maximum). ~5 cyclones/yr ≈ 5–6% of the global average; 4:1 Bay:Arabian ratio; 2024 saw 13 vs 11.2 normal.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S1",
+   "geo": {
+    "pts": [
+     {
+      "la": 15,
+      "lo": 87,
+      "r": 300
+     },
+     {
+      "la": 15,
+      "lo": 65,
+      "r": 250
+     }
+    ]
+   }
+  },
+  {
+   "id": "S2",
+   "cat": "S",
+   "name": "IMD intensity classification scale",
+   "kind": "points",
+   "color": "#B45309",
+   "window": [],
+   "label": "IMD scale: D→DD→CS→SCS→VSCS→ESCS→SuCS",
+   "info": "Depression (31–49 km/h) → Deep Depression → Cyclonic Storm → Severe (89–117) → Very Severe (118–166) → Extremely Severe (167–221) → Super Cyclonic Storm (≥222 km/h). WMO-adopted standard driving warning levels.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S2",
+   "geo": {
+    "pts": [
+     {
+      "la": 12.5,
+      "lo": 80
+     }
+    ]
+   }
+  },
+  {
+   "id": "S3",
+   "cat": "S",
+   "name": "Storm surge / storm tide",
+   "kind": "region",
+   "color": "#B45309",
+   "window": [
+    4,
+    5,
+    10,
+    11,
+    12
+   ],
+   "label": "Storm-surge coasts (illustrative strips)",
+   "info": "Wind-driven sea-level rise at landfall on top of the astronomical tide — 'by far the greatest killers in a cyclone'. Most exposed: low-lying deltas of Odisha, West Bengal, Andhra Pradesh, Gujarat. Strips are illustrative.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S3",
+   "geo": {
+    "polys": [
+     [
+      [
+       22,
+       88.1
+      ],
+      [
+       19.2,
+       85.2
+      ],
+      [
+       16.8,
+       82.4
+      ],
+      [
+       13.2,
+       80.4
+      ],
+      [
+       13,
+       80.1
+      ],
+      [
+       16.5,
+       81.9
+      ],
+      [
+       19,
+       84.6
+      ],
+      [
+       21.8,
+       87.6
+      ]
+     ],
+     [
+      [
+       23.5,
+       68.6
+      ],
+      [
+       22.3,
+       69.6
+      ],
+      [
+       21,
+       72.4
+      ],
+      [
+       21.4,
+       72.6
+      ],
+      [
+       22.7,
+       69.9
+      ],
+      [
+       23.8,
+       68.9
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "id": "S4",
+   "cat": "S",
+   "name": "Western Disturbance",
+   "kind": "track",
+   "color": "#B45309",
+   "window": [
+    12,
+    1,
+    2
+   ],
+   "label": "Western disturbance track",
+   "h3d": 2600,
+   "info": "Cyclonic circulation/trough in the mid-latitude westerlies from the Mediterranean/Caspian/Black Sea region across Iraq–Iran–Afghanistan–Pakistan into NW India; principal winter precipitation source (~6–7/month Dec–Feb), beneficial for rabi crops.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S4",
+   "geo": {
+    "line": [
+     [
+      36,
+      56
+     ],
+     [
+      35,
+      60
+     ],
+     [
+      34,
+      64
+     ],
+     [
+      32,
+      68
+     ],
+     [
+      30,
+      71
+     ],
+     [
+      28.8,
+      74
+     ]
+    ],
+    "motion": "loop",
+    "period": 16
+   }
+  },
+  {
+   "id": "S5",
+   "cat": "S",
+   "name": "Nor'wester / Kalbaisakhi",
+   "kind": "pulse",
+   "color": "#B45309",
+   "window": [
+    3,
+    4,
+    5
+   ],
+   "label": "Nor'wester / Kalbaisakhi (max May)",
+   "info": "Severe pre-monsoon convective thunderstorms and squalls of eastern/NE India (IMD field studies since 1931–41; STORM programme 2007–2010). Cells initiate over Jharkhand/Odisha/Bangladesh and organize into mesoscale complexes. 'Bardoli Chheerha' local name not found on fetched IMD pages.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S5",
+   "geo": {
+    "pts": [
+     {
+      "la": 23.5,
+      "lo": 88.5,
+      "r": 220
+     }
+    ]
+   }
+  },
+  {
+   "id": "S6",
+   "cat": "S",
+   "name": "Dust storms / Andhi",
+   "kind": "pulse",
+   "color": "#B45309",
+   "window": [
+    4,
+    5,
+    6
+   ],
+   "label": "Andhi / dust storms — Rajasthan",
+   "info": "Convective sand/dust storms of NW India (Apr–Jun); with little moisture, downdrafts from cumulonimbus raise dust. Visibility below 1 km; triggered by intense surface heating plus WDs/cyclonic circulations.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S6",
+   "geo": {
+    "pts": [
+     {
+      "la": 26.5,
+      "lo": 72.5,
+      "r": 300
+     }
+    ]
+   }
+  },
+  {
+   "id": "S7",
+   "cat": "S",
+   "name": "Thunderstorms, hailstorms & squall lines",
+   "kind": "pulse",
+   "color": "#B45309",
+   "window": [
+    3,
+    4,
+    5
+   ],
+   "label": "Thunderstorm / hail zones",
+   "info": "Pre-monsoon (Mar–May) is India's peak convective season; violent thunderstorms, squalls, heavy precipitation and hail common over NE India. Squall lines are mesoscale lines of storms; parent phenomena of Andhi and Nor'wester.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S7",
+   "geo": {
+    "pts": [
+     {
+      "la": 26,
+      "lo": 92.5,
+      "r": 260
+     },
+     {
+      "la": 23.8,
+      "lo": 86.5,
+      "r": 200
+     }
+    ]
+   }
+  },
+  {
+   "id": "S8",
+   "cat": "S",
+   "name": "Tornadoes",
+   "kind": "points",
+   "color": "#B45309",
+   "window": [
+    3,
+    4,
+    5
+   ],
+   "label": "Tornado cases (44 in IMD record)",
+   "info": "Rare over India: IMD records yielded 44 tornado cases (+113 strong-wind reports from 1951); preferred zones are mesoscale lows along lines of discontinuity at the tail of violent thunderstorms. Dot cluster is illustrative.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · S8",
+   "geo": {
+    "pts": [
+     {
+      "la": 24.6,
+      "lo": 88.6
+     },
+     {
+      "la": 25.4,
+      "lo": 89.6
+     },
+     {
+      "la": 26.2,
+      "lo": 90.9
+     },
+     {
+      "la": 23.2,
+      "lo": 87.6
+     },
+     {
+      "la": 22.6,
+      "lo": 88.4
+     }
+    ]
+   }
+  },
+  {
+   "id": "X1",
+   "cat": "X",
+   "name": "Heat wave / severe heat wave (warm night)",
+   "kind": "pulse",
+   "color": "#B91C1C",
+   "window": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "label": "Heat-wave zones (peak May)",
+   "info": "Station max ≥40 °C plains / ≥37 coast / ≥30 hills; departure 4.5–6.4 °C = heat wave, >6.4 °C severe. Mar–Jun (peak May); NW & central 'heat belt' plus AP/Odisha coast. May 2015 SE-India event: >2,500 deaths.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X1",
+   "geo": {
+    "pts": [
+     {
+      "la": 28,
+      "lo": 72,
+      "r": 350
+     },
+     {
+      "la": 23,
+      "lo": 78,
+      "r": 300
+     },
+     {
+      "la": 17,
+      "lo": 82,
+      "r": 200
+     }
+    ]
+   }
+  },
+  {
+   "id": "X2",
+   "cat": "X",
+   "name": "Loo",
+   "kind": "pulse",
+   "color": "#B91C1C",
+   "window": [
+    4,
+    5,
+    6
+   ],
+   "label": "Loo — Punjab/Haryana/E.Rajasthan/UP",
+   "info": "Hot, dry, oppressive pre-monsoon wind — a 'marked feature of summers in northern India' (IMD); blows from afternoon into midnight; evening dust storms common in May.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X2",
+   "geo": {
+    "pts": [
+     {
+      "la": 29.5,
+      "lo": 75.5,
+      "r": 300
+     }
+    ]
+   }
+  },
+  {
+   "id": "X3",
+   "cat": "X",
+   "name": "Cold wave / severe cold wave (cold day)",
+   "kind": "pulse",
+   "color": "#1D4ED8",
+   "window": [
+    11,
+    12,
+    1,
+    2,
+    3
+   ],
+   "label": "Cold-wave zone (worst Dec–Jan)",
+   "info": "Station min ≤10 °C plains / ≤0 hills; departure −4.5 to −6.4 °C = cold wave, ≤−6.4 severe. Nov–Mar, worst Dec–Jan in NW/central India; Jan 2003 ~900 deaths; frequency decreasing as winter minimums warm.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X3",
+   "geo": {
+    "pts": [
+     {
+      "la": 28,
+      "lo": 76,
+      "r": 320
+     },
+     {
+      "la": 25,
+      "lo": 80,
+      "r": 280
+     }
+    ]
+   }
+  },
+  {
+   "id": "X4",
+   "cat": "X",
+   "name": "Winter fog",
+   "kind": "region",
+   "color": "#6B7280",
+   "window": [
+    12,
+    1
+   ],
+   "label": "Winter fog — Indo-Gangetic plains",
+   "info": "Large-scale episodic IGP fog spells lasting weeks (Dec–Jan peak); radiation fog after western disturbances. Densest spells drop visibility below 50 m; 12 airports get IMD fog warnings; ~120–159 road deaths in the worst 2016–18 seasons. The most fog-vulnerable region globally per IMD.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X4",
+   "geo": {
+    "poly": [
+     [
+      30.5,
+      74.5
+     ],
+     [
+      29.3,
+      77.4
+     ],
+     [
+      27.8,
+      79.8
+     ],
+     [
+      26.4,
+      83
+     ],
+     [
+      25.6,
+      86.5
+     ],
+     [
+      24.6,
+      88.6
+     ],
+     [
+      25.2,
+      89.9
+     ],
+     [
+      26.6,
+      89
+     ],
+     [
+      27.6,
+      85
+     ],
+     [
+      28.8,
+      81.5
+     ],
+     [
+      29.9,
+      78.2
+     ],
+     [
+      31,
+      75.3
+     ]
+    ]
+   }
+  },
+  {
+   "id": "X5",
+   "cat": "X",
+   "name": "Frost / ground frost",
+   "kind": "pulse",
+   "color": "#1D4ED8",
+   "window": [
+    12,
+    1,
+    2
+   ],
+   "label": "Frost — NW plains & foothills",
+   "info": "Frost 'prevails when temperature falls below 0 °C in an area where it is abnormal'; NDMA/IMD criterion: winds <16 km/h and air temp <0 °C on sub-zero winter nights. Rabi crop losses; ≥33% loss qualifies for national relief.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X5",
+   "geo": {
+    "pts": [
+     {
+      "la": 29,
+      "lo": 76.5,
+      "r": 280
+     }
+    ]
+   }
+  },
+  {
+   "id": "X6",
+   "cat": "X",
+   "name": "Mango showers",
+   "kind": "pulse",
+   "color": "#0F766E",
+   "window": [
+    3,
+    4,
+    5
+   ],
+   "label": "Mango / blossom showers",
+   "info": "End-of-summer pre-monsoon showers of Kerala and coastal Karnataka (not an IMD criteria term); hasten mango ripening and make coffee flower ('blossom'/'cherry-blossom' showers). Beneficial before the monsoon.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X6",
+   "geo": {
+    "pts": [
+     {
+      "la": 10.5,
+      "lo": 76.5,
+      "r": 150
+     },
+     {
+      "la": 13.5,
+      "lo": 74.8,
+      "r": 130
+     }
+    ]
+   }
+  },
+  {
+   "id": "X7",
+   "cat": "X",
+   "name": "October heat",
+   "kind": "region",
+   "color": "#B91C1C",
+   "window": [
+    10,
+    11
+   ],
+   "label": "October heat — post-monsoon peninsula",
+   "info": "Retreating SW monsoon brings clear skies and rising temperatures over still-moist land; combined heat and humidity make weather 'oppressive' — the 'October heat'; the mercury then falls rapidly over north India.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X7",
+   "geo": {
+    "poly": [
+     [
+      24,
+      73
+     ],
+     [
+      24.5,
+      78
+     ],
+     [
+      22.5,
+      80.5
+     ],
+     [
+      19,
+      80
+     ],
+     [
+      16,
+      78.8
+     ],
+     [
+      13.5,
+      77.3
+     ],
+     [
+      15.5,
+      74.6
+     ],
+     [
+      19,
+      73.4
+     ]
+    ]
+   }
+  },
+  {
+   "id": "X8",
+   "cat": "X",
+   "name": "Urban heat island (UHI) effect",
+   "kind": "points",
+   "color": "#B91C1C",
+   "window": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "label": "Urban heat islands — major metros",
+   "info": "Cities run hotter than surroundings; NDMA's 2019 heat guidelines require UHI assessment in Heat Action Plans (23 states, 195 districts, 64 cities). Worst on summer nights; Delhi SAPCC 2.0: summer max projected +1.5 °C (SSP2-4.5) to +2.1 °C (SSP5-8.5) by the 2050s.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X8",
+   "geo": {
+    "pts": [
+     {
+      "la": 28.61,
+      "lo": 77.21,
+      "t": "Delhi"
+     },
+     {
+      "la": 19.08,
+      "lo": 72.88,
+      "t": "Mumbai"
+     },
+     {
+      "la": 13.08,
+      "lo": 80.27,
+      "t": "Chennai"
+     },
+     {
+      "la": 12.97,
+      "lo": 77.59,
+      "t": "Bengaluru"
+     },
+     {
+      "la": 22.57,
+      "lo": 88.36,
+      "t": "Kolkata"
+     },
+     {
+      "la": 23.02,
+      "lo": 72.57,
+      "t": "Ahmedabad"
+     },
+     {
+      "la": 26.91,
+      "lo": 75.79,
+      "t": "Jaipur"
+     }
+    ]
+   }
+  },
+  {
+   "id": "X9",
+   "cat": "X",
+   "name": "Atmospheric brown cloud (ABC)",
+   "kind": "sea",
+   "color": "#B91C1C",
+   "window": [
+    11,
+    12,
+    1,
+    2
+   ],
+   "label": "Atmospheric brown cloud — IGP + N Indian Ocean",
+   "info": "Haze of sulphates, nitrates, organics, black carbon, dust and fly ash; dominant over India in winter, low in the summer monsoon (INDOEX 1996–99). Solar dimming; anthropogenic aerosols linked to the post-1950s ISM rainfall decline, while IGP absorbing aerosols can invigorate pre-monsoon rain.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · X9",
+   "geo": {
+    "boxes": [
+     [
+      10,
+      55,
+      31,
+      93
+     ]
+    ]
+   }
+  },
+  {
+   "id": "L1",
+   "cat": "L",
+   "name": "Global warming signals for India",
+   "kind": "region",
+   "color": "#6B7280",
+   "window": [],
+   "label": "India warming trend",
+   "info": "Surface air temperature over India rose ~0.7 °C (1901–2018); tropical Indian Ocean SST +~1 °C (1951–2015). Rising heavy-rain/drought extremes, higher TC intensity; IMD Climate Hazard & Vulnerability Atlas + 29 state rainfall-variability reports.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · L1",
+   "geo": {
+    "poly": [
+     [
+      35,
+      74
+     ],
+     [
+      35.5,
+      80
+     ],
+     [
+      33,
+      86
+     ],
+     [
+      29.5,
+      92
+     ],
+     [
+      27,
+      95.5
+     ],
+     [
+      24.5,
+      94
+     ],
+     [
+      22,
+      92
+     ],
+     [
+      19,
+      88.5
+     ],
+     [
+      16,
+      85
+     ],
+     [
+      12.5,
+      80.5
+     ],
+     [
+      9.5,
+      78.5
+     ],
+     [
+      8,
+      77
+     ],
+     [
+      11,
+      75.5
+     ],
+     [
+      15,
+      73.5
+     ],
+     [
+      20,
+      71
+     ],
+     [
+      23,
+      68.5
+     ],
+     [
+      27,
+      69
+     ],
+     [
+      31,
+      70
+     ],
+     [
+      34,
+      72
+     ]
+    ],
+    "dot": 1
+   }
+  },
+  {
+   "id": "L2",
+   "cat": "L",
+   "name": "Himalayan cryosphere & GLOF risk",
+   "kind": "points",
+   "color": "#6B7280",
+   "window": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "label": "Glacier retreat / GLOF lakes",
+   "info": "HKH glaciers retreating 14.9±15.1 m/yr (Ganga 15.5±14.4, Brahmaputra 20.2±19.7); Chandra basin lost ~6% area in 20 yrs. New/enlarging glacial lakes raise GLOF risk; NGRMP phase-I early warning (HP, Uttarakhand, Sikkim, Arunachal, J&K, Ladakh).",
+   "src": "CLIMATE_PHENOMENA_TODO.md · L2",
+   "geo": {
+    "pts": [
+     {
+      "la": 27.95,
+      "lo": 88.6,
+      "t": "South Lhonak"
+     },
+     {
+      "la": 27.6,
+      "lo": 88.5,
+      "t": "Shako Cho"
+     },
+     {
+      "la": 30.9,
+      "lo": 79.1,
+      "t": "Gangotri"
+     }
+    ]
+   }
+  },
+  {
+   "id": "L3",
+   "cat": "L",
+   "name": "Sea-level rise (MoES/INCOIS)",
+   "kind": "points",
+   "color": "#6B7280",
+   "window": [],
+   "label": "Sea-level rise — tide-gauge trends (mm/yr)",
+   "info": "North Indian Ocean ~3.3 mm/yr (1993–2015); 1993–2020 altimeter trends 4.1–4.6 mm/yr at Mumbai, Mormugao, Kochi, Chennai, Visakhapatnam, Paradip. Erosion, saline intrusion; INCOIS hazard line guides adaptation.",
+   "src": "CLIMATE_PHENOMENA_TODO.md · L3",
+   "geo": {
+    "pts": [
+     {
+      "la": 19.05,
+      "lo": 72.8,
+      "t": "Mumbai 4.1"
+     },
+     {
+      "la": 15.4,
+      "lo": 73.8,
+      "t": "Mormugao 4.3"
+     },
+     {
+      "la": 9.96,
+      "lo": 76.25,
+      "t": "Kochi 4.4"
+     },
+     {
+      "la": 13.1,
+      "lo": 80.3,
+      "t": "Chennai 4.2"
+     },
+     {
+      "la": 17.7,
+      "lo": 83.3,
+      "t": "Visakhapatnam 4.5"
+     },
+     {
+      "la": 20.3,
+      "lo": 86.6,
+      "t": "Paradip 4.6"
+     }
+    ]
+   }
+  }
+ ]
+}

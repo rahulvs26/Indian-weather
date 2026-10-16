@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri grey India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.0">
+<link rel="stylesheet" href="styles.css?v=7.1">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.0</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.1</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -50,6 +50,20 @@
 <button class="chip" data-layer="dams" aria-pressed="true">Dams</button>
 <button class="chip" data-layer="water" aria-pressed="false">Water bodies</button>
 </div>
+<details class="phenPanel" id="phenPanel">
+<summary>Climate phenomena · 41 <span class="phenCount" id="phenCount">0 / 41 on</span></summary>
+<div class="pchips">
+<button class="pchip" data-cat="all" aria-pressed="true">All</button>
+<button class="pchip" data-cat="M" aria-pressed="true">Monsoon</button>
+<button class="pchip" data-cat="O" aria-pressed="true">Oscillations</button>
+<button class="pchip" data-cat="S" aria-pressed="true">Storms</button>
+<button class="pchip" data-cat="X" aria-pressed="true">Heat &amp; cold</button>
+<button class="pchip" data-cat="L" aria-pressed="true">Trends</button>
+<button class="pchip" id="phenClear">clear</button>
+</div>
+<div class="phenList" id="phenList"></div>
+<div class="phenNote">Schematic (illustrative) geometry · seasons follow the month slider · sources: CLIMATE_PHENOMENA_TODO.md · debug: window.__phen / __phen3d.info()</div>
+</details>
 <div class="card-foot"><span>Hint: click radar / zone for source</span><span class="readout" id="monthReadout">—</span></div>
 <div class="fallback"><details><summary>Offline fallback — month table + sources</summary>
 <table class="mini" id="monthTable"><tr><th>M</th><th>IMD season</th><th>Wind</th><th>AS</th><th>BoB</th><th>Rain states</th><th>DMI-typ</th></tr></table>
@@ -235,7 +249,7 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="data/embedded.js?v=7.0"></script>
-<script src="app.js?v=7.0" defer></script>
+<script src="data/embedded.js?v=7.1"></script>
+<script src="app.js?v=7.1" defer></script>
 </body>
 </html>

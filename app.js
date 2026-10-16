@@ -41,6 +41,7 @@ if(window.__graphCursor)window.__graphCursor(m);
 if(window.__rainStates)window.__rainStates(d);
 if(window.__riverMonth)window.__riverMonth(d);
 if(window.__terrainMonth)window.__terrainMonth(d);
+if(window.__phenMonthSync)window.__phenMonthSync(m);
 }
 (function(){let h="";for(let i=0;i<12;i++){const a=-80+i*(160/11);h+=`<line x1="0" y1="-64" x2="0" y2="-52" transform="rotate(${a})" stroke="#1A1A1A" stroke-width="1.4"/>`;}$("wheelTicks").innerHTML=h;})();
 $("wheelPrev").addEventListener("click",()=>setMonth(INDWeather.month-1));
@@ -469,7 +470,8 @@ monthReadout.title=`layers on map: ${n}/14`;
 let svgOk="svg-?";
 try{if(document.querySelector("#map .stage").classList.contains("terrain-on"))svgOk="2D hidden (3D on)";else{const s=document.querySelector("#osmMap .leaflet-overlay-pane svg");if(s){const r=s.getBoundingClientRect(),m=$("osmMap").getBoundingClientRect();svgOk=(r.width>m.width*0.8&&r.height>m.height*0.8)?"vectors-ok":"VECTORS-BROKEN";}}}catch(_){}
 const dbg=$("layerDebug");
-if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · zoom=${map.getZoom()} · ${svgOk}`;
+if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · phen=${(window.__phen&&window.__phen.on)?window.__phen.on.size:0}/41 · zoom=${map.getZoom()} · ${svgOk}`;
+try{window.__phenEnv={map,month:(typeof INDWeather!=="undefined"&&INDWeather.month)||7};window.__phenEnv.rm=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);}catch(_){}
 };
 window.__applyLayers();
 setTimeout(()=>window.__applyLayers(),1200);
@@ -706,6 +708,8 @@ const CITIES=[["Delhi",28.61,77.21],["Mumbai",19.08,72.88],["Kolkata",22.57,88.3
 const ctMat=new THREE.MeshBasicMaterial({color:0xfbbf24});
 const ctObjs=CITIES.map(([n,la,lo])=>{const s=new THREE.Mesh(new THREE.SphereGeometry(1,8,8),ctMat);s.scale.setScalar(0.016);s.position.set(X(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(190),Z(la));relG.add(s);return{n,s};});_t3("markers");
 $("peakLbls").innerHTML+=ctObjs.map((p,i)=>`<span class="ctLbl" id="ctl${i}">${p.n}</span>`).join("");
+/* v7.1: phenomena layers (3D) */
+try{ if(window.__phen3d) await window.__phen3d.build({THREE,relG,X,Z,yOf,hAt,MZ}); }catch(e){console.warn("phen3d",e);} _t3("phen3d");
 _t3("preDams");
 /* v7.0 DAMS — every CWC dam/barrage/weir in the bbox becomes an anatomy model at its real
    coordinates (all 13,002 of them). Class from the CWC `type` column; height = the real CWC
@@ -972,7 +976,8 @@ const mNow=INDWeather.month||7;
 applyHydro(mNow);                                            /* v6.1: flow + reservoir levels follow the month (no-op unless changed) */
 const tw=performance.now()/1000,dtS=Math.min(0.1,tw-tmLast||0.016);tmLast=tw;
 const vF=(0.02+0.11*hydroRF)*dtS;
-stepWx(dtS);                                                 /* v6.2: rain + wind streaks follow the month */
+stepWx(dtS);
+try{if(window.__phen3d)window.__phen3d.step(dtS);}catch(_){}          /* v7.1: phenomena motion */                                                 /* v6.2: rain + wind streaks follow the month */
 for(let i=0;i<pktN;i++){const P=pktAsn[i];if(!P)continue;const g=P.g;let k=1,gN=0;const gt=P.gates;for(let j=0;j<gt.length;j++)if(P.u>gt[j])gN++;if(gN)k=hydroR;P.u=(P.u+vF*k)%1;const s=P.u*(g.length-1),i0=Math.floor(s),fr=s-i0,a=g[i0],b=g[Math.min(g.length-1,i0+1)];pktPos[i*3]=a.x+(b.x-a.x)*fr;pktPos[i*3+1]=a.y+(b.y-a.y)*fr+MZ(62);pktPos[i*3+2]=a.z+(b.z-a.z)*fr;}
 pktGeo.attributes.position.needsUpdate=true;
 /* v7.0: markers & packets resize per frame — true scale at every zoom (radius-1 spheres,
@@ -1055,3 +1060,212 @@ const box=$("quizQ");let qi=0,score=0;
 (function ask(){if(qi>=quiz.length){box.innerHTML=`<p><b>Done — ${score}/${quiz.length}.</b> <button class="btn ghost" id="rq">Retry</button></p>`;$("rq").onclick=()=>{qi=0;score=0;ask();};return;}const q=quiz[qi];box.innerHTML=`<p><b>Q${qi+1}.</b> ${q.q}</p>`+q.options.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join("")+`<div class="meta">${q.s}</div>`;box.querySelectorAll(".opt").forEach(b=>b.addEventListener("click",()=>{const ok=+b.dataset.i===q.answer;b.classList.add(ok?"correct":"wrong");if(ok)score++;setTimeout(()=>{qi++;ask();},ok?500:1100);}));})();
 }).catch(()=>{$("flashGrid").innerHTML="<p>Could not load data/*.json — use a local server.</p>";});
 })();
+
+/* =====================================================================
+   v7.1 PHENOMENA LAYERS — 41 climate phenomena as pickable layers.
+   2D: Leaflet sub-groups on the map (fetch-only data/phenomena.json).
+   3D: window.__phen3d, objects built inside buildTerrain (relG-parented).
+   Geometry schematic "(illustrative)"; sources: CLIMATE_PHENOMENA_TODO.md.
+   Debug: window.__phen (items/on/toggle/apply/month), __phen3d.info().
+   ===================================================================== */
+function ptInPoly(p,poly){const x=p[1],y=p[0];let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][1],yi=poly[i][0],xj=poly[j][1],yj=poly[j][0];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins;}return ins;}
+function phenPolyOf(it){return it.geo.polys?it.geo.polys:(it.geo.poly?[it.geo.poly]:[]);}
+function phenPopup(it){return `<b>${it.id} · ${it.name}</b><br>${it.info}<br><i>${it.src} · (illustrative)</i>`;}
+function phenCum(pts){const c=[0];let t=0;for(let i=1;i<pts.length;i++){t+=Math.hypot(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0]);c.push(t);}c.total=t||1;return c;}
+function phenPtAt(pts,cum,frac){const tt=frac*cum.total;let i=1;while(i<cum.length-1&&cum[i]<tt)i++;const a=cum[i-1],b=cum[i]||a+1e-9,f=(tt-a)/(b-a);return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*f,pts[i-1][1]+(pts[i][1]-pts[i-1][1])*f];}
+function phenIdxAt(pts,idx){const i0=Math.max(0,Math.min(pts.length-1,Math.floor(idx))),i1=Math.min(pts.length-1,i0+1),f=idx-i0;return [pts[i0][0]+(pts[i1][0]-pts[i0][0])*f,pts[i0][1]+(pts[i1][1]-pts[i0][1])*f];}
+
+const PHEN={items:[],on:new Set(),g2:null,loaded:false,env:{map:null,rm:false,m:7}};
+window.__phen={items:PHEN.items,on:PHEN.on,loaded:false,toggle:null,apply:null,month:null};
+
+function phenBuild2(){
+for(const it of PHEN.items){
+ const st={group:L.layerGroup(),paths:[],dots:[],mover:null,rings:[],cum:null};
+ const bind=l=>{l.bindPopup(phenPopup(it));return l;};
+ const reg=l=>{st.paths.push(l);st.group.addLayer(l);return l;};
+ if(it.kind==="region"){
+  for(const poly of phenPolyOf(it))reg(bind(L.polygon(poly,{color:it.color,weight:1.6,opacity:.85,fillColor:it.color,fillOpacity:.16,interactive:true})));
+  if(it.geo.dot&&it.geo.poly){const poly=it.geo.poly;let mn=[1e9,1e9],mx=[-1e9,-1e9];for(const p of poly){mn[0]=Math.min(mn[0],p[0]);mn[1]=Math.min(mn[1],p[1]);mx[0]=Math.max(mx[0],p[0]);mx[1]=Math.max(mx[1],p[1]);}
+   for(let la=mn[0];la<=mx[0];la+=1.15)for(let lo=mn[1];lo<=mx[1];lo+=1.15){if(!ptInPoly([la,lo],poly))continue;const d=L.circleMarker([la,lo],{radius:2.6,stroke:false,fillColor:it.color,fillOpacity:.9,interactive:false,className:"phenDot"});st.dots.push(d);st.group.addLayer(d);}}
+ }else if(it.kind==="band"){
+  reg(bind(L.polyline(it.geo.line,{color:it.color,weight:2.2,opacity:.85,dashArray:"6 7",className:"phenDash",interactive:true})));
+ }else if(it.kind==="track"){
+  reg(bind(L.polyline(it.geo.line,{color:it.color,weight:2,opacity:.75,interactive:true})));
+  st.cum=phenCum(it.geo.line);
+  st.mover=L.marker(it.geo.line[0],{icon:L.divIcon({className:"",html:`<span class="phenMover" style="--pc:${it.color}"></span>`,iconSize:[10,10],iconAnchor:[5,5]}),interactive:false,keyboard:false});
+  st.group.addLayer(st.mover);
+ }else if(it.kind==="sea"){
+  const cs=it.geo.colors||[it.color];
+  it.geo.boxes.forEach((b,k)=>{const s=b[0],w=b[1],n=b[2],e=b[3],c=cs[k]||cs[0];
+   reg(bind(L.polygon([[s,w],[s,e],[n,e],[n,w]],{color:c,weight:1.5,opacity:.8,fillColor:c,fillOpacity:.08,interactive:true})));});
+ }else if(it.kind==="points"){
+  for(const p of it.geo.pts){const mk=bind(L.circleMarker([p.la,p.lo],{radius:4,color:"#1A1A1A",weight:1,fillColor:it.color,fillOpacity:.95,interactive:true}));if(p.t)mk.bindTooltip(p.t,{className:"phenTag",direction:"top",offset:[0,-6]});reg(mk);}
+ }else if(it.kind==="pulse"){
+  for(const p of it.geo.pts){
+   reg(bind(L.circleMarker([p.la,p.lo],{radius:3,stroke:false,fillColor:it.color,fillOpacity:.95,interactive:true})));
+   for(let k=0;k<2;k++){const r=L.circle([p.la,p.lo],{radius:0,color:it.color,weight:1.6,opacity:.55,fill:false,interactive:false,className:"phenRing"});st.rings.push({r,km:p.r,ph:k*0.5});st.group.addLayer(r);}
+  }
+ }
+ for(const l of st.paths)l._base={o:(l.options.opacity!=null?l.options.opacity:.85),f:l.options.fillOpacity};
+ it._2d=st;
+}
+}
+
+function phenApply(){
+{const src=window.__phenEnv;if(src){if(src.map)PHEN.env.map=src.map;PHEN.env.rm=!!src.rm;if(typeof src.month==="number")PHEN.env.m=src.month;}}
+if(!PHEN.g2){if(!PHEN.env.map)return;PHEN.g2=L.layerGroup().addTo(PHEN.env.map);}
+for(const it of PHEN.items){const on=PHEN.on.has(it.id),g=it._2d.group;
+ if(on&&!PHEN.g2.hasLayer(g))PHEN.g2.addLayer(g);
+ else if(!on&&PHEN.g2.hasLayer(g))PHEN.g2.removeLayer(g);
+ if(on)it._2d.dots.forEach((d,k)=>{const el=d.getElement&&d.getElement();if(el)el.style.animationDelay=((k%9)*0.27).toFixed(2)+"s";});
+}
+const c=document.getElementById("phenCount");if(c)c.textContent=`${PHEN.on.size} / ${PHEN.items.length} on`;
+if(PHEN.items.length)phenSync(PHEN.env.m);
+try{if(window.__phen3d&&window.__phen3d.refresh)window.__phen3d.refresh();}catch(_){}
+}
+
+function phenSync(m){
+for(const it of PHEN.items){
+ const w=it.window||[],bright=!w.length||w.indexOf(m)>=0;
+ for(const l of it._2d.paths){const b=l._base;l.setStyle(bright?{opacity:b.o,fillOpacity:(b.f!=null?b.f:1)}:{opacity:.12,fillOpacity:(b.f!=null?Math.max(.04,b.f*.2):1)});}
+ for(const d of it._2d.dots){const el=d.getElement&&d.getElement();if(el)el.classList.toggle("phenOff",!bright);}
+ if(it._2d.mover){const el=it._2d.mover.getElement&&it._2d.mover.getElement();if(el)el.classList.toggle("phenOff",!bright);
+  if(it.geo.motion==="loop"&&PHEN.env.rm)it._2d.mover.setLatLng(phenPtAt(it.geo.line,it._2d.cum,0.5));
+  if(it.geo.motion==="month"&&it.geo.anchors){const A=it.geo.anchors;let idx=A[0].i;
+   if(m<=A[0].m)idx=A[0].i;else if(m>=A[A.length-1].m)idx=A[A.length-1].i;
+   else for(let i=1;i<A.length;i++){if(m<=A[i].m){const f=(m-A[i-1].m)/((A[i].m-A[i-1].m)||1);idx=A[i-1].i+(A[i].i-A[i-1].i)*f;break;}}
+   it._2d.mover.setLatLng(phenIdxAt(it.geo.line,idx));}
+ }
+ for(const x of it._2d.rings){if(PHEN.env.rm){x.r.setRadius(x.km*0.5);x.r.setStyle({opacity:.3});}const el=x.r.getElement&&x.r.getElement();if(el)el.classList.toggle("phenOff",!bright);}
+}
+}
+window.__phenMonthSync=m=>{PHEN.env.m=m;try{phenSync(m);}catch(_){}};
+
+function phenStep2(ts){
+requestAnimationFrame(phenStep2);
+if(!PHEN.on.size||PHEN.env.rm||document.hidden)return;
+const t=ts||performance.now();
+for(const it of PHEN.items){
+ if(!PHEN.on.has(it.id))continue;
+ if(it._2d.cum&&it.geo.motion==="loop"){const per=(it.geo.period||12)*1000;const f=((t/per)%1+1)%1;it._2d.mover.setLatLng(phenPtAt(it.geo.line,it._2d.cum,f));}
+ for(const x of it._2d.rings){const ph=((t/2600)+x.ph)%1;x.r.setRadius(ph*x.km);x.r.setStyle({opacity:.55*(1-ph)});}
+}
+}
+
+function phenBuildPanel(cats){
+const list=document.getElementById("phenList");if(!list)return;
+let h="";
+for(const c of ["M","O","S","X","L"]){h+=`<div class="phenHead" data-cat="${c}">${cats[c]||c}</div>`;
+ for(const it of PHEN.items)if(it.cat===c)h+=`<label class="phenItem" data-cat="${c}" title="${it.label}"><input type="checkbox" data-id="${it.id}" ${PHEN.on.has(it.id)?"checked":""}><span class="pid">${it.id}</span><span>${it.name}</span></label>`;}
+list.innerHTML=h;
+list.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.id&&window.__phen.toggle)window.__phen.toggle(t.dataset.id,t.checked);});
+for(const ch of document.querySelectorAll(".pchip[data-cat]"))ch.addEventListener("click",()=>{
+ if(ch.dataset.cat==="all"){document.querySelectorAll(".pchip[data-cat]").forEach(c=>c.setAttribute("aria-pressed","true"));document.querySelectorAll(".phenItem,.phenHead").forEach(el=>el.classList.remove("cat-off"));return;}
+ const on=ch.getAttribute("aria-pressed")!=="false";ch.setAttribute("aria-pressed",String(!on));
+ document.querySelectorAll(`.phenItem[data-cat="${ch.dataset.cat}"],.phenHead[data-cat="${ch.dataset.cat}"]`).forEach(el=>el.classList.toggle("cat-off",on));
+});
+const clr=document.getElementById("phenClear");
+if(clr)clr.addEventListener("click",()=>{PHEN.on.clear();document.querySelectorAll("#phenList input").forEach(cb=>cb.checked=false);phenApply();});
+}
+
+window.__phen.toggle=(id,on)=>{if(on)PHEN.on.add(id);else PHEN.on.delete(id);try{localStorage.setItem("phen.on",JSON.stringify([...PHEN.on]));}catch(_){}phenApply();};
+window.__phen.apply=phenApply;
+window.__phen.month=phenSync;
+
+async function phenInit(){
+const data=await (await fetch("data/phenomena.json?v=7.1")).json();
+for(const it of data.items)PHEN.items.push(it);
+try{const saved=JSON.parse(localStorage.getItem("phen.on")||"[]");if(Array.isArray(saved))for(const id of saved)if(PHEN.items.some(i=>i.id===id))PHEN.on.add(id);}catch(_){}
+phenBuild2();
+phenBuildPanel(data.cats||{});
+PHEN.loaded=true;window.__phen.loaded=true;
+phenApply();
+try{if(window.__phen3d&&window.__phen3d.info&&window.__phen3d.info().built&&window.__phen3d.rebuild)window.__phen3d.rebuild();}catch(_){}
+if(!PHEN.env.rm)requestAnimationFrame(phenStep2);
+}
+
+/* ---- 3D engine (objects built inside buildTerrain; relG-parented) ---- */
+window.__phen3d=(function(){
+let T=null,UPM=1,phenG=null,matRecs=[],movers=[],pulses=[],steps=0,lastM=-1,built=false,lastCtx=null;
+function refresh(){if(!phenG)return;for(const it of PHEN.items)if(it._3d)it._3d.g.visible=PHEN.on.has(it.id);}
+function build(ctx){
+T=ctx.THREE;UPM=(typeof ctx.UPM==="number")?ctx.UPM:(ctx.MZ?ctx.MZ(1):1);lastCtx=ctx;
+if(phenG&&phenG.parent)phenG.parent.remove(phenG);
+phenG=new T.Group();ctx.relG.add(phenG);
+matRecs=[];movers=[];pulses=[];built=false;lastM=-1;steps=0;
+const X=ctx.X,Z=ctx.Z,yOf=ctx.yOf,hAt=ctx.hAt,MZ=ctx.MZ;
+const v3=(la,lo,h)=>new T.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))+MZ(h||0),Z(la));
+for(const it of PHEN.items){
+ const g=new T.Group();phenG.add(g);const my=[];
+ const regM=m=>{my.push({m,o:m.opacity});return m;};
+ if(it.kind==="region"){
+  for(const poly of phenPolyOf(it)){
+   const pts=poly.map(p=>v3(p[0],p[1],140));pts.push(pts[0].clone());
+   const ln=new T.Line(new T.BufferGeometry().setFromPoints(pts),new T.LineBasicMaterial({color:it.color,transparent:true,opacity:.55}));regM(ln.material);g.add(ln);
+  }
+  if(it.geo.dot&&it.geo.poly){const poly=it.geo.poly;let mn=[1e9,1e9],mx=[-1e9,-1e9];for(const p of poly){mn[0]=Math.min(mn[0],p[0]);mn[1]=Math.min(mn[1],p[1]);mx[0]=Math.max(mx[0],p[0]);mx[1]=Math.max(mx[1],p[1]);}
+   const pos=[];for(let la=mn[0];la<=mx[0];la+=1.3)for(let lo=mn[1];lo<=mx[1];lo+=1.3){if(!ptInPoly([la,lo],poly))continue;const v=v3(la,lo,90);pos.push(v.x,v.y,v.z);}
+   if(pos.length){const pg=new T.BufferGeometry();pg.setAttribute("position",new T.Float32BufferAttribute(pos,3));
+    const pm=new T.PointsMaterial({color:it.color,size:MZ(300),sizeAttenuation:true,transparent:true,opacity:.9});regM(pm);g.add(new T.Points(pg,pm));}}
+ }else if(it.kind==="band"){
+  const y0=yOf(0)+MZ(it.h3d||1200);
+  const pts=it.geo.line.map(p=>new T.Vector3(X(p[1]),y0,Z(p[0])));
+  const ln=new T.Line(new T.BufferGeometry().setFromPoints(pts),new T.LineDashedMaterial({color:it.color,dashSize:MZ(420),gapSize:MZ(260),transparent:true,opacity:.9}));
+  ln.computeLineDistances();regM(ln.material);g.add(ln);
+ }else if(it.kind==="track"){
+  const y0=yOf(0)+MZ(it.h3d||900);
+  const pts=it.geo.line.map(p=>new T.Vector3(X(p[1]),y0,Z(p[0])));
+  const ln=new T.Line(new T.BufferGeometry().setFromPoints(pts),new T.LineBasicMaterial({color:it.color,transparent:true,opacity:.8}));regM(ln.material);g.add(ln);
+  const sp=new T.Mesh(new T.SphereGeometry(1,10,10),new T.MeshBasicMaterial({color:it.color}));sp.scale.setScalar(0.016);sp.position.copy(pts[0]);g.add(sp);
+  const cum=[0];let t0=0;for(let i=1;i<pts.length;i++){t0+=pts[i].distanceTo(pts[i-1]);cum.push(t0);}cum.total=t0||1;
+  movers.push({it,mesh:sp,pts,cum});
+ }else if(it.kind==="sea"){
+  const y0=yOf(0)+MZ(40),cs=it.geo.colors||[it.color];
+  it.geo.boxes.forEach((b,k)=>{const s=b[0],w=b[1],n=b[2],e=b[3],c=cs[k]||cs[0];
+   const corners=[[s,w],[s,e],[n,e],[n,w]].map(p=>new T.Vector3(X(p[1]),y0,Z(p[0])));corners.push(corners[0].clone());
+   const ln=new T.Line(new T.BufferGeometry().setFromPoints(corners),new T.LineBasicMaterial({color:c,transparent:true,opacity:.9}));regM(ln.material);g.add(ln);
+   const pl=new T.Mesh(new T.PlaneGeometry(Math.abs(X(e)-X(w)),Math.abs(Z(s)-Z(n))),new T.MeshBasicMaterial({color:c,transparent:true,opacity:.1,side:T.DoubleSide}));
+   pl.rotation.x=-Math.PI/2;pl.position.set((X(e)+X(w))/2,y0,(Z(s)+Z(n))/2);regM(pl.material);g.add(pl);});
+ }else if(it.kind==="points"){
+  for(const p of it.geo.pts){const sp=new T.Mesh(new T.SphereGeometry(1,8,8),new T.MeshBasicMaterial({color:it.color}));sp.scale.setScalar(0.014);sp.position.copy(v3(p.la,p.lo,200));g.add(sp);}
+ }else if(it.kind==="pulse"){
+  for(const p of it.geo.pts){
+   const base=v3(p.la,p.lo,120);
+   const sp=new T.Mesh(new T.SphereGeometry(1,8,8),new T.MeshBasicMaterial({color:it.color}));sp.scale.setScalar(0.013);sp.position.copy(base);g.add(sp);
+   const rm=new T.MeshBasicMaterial({color:it.color,transparent:true,opacity:.4,side:T.DoubleSide});
+   const mesh=new T.Mesh(new T.RingGeometry(0.86,1,40),rm);mesh.rotation.x=-Math.PI/2;
+   mesh.position.set(base.x,yOf(0)+MZ(60),base.z);mesh.scale.setScalar(p.r*1000*UPM*0.5);g.add(mesh);
+   regM(rm);pulses.push({it,mesh,km:p.r,ph:(pulses.length%2)*0.5});
+  }
+ }
+ it._3d={g,my};matRecs.push({it,my});
+}
+built=true;refresh();return true;
+}
+function rebuild(){if(lastCtx){try{build(lastCtx);}catch(_){}}}
+function step(dtS){
+if(!built||!phenG)return;steps++;
+const m=PHEN.env.m||7;
+if(m!==lastM){lastM=m;
+ for(const rec of matRecs){const w=rec.it.window||[],bright=!w.length||w.indexOf(m)>=0;
+  for(const mm of rec.my)mm.m.opacity=bright?mm.o:Math.max(.03,mm.o*.15);}
+}
+const t=performance.now();
+for(const mv of movers){if(!PHEN.on.has(mv.it.id))continue;
+ const per=(mv.it.geo.period||12)*1000,f=PHEN.env.rm?0.5:((t/per)%1+1)%1;
+ const tt=f*mv.cum.total;let i=1;while(i<mv.cum.length-1&&mv.cum[i]<tt)i++;
+ const a=mv.cum[i-1],b=mv.cum[i]||a+1e-9,fr=(tt-a)/(b-a);
+ mv.mesh.position.lerpVectors(mv.pts[i-1],mv.pts[i],fr);
+}
+for(const pu of pulses){if(!PHEN.on.has(pu.it.id))continue;
+ const ph=PHEN.env.rm?0.5:((t/2600)+pu.ph)%1;
+ pu.mesh.scale.setScalar(Math.max(1e-7,pu.km*1000*UPM*ph));
+ pu.mesh.material.opacity=.4*(1-0.7*ph);
+}
+}
+function info(){return {built,objs:phenG?phenG.children.length:0,steps,on:PHEN.on.size};}
+return {build,step,info,refresh,rebuild};
+})();
+
+try{phenInit();}catch(e){console.warn("phen",e);}
+[1200,2600,5000].forEach(ms=>setTimeout(()=>{try{if(!PHEN.g2)phenApply();}catch(_){}},ms));

@@ -103,3 +103,31 @@ table.mini{width:100%;border-collapse:collapse;font-size:13px}
 table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-align:left}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+
+/* ===== v7.1 phenomena layers ===== */
+.phenPanel{margin:8px 0;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.phenPanel>summary{cursor:pointer;padding:8px 12px;font-weight:600;font-size:13px;list-style:none}
+.phenPanel>summary::-webkit-details-marker{display:none}
+.phenPanel>summary::before{content:"\25B8  ";color:var(--muted)}
+.phenPanel[open]>summary::before{content:"\25BE  ";color:var(--muted)}
+.phenCount{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400;margin-left:6px}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
+.pchip{font-size:12px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:3px 10px;cursor:pointer;color:inherit}
+.pchip[aria-pressed="false"]{opacity:.45}
+.phenList{max-height:300px;overflow:auto;padding:0 12px 8px;font-size:13px}
+.phenHead{margin:8px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
+.phenItem{display:flex;gap:8px;align-items:flex-start;padding:3px 6px;border-radius:6px;cursor:pointer;line-height:1.35}
+.phenItem:hover{background:rgba(15,118,110,.07)}
+.phenItem input{margin-top:3px}
+.phenItem .pid{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:28px}
+.phenItem.cat-off,.phenHead.cat-off{display:none}
+.phenNote{padding:4px 12px 10px;font-size:11.5px;color:var(--muted);font-style:italic}
+.phenRegion{stroke-linejoin:round}
+@keyframes phenDashMove{to{stroke-dashoffset:-26}}
+.phenDash{stroke-dashoffset:0;animation:phenDashMove 1.15s linear infinite}
+@keyframes phenDotPulse{0%,100%{opacity:.95;transform:scale(1)}50%{opacity:.25;transform:scale(.55)}}
+.phenDot{transform-box:fill-box;transform-origin:center;animation:phenDotPulse 2.4s ease-in-out infinite}
+.phenMover{display:block;width:10px;height:10px;border-radius:50%;background:var(--pc,#0F766E);box-shadow:0 0 6px 2px var(--pc,#0F766E);opacity:.95}
+.phenRing{opacity:.6}
+.phenOff{opacity:.22!important}
+.leaflet-tooltip.phenTag{font-size:11px;padding:2px 6px;background:var(--paper);border:1px solid var(--line);color:inherit;box-shadow:none;font-family:var(--mono)}

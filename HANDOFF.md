@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.7).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.7.1).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
 **v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
@@ -12,6 +12,7 @@ Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.7).
 **v7.5 SHIPPED (2026-10-16):** pastel 2D basemap + no fake-3D rain in the 2D map + a third view "3D map" — 2D base switched to Esri World_Terrain_Base (`maxNativeZoom:13`) under a pastel CSS grade (`saturate(.62) brightness(1) contrast(.95)` on `.leaflet-tile-pane`, chosen by in-page canvas A/B); the 2D rain-streak renderer is deleted (per-state pools remain → 3D rain; `__rainDbg()` reshaped — see the rain bullet); new `map3d.js` = MapLibre GL JS 6.14.0 + OpenFreeMap `bright` + Mapterhorn DEM terrain + OSM building extrusions, keyless (credits: MapLibre · OpenFreeMap · Mapterhorn), toggled by a third stage button via `setTerrainView`; hook `window.__map3d`.
 **v7.6 SHIPPED (2026-10-17):** dam-release water simulation in the 3D map view — "Release water" at Hirakud dam runs a kinematic front down the REAL Mahanadi centre-line to the Bay of Bengal (`data/dam-route-hirakud.geo.json`, derived from the CWC "Mahanadi River" network by `data/_gen_dam_route.mjs`; 53 pts, 414.8 km, arrival ≈3.2 days at ≈1.5 m/s — illustrative); route/wet/head/end layers drape over terrain, "Day N" clock + km readout card, hook `window.__dam`; drive-by fix — the self-test line now reads `2D hidden (3D on)` in the 3D map view too. Verified headless (Edge 155 + SwiftShader WebGL2): 23/23 checks, 0 app console errors, journey 0→414.8 km over ≈25.6 s, day 3.201, wet line 53/53 coords, 2D⇄3D-map toggle round-trip ok.
 **v7.7 SHIPPED (2026-10-17):** climate phenomena are now actually visible on the map + their interference with weather patterns — (a) ON layers render at BOLD family colour (region 2.2/1/.22, dot mesh r3/.95, band 2.6/1, track 2.4/.9, sea 1.8/.9 fill .13, points r4.6 w1.2, pulse r3.4, rings 1.8/.65) instead of the old faint look; (b) month not in an item's window → off-season = ~half opacity + `5 6` dash + an always-open `ID · off-season (months)` tag at the item's anchor (`.phenOff` ≈50 % now — grep `st.tag`, `phenAnchorOf`); (c) five off-map drivers draw a dashed interference arrow to their landing point with a note tooltip — data-driven `link:[lat,lng,note]` in `data/phenomena.json`: O1 ENSO→(22,79), O2 Modoki→(15,87), O3 IOD→(19.5,78), O5 PDO→(23.5,75), O7 NAO/AMO→(19.5,75); (d) Fig6 "Season" shows `#graphPhenBands` strips (one rect per window run of each ON item) and `#graphReadout` ends " · ON <ids>" (wrapper on `__graphCursor`); (e) panel rows carry a family-colour dot. Verified live July (13 saved picks on): 14 band rects (M8 = 2 runs), M3 off-season sample dash 5 6 / opacity .45 / tag "M3 · off-season (Sep–Dec)", readout ON list = the in-window subset exactly, 4 link polylines + 4 arrowheads on the 2D map, `window.__dam` present in the same page, console clean.
+**v7.7.1 FIXES (2026-10-17):** gap fixes from the log review — (1) BOOT RACE (pre-existing since v7.1): `phenApply()` early-returns while `PHEN.env.map` is unset, the self-heal retries ran only at 1.2/2.6/5 s, and nothing applied the restored picks when the map bridge arrived → on a fresh load the panel read `0 / 41 on` with no layers for seconds while `#graphReadout` already listed `· ON …`. Now `__applyLayers` calls `__phen.apply()` right after it publishes `window.__phenEnv`, and the retry chain is 1.2/2.6/5/9/14 s (unconditional). (2) Fig6 season strips label each ON item ONCE (M8 has two runs → two identical `M8` labels before). (3) Log sync: SPEC ref, brand + `app.js?v=7.7.1`, a v7.7 verification recipe, the boot-race land-mine, and the corrected dim mechanism (shapes dim via INLINE opacity; `.phenOff` CSS class is dots/movers/rings ONLY — there is no double-dim). NOTE: the 5 driver arrows' landing points (22,79)/(15,87)/(19.5,78)/(23.5,75)/(19.5,75) are editorial placement — ILLUSTRATIVE; only the effect notes are sourced. VERIFIED: fresh load applies the picks at ≈0.7–0.95 s (`appliedAtMs` 716/947 — no 0/41 stall), Fig6 = 14 rects / 13 labels, and the 3D path was exercised for the first time (mountains build 6.5 s, `__phen3d.info()` → {built:true,objs:41}, toggle O7 with 3D up → on 13→14→13, self-test `2D hidden (3D on)`, 0 console errors).
 
 ## What this is
 Static single-page study site (no build): `index.html` + `styles.css` + `app.js` +
@@ -19,7 +20,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7.1).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -36,7 +37,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-17, v7.7)
+## Current verified state (2026-10-17, v7.7.1)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -46,7 +47,9 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 - v7.1 PHENOMENA: panel "Climate phenomena · 41" sits between the chip row and
   card-foot; default all unchecked; `localStorage phen.on` restores picks; v7.7 look:
   ON = bold family colour; off-season = ~half strength + dashed + open `ID · off-season
-  (months)` tag at the anchor (`.phenOff` ≈50 %, no longer the old 0.12 dim) as the
+  (months)` tag at the anchor (shapes dim by INLINE opacity `max(.4, base·.5)`;
+  `styles.css` `.phenOff{opacity:.5}` covers ONLY the dot meshes / movers / rings — no
+  double-dim; the old 0.12 dim is gone) as the
   month slider moves — they never hide. Debug: `window.__phen` (items/on/loaded/toggle(id,on)/apply()/
   month(m)), `__phen3d.info()` → `{built,objs:41,steps,on}`. Recipes:
   `__phen.toggle("M1",true)` → polygon + dot field appears; `__phenMonthSync(1)`
@@ -268,6 +271,12 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 - v7.4 glint sprites are a sanctioned SCENE-level exception (sprites only — `relG.scale.y=REL`
   would vertically deform the billboards); their y is instead re-applied each loop as
   `(crest+MZ(3))·REL`. Keep both halves of that pair.
+- v7.7.1 phenomena BOOT RACE: `phenApply()` is a no-op until BOTH `PHEN.env.map` (bridged
+  through `window.__phenEnv`, published by `__applyLayers`) and `PHEN.g2` exist — never
+  assume phenApply has run at boot. It now re-applies right after the bridge publish, and
+  the retry chain (1.2/2.6/5/9/14 s) is unconditional. Symptom when broken: `#phenCount`
+  reads `0 / 41 on` with no phenomena layers on the map while `#graphReadout` already
+  lists `· ON …` — poll the count on a fresh load instead of trusting a single read.
 - v7.2 rain weights: `applyHydro` also reseeds 3D drops (`wxRDrop.fill(null)`) — applyHydro is
   defined before `wxRDrop` exists but is only CALLED after the wx block (first call = the seed
   line right after it); never call applyHydro earlier or the reseed hits a TDZ. `__rainSample`
@@ -283,6 +292,8 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 ## Next up (for the next session)
 - v7.7 shipped (phenomena visibility + interference — bold ON, off-season tags + dashes,
   driver interference arrows, Fig6 season bands, ON readout; state bullet above; committed locally).
+- v7.7.1 shipped (phenomena boot-race fix + Fig6 label dedupe + log sync; `app.js?v=7.7.1`;
+  committed locally).
 - v7.6 shipped (dam-release water simulation in the 3D map view + self-test-line fix; state
   bullet above; committed locally — GitHub push hangs on this machine, do not retry).
 - v7.6 dam-release v2 ideas (not designed): month-coupled wave speed (reuse the hydro funnel
@@ -294,6 +305,8 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 - Otherwise pick from the standing optional items below.
 
 ## Open items (not bugs)
+- Verification runs leave picks in `localStorage phen.on` on this dev browser (13 on as of
+  v7.7) — uncheck all / clear the key before handing the deck over.
 - 6 rivers had no centerlines in older sources (Kosi, Sabarmati, Luni, Damodar,
   Subarnarekha, Vaigai); v6.2 gave Sabarmati a real centerline (west subset), the other
   five keep origin dots only — honest gap, documented.
@@ -373,6 +386,18 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
   line ends 53/53 coords, `dam-head` at [86.71,20.3]. Self-test must read `2D hidden (3D on)`
   while the 3D map is up — ALSO after the 14.6 MB CWC fetch lands; the 2D⇄3D-map toggle round-trip
   restores `vectors-ok` (~350 ms).
+- v7.7 phenomena visibility (2D + Fig6 + boot): with saved picks on, a FRESH load must
+  reach `#phenCount` = `13 / 41 on` (or `N / 41 on`) within ~2 s of the map bridge — poll
+  it; if it still reads `0 / …` the v7.7.1 boot race is back. Then `#graphPhenBands rect`
+  = one per ON item's season run (13 picks → 14 rects, M8 has 2 runs) and
+  `#graphPhenBands text` = exactly ONE label per ON item (13 for 13); `path.phenLink` +
+  `.phenArrow` = one per ON linked driver (O1/O2/O3/O5 = 4 while O7 is off); at July an ON
+  off-season item (e.g. M3, window 9–12) → `paths[0].options.opacity` ≈ .45, `dashArray`
+  `5 6`, tag open reading `M3 · off-season (Sep–Dec)`; the `#graphReadout` tail `· ON …`
+  lists ONLY in-window items (the 3 off-season ones excluded); `#phenList .pdot` = 41 with
+  computed width 9px (proves styles.css loaded). 3D side: activate `#btn3d`, wait
+  `__phen3d.info().built`, toggle a phenomenon → `info().on` follows + console clean (the
+  3D dim VALUE is not exposed by the public hook — assert behaviour, not pixels).
 - Commands used previously run clean: `node --check app.js`.
 
 ## Repo layout cheat-sheet
@@ -384,6 +409,6 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.7).
 - Rain averages: `data/rain-state-avg.json` (36 states × 12 months, mm/month) regenerated by
   `node data/_gen_rain_avg.mjs` from the fetched IMD 1901–2015 subdivision CSV kept local in
   git-ignored `data/_src/` (mirror URL in the JSON meta + CITATIONS 11).
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.6), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.7.1), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

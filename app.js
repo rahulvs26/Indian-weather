@@ -462,6 +462,7 @@ try{const stg=document.querySelector("#map .stage");if(stg.classList.contains("t
 const dbg=$("layerDebug");
 if(dbg)dbg.textContent=`self-test: months=${MONTHS.length} stations=${(radars.stations||[]).length} states=${Object.keys(stateLayers).length} rivers=${riverCount}+${westCount}west basins=${basinCount} dams=${damCount} cwc=${window.__cwcCount||"…loading"} mjo=${MJOP.length} rm=${RM?1:0} · layers on=${n}/14 · phen=${(window.__phen&&window.__phen.on)?window.__phen.on.size:0}/41 · rainavg=${window.__rainAvg?Object.keys(window.__rainAvg.states).length:0}/36 · zoom=${map.getZoom()} · ${svgOk}`;
 try{window.__phenEnv={map,month:(typeof INDWeather!=="undefined"&&INDWeather.month)||7};window.__phenEnv.rm=!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);}catch(_){}
+ try{window.__phen&&window.__phen.apply&&window.__phen.apply();}catch(_){}
 };
 window.__applyLayers();
 setTimeout(()=>window.__applyLayers(),1200);
@@ -1082,9 +1083,9 @@ const host=$("graphLines");if(!host)return;
 const oldB=document.getElementById("graphPhenBands");if(oldB&&oldB.parentNode)oldB.parentNode.removeChild(oldB);
 let g='<g id="graphPhenBands" pointer-events="none">';
 if(window.__phen)for(const it of PHEN.items){if(!PHEN.on.has(it.id))continue;
- for(const r of phenWinRuns(it.window)){const x1=Math.max(70,X(r[0])-26.4),x2=Math.min(650,X(r[1])+26.4);if(x2-x1<6)continue;
+ let lab=0;for(const r of phenWinRuns(it.window)){const x1=Math.max(70,X(r[0])-26.4),x2=Math.min(650,X(r[1])+26.4);if(x2-x1<6)continue;
   g+=`<rect x="${x1.toFixed(1)}" y="60" width="${(x2-x1).toFixed(1)}" height="140" fill="${it.color}" opacity="0.07" rx="2"/>`;
-  g+=`<text x="${(x1+3).toFixed(1)}" y="70" font-size="8" font-family="monospace" fill="${it.color}" opacity="0.9">${it.id}</text>`;}}
+  if(!lab++)g+=`<text x="${(x1+3).toFixed(1)}" y="70" font-size="8" font-family="monospace" fill="${it.color}" opacity="0.9">${it.id}</text>`;}}
 g+="</g>";host.insertAdjacentHTML("afterbegin",g);
 };
 try{window.__graphBands();}catch(_){}
@@ -1368,4 +1369,4 @@ return {build,step,info,refresh,rebuild};
 })();
 
 try{phenInit();}catch(e){console.warn("phen",e);}
-[1200,2600,5000].forEach(ms=>setTimeout(()=>{try{if(!PHEN.g2)phenApply();}catch(_){}},ms));
+[1200,2600,5000,9000,14000].forEach(ms=>setTimeout(()=>{try{phenApply();}catch(_){}},ms));

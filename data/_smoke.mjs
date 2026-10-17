@@ -1,0 +1,146 @@
+/* v7.22w — the smoke and static test suite.
+   --------------------------------------------------------------------------------
+   Written because of a measured pattern, not a hunch: every defect that ever reached the user in
+   this project was in the wiring, and the existing tests all covered arithmetic and engines.
+
+     - the dam search box did nothing until an unrelated checkbox was ticked        (wiring)
+     - four MapLibre paint properties that do not exist in the installed version      (wiring)
+     - a data/_crossings.mjs import of data/_shp.mjs, which opens with node:fs, so the
+       browser refused the module and the entire 3D map stopped existing            (wiring)
+     - two files holding the same reservoirs, so the 2D popup printed no area        (wiring)
+     - a .damLim.warn rule styling the container while the spans went unstyled     (wiring)
+
+   The arithmetic tests caught none of those. These checks are the ones that would have.
+
+   Run: node data/_smoke.mjs        (no browser needed, about a second) */
+import { readFileSync, statSync, readdirSync } from "node:fs";
+
+let pass = 0, fail = 0;
+const ok = (cond, label, detail = "") => {
+  if (cond) { pass++; console.log("  OK   " + label); }
+  else { fail++; console.log("  FAIL " + label + (detail ? "  -> " + detail : "")); }
+};
+const exists = f => { try { statSync(f); return true; } catch { return false; } };
+const section = t => console.log("\n" + t);
+
+/* ---------------------------------------------------------------- 1. module hygiene */
+section("1. the modules the browser executes must not reach for node");
+/* follow imports from the entry points, exactly as the browser does */
+const entry = ["index.html", "app.js", "map3d.js"];
+const queue = [...entry], seen = new Set(), browserModules = new Map();
+const importsOf = src => [...src.matchAll(/from\s+"([^"]+)"/g)].map(m => m[1])
+  .filter(p => p.startsWith("./") || p.startsWith("../"));
+while (queue.length) {
+  const f = queue.shift();
+  if (seen.has(f) || !exists(f)) continue;
+  seen.add(f);
+  const src = readFileSync(f, "utf8");
+  browserModules.set(f, src);
+  const base = f.includes("/") ? f.slice(0, f.lastIndexOf("/") + 1) : "";
+  for (const imp of importsOf(src)) queue.push(base + imp.replace("./", ""));
+}
+console.log("  the browser runs " + browserModules.size + " modules:");
+for (const f of [...browserModules.keys()].sort()) console.log("       " + f);
+for (const [f, src] of browserModules) {
+  if (!/\.(mjs|js)$/.test(f)) continue;
+  /* strip comments first: data/_crossings.mjs talks ABOUT the node:fs bug in a comment, and a naive
+     grep reported it as the bug it describes. A test that cries wolf gets ignored. */
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ \t]*\/\/.*$/gm, " ");
+  ok(!/from\s+["']node:/.test(code) && !/require\(["']node:/.test(code),
+    f + " imports nothing from node:", (code.match(/node:[a-z_]+/g) || []).join(","));
+  /* a top-level side effect that needs a DOM would throw at import time */
+  ok(!/^\s*(const|let)\s+document\b/m.test(code), f + " does not touch document at module scope");
+}
+
+/* ---------------------------------------------------------------- 2. every file the code names must exist */
+section("2. every data file the app fetches must exist");
+const appSrc = [...browserModules.entries()].filter(([f]) => !f.endsWith(".html"))
+  .map(([, s]) => s).join("\n") + readFileSync("index.html", "utf8");
+const named = [...new Set([...appSrc.matchAll(/["'`](data\/[A-Za-z0-9_.-]+)["'`]/g)].map(m => m[1]))];
+console.log("  " + named.length + " distinct data paths named in code");
+let missing = 0;
+for (const f of named) if (!exists(f)) { missing++; console.log("       MISSING " + f); }
+ok(missing === 0, "all " + named.length + " named data files exist", missing + " missing");
+
+/* ---------------------------------------------------------------- 3. field contracts between code and data */
+section("3. fields the code prints must exist in the files it reads");
+/* the reservoir popup contract - this is the exact pair that broke in v7.22v */
+const resFile = (readFileSync("app.js", "utf8").match(/getJSON\("(data\/reservoirs[^"]*)"/) || [])[1];
+ok(!!resFile, "app.js names one reservoir file", "no match");
+if (resFile && exists(resFile)) {
+  const j = JSON.parse(readFileSync(resFile, "utf8"));
+  const p = j.features[0].properties;
+  const printsArea = /area_km2/.test(readFileSync("app.js", "utf8").slice(
+    readFileSync("app.js", "utf8").indexOf("res_name"), readFileSync("app.js", "utf8").indexOf("res_name") + 900));
+  ok(printsArea ? "area_km2" in p : true, resFile + " carries every field its popup prints",
+    "popup prints area_km2, file has: " + Object.keys(p).join(","));
+  /* and the file must be valid GeoJSON, since MapLibre silently drops what is not */
+  let bad = 0;
+  for (const f of j.features.slice(0, 4000)) {
+    const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    for (const poly of polys) for (const ring of poly) {
+      if (!ring || ring.length < 4) { bad++; continue; }
+      const a = ring[0], z = ring[ring.length - 1];
+      if (a[0] !== z[0] || a[1] !== z[1]) bad++;
+    }
+  }
+  ok(bad === 0, resFile + " has no unclosed or too-short rings", bad + " bad rings");
+}
+/* the storm panel's contract with river-stats.json */
+const rs = JSON.parse(readFileSync("data/river-stats.json", "utf8"));
+ok(Array.isArray(rs.rivers) && rs.rivers.length > 1000, "river-stats.json has rivers", String(rs.rivers.length));
+const first = rs.rivers[0];
+const stormSrc = readFileSync("data/_storm-layer.mjs", "utf8");
+for (const f of ["km", "n", "tr", "tk", "c", "b", "t"]) {
+  const used = new RegExp("\\bbest\\." + f + "\\b").test(stormSrc);
+  if (used) ok(f in first, "storm panel reads r." + f + " and the table has it",
+    "fields: " + Object.keys(first).join(","));
+}
+ok(Array.isArray(rs.basinNames) && Array.isArray(rs.tileNames), "the interned dictionaries are present",
+  "basinNames/tileNames missing");
+/* the watershed areas table the catchment module needs */
+const wa = JSON.parse(readFileSync("data/watershed-areas.json", "utf8"));
+ok(Array.isArray(wa.watersheds) && wa.watersheds.length > 1000, "watershed-areas.json holds the published areas",
+  String(wa.watersheds.length));
+
+/* ---------------------------------------------------------------- 4. CSS contracts */
+section("4. classes the JS writes must have a rule that applies to them");
+const css = readFileSync("styles.css", "utf8");
+/* the v7.22q bug: a rule for .damLim.warn (the container) and no rule for the spans inside it */
+const warnSpans = [...new Set([...readFileSync("map3d.js", "utf8").matchAll(/class=\\?"warn"/g)].map(m => m[0]))];
+ok(warnSpans.length > 0, "map3d.js writes class=\"warn\" spans");
+ok(/\.damLim\s+\.warn\s*\{/.test(css), ".damLim .warn has a span-level rule (not just .damLim.warn)");
+ok(!/#B45309/i.test(css), "no #B45309 left: a dark brown that was unreadable on the dark panel");
+
+/* ---------------------------------------------------------------- 5. payload budget */
+section("5. payload budget");
+const MB = 1024 * 1024;
+const loaded = [];
+for (const f of readdirSync("data")) {
+  if (!/\.(json|geojson|geo\.json)$/.test(f)) continue;
+  const p = "data/" + f;
+  if (![...browserModules.values()].some(s => s.includes(f)) && !appSrc.includes(f)) continue;
+  loaded.push([p, statSync(p).size]);
+}
+const total = loaded.reduce((s, [, b]) => s + b, 0);
+console.log("  " + loaded.length + " data files the app can fetch: " + (total / MB).toFixed(1) + " MB");
+ok(total < 40 * MB, "fetchable payload under 40 MB", (total / MB).toFixed(1) + " MB");
+for (const [p, b] of loaded.sort((a, b) => b[1] - a[1]).slice(0, 6))
+  console.log("       " + p.padEnd(34) + (b / MB).toFixed(2) + " MB");
+ok(!loaded.some(([p, b]) => !exists(p)), "every file counted in the payload exists");
+ok(loaded.every(([, b]) => b < 20 * MB), "no single file over 20 MB",
+  loaded.filter(([, b]) => b >= 20 * MB).map(([p]) => p).join(","));
+
+/* ---------------------------------------------------------------- 6. version cache-busting */
+section("6. every script tag is versioned, or browsers will serve stale code");
+const html = readFileSync("index.html", "utf8");
+for (const m of html.matchAll(/src="([^"]+\.(?:js|mjs))([^"]*)"/g)) {
+  const [, src, qs] = m;
+  if (src.includes("http")) continue;
+  ok(qs.includes("v="), "cache-busted: " + src, qs || "no ?v=");
+}
+const versions = [...html.matchAll(/\?v=([\d.a-z]+)/g)].map(m => m[1]);
+ok(versions.length > 0, "a version string is present", "none found");
+
+console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
+process.exit(fail ? 1 : 0);

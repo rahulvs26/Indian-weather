@@ -21,6 +21,13 @@ let cache = null, loading = null;
 export function loadWatersheds(url = "data/watersheds.geo.json", version = "?v=7.22") {
   if (cache) return Promise.resolve(cache);
   if (!loading) loading = (async () => {
+    /* REVERTED IN THE SAME HOUR. Deferring this fetch with requestIdleCallback was tried to take the
+       parse off the critical path - selecting a dam measures 1 fps (1,016 ms median frame) and the
+       heap goes 108 MB to 200 MB - and it broke the feature instead: requestIdleCallback does not
+       run in a background or throttled tab, so the crossings line stayed empty and the river facts
+       never appeared. The stall is real and is recorded in PERFORMANCE.md as an open gap; the fix
+       for it is to parse in the dam-router worker, which already exists, not to hope for idle time.
+       Fetching immediately is the honest behaviour. */
     const r = await fetch(url + version);
     if (!r.ok) throw new Error("watershed tiles unavailable (" + r.status + ")");
     const fc = await r.json();

@@ -77,3 +77,22 @@ Status legend: [ ] todo · [~] in progress · [x] done · [!] needs data/review
 - [ ] Heavier flood simulation from the user's own flood page (openswmm territory — needs the
       `app-credits` block if openswmm-derived code enters the deck)
 - [ ] Hand-verify the 38 unverified dam-capacity rows page by page
+
+## Gap analysis (v7.21 — see `GAP-ANALYSIS.md` for the measurements)
+- [!] **S1 OSM shaping works for ~1 course in 3** (Mettur 325→347 km; Hirakud 400 km and Sardar
+      Sarovar 140 km both refused). Measured causes: the corridor filter fragments the graph (784 kept
+      segments in 764 components at Sardar Sarovar), OSM's lower Narmada is not connected
+      `waterway=river` geometry (reachable network stops 77 km short), and long courses must drop to
+      z9 where OpenMapTiles generalises geometry. **Fix:** a static river-geometry extract
+      (HydroSHEDS or national) served like `rivers-cwc.geo.json` — removes the network, the zoom
+      problem, and the refusals.
+- [!] **S1 `frl_m` filled for 4 of 39 dams** — the slope→velocity feature needs a user-typed level
+      for the other 35. Research task, not code.
+- [!] **S2 no per-dam catchments.** `subbasins.geo.json` has 98 features and `basins.geo.json` 25 —
+      too coarse to put a rain cloud over one dam's catchment. The cloud/rainfall/runoff layer is
+      therefore not started; decide between sourced catchments and a derived, labelled catchment.
+- [ ] **S2 `data/riverbanks.geo.json` (1,032 features, 1.9 MB) is referenced by nothing**, and
+      `data/live.example.json` is a template used 0 times. Wire in or delete.
+- [ ] **S3 `prefers-reduced-motion`** honoured in 5 places, missing for the full-screen transition and
+      the release camera (old C3).
+- [ ] **S3 merge `PERF-GAPS.md` with `PERF-GAPS-v7.20.md`**; two perf documents now overlap.

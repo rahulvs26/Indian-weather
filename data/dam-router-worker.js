@@ -199,22 +199,32 @@ self.onmessage=async(e)=>{
       const coords=(m.coords||[]).filter(p=>Array.isArray(p)&&p.length===2);
       if(coords.length<2)throw new Error("no course to shape");
       const got=await osmWaysFor(coords);
-      let r=osmRefineCourse(coords,got.ways,{corridorKm:(m.opts&&m.opts.corridorKm)||4.5,snapKm:3});
-      let src=got.src;
-      /* The tiles are only a shortcut. When they cannot shape the course — measured on the Narmada
-         at Sardar Sarovar: 784 corridor segments but 764 separate components and the reachable
-         network stops 77 km short of the mouth, because OSM's lower Narmada is not carried as
-         connected waterway=river ways in those tiles — ask Overpass rather than give up. Refusal
-         itself stays the last resort: a wrong line is worse than the schematic one. */
+      const base=(m.opts&&m.opts.corridorKm)||4.5;
+      /* Corridor widening. Measured cause of the refusals: the corridor filter itself fragments the
+         graph, because in a braided or deltaic reach the segments inside 4.5 km of the schematic
+         line need not touch each other (Sardar Sarovar: 784 kept segments forming 764 components).
+         Widening re-admits the links between them, so try 1x, then 2x, then 4x and keep the FIRST
+         corridor that yields a path — the narrowest that works is the tightest fit. */
+      let r=null,tried=base,src=got.src;
+      for(const mult of [1,2,4]){
+        const c=base*mult;
+        r=osmRefineCourse(coords,got.ways,{corridorKm:c,snapKm:3,maxDevKm:c*2});
+        if(r){tried=c;break;}
+        r=null;
+      }
+      if(r&&tried>base)src+=" (corridor widened to "+tried+" km)";
       if(!r&&got.src!=="overpass"){
         try{
           const ways=await overpassWaysFor(coords);
-          const r2=osmRefineCourse(coords,ways,{corridorKm:(m.opts&&m.opts.corridorKm)||4.5,snapKm:3});
-          if(r2){r=r2;src="overpass (tiles could not shape this course)";}
-          else src=got.src+" — no path found either";
-        }catch(e){ src=got.src+" — Overpass also unavailable ("+String(e.message||e).slice(0,60)+")"; }
+          for(const mult of [1,2,4]){
+            const c=base*mult;
+            const r2=osmRefineCourse(coords,ways,{corridorKm:c,snapKm:3,maxDevKm:c*2});
+            if(r2){r=r2;tried=c;src="overpass (the map's tiles could not shape this course)";break;}
+          }
+          if(!r)src=got.src+" — no path found in the tiles or in Overpass";
+        }catch(e){ src=got.src+" — Overpass also unavailable ("+String(e.message||e).slice(0,50)+")"; }
       }
-      post({ok:true,id:m.id,osm:r,ways:got.ways.length,src});
+      post({ok:true,id:m.id,osm:r,ways:got.ways.length,src,corridorKm:tried});
     }catch(err){
       post({ok:false,id:m.id,error:String(err.message||err)});
     }

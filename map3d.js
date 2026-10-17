@@ -88,7 +88,7 @@ paint:{
      3. every course is cached per dam; geometry, km and days come from the CWC network only.
    Travel time stays ILLUSTRATIVE (constant kinematic wave, not measured). */
 const DAM_DAMS="data/dams.geo.json?v=7.9";
-const DAM_WORKER="data/dam-router-worker.js?v=7.22";
+const DAM_WORKER="data/dam-router-worker.js?v=7.23";
 /* v7.20 perf: pre-warm the OSM shape pass. The shape pass costs 11-21 s cold (OpenFreeMap tile
    fetches) and ~0.4 s from localStorage, so starting it while the pointer is still on the result
    row removes the wait for the dam the user is about to open. Idle callbacks are cheap and the

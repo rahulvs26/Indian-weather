@@ -236,8 +236,9 @@ function mapFullscreenToggle(ev){
   /* the CSS class is the fallback (and the layout driver): some webviews block the API entirely */
   stage.classList.toggle("fsmode",!cinema);
   if(document.body)document.body.classList.toggle("fsmode",!cinema);
-  /* only a real click may call the Fullscreen API — otherwise the browser logs a permission error */
-  if(!cinema&&(!ev||ev.isTrusted!==false)){
+  /* only a trusted gesture (real click / keypress) may call the Fullscreen API — otherwise the
+     browser logs a permission error; the .fsmode class still gives the full-screen layout */
+  if(!cinema&&ev&&ev.isTrusted){
     try{
       const req=stage.requestFullscreen||stage.webkitRequestFullscreen;
       if(req)req.call(stage);

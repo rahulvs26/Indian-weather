@@ -173,7 +173,10 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 /* v7.6: dam-release travel simulation card (3D map view only) — matches the dark overlay style of #riverList */
 .damUI{position:absolute;left:8px;top:8px;width:252px;display:none;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:8px;padding:10px 12px;color:#E7E5E4;font:11px/1.5 ui-monospace,monospace;z-index:8}
 .stage.map3d-on .damUI{display:block}
-.damHead{display:flex;justify-content:space-between;gap:8px;font-weight:600;color:#fff;font-size:11.5px}
+.damHead{display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:600;color:#fff;font-size:11.5px}
+/* v7.15: the release button lives in the card header so it stays visible in full screen */
+.damBtnTop{width:auto;margin:0;padding:3px 9px;font-size:10.5px;flex:0 0 auto}
+.stage.fsmode .damUI{width:296px}
 .damDay{color:#5EEAD4}
 .damSub{color:#9fb4c7;margin-top:3px}
 .damStat{margin-top:6px;color:#FDE68A}

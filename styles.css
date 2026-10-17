@@ -71,7 +71,7 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 .damStormOut{margin-top:6px;padding:6px 7px;border-radius:6px;background:rgba(0,0,0,.04);font:500 10.5px/1.5 ui-monospace,monospace;color:var(--ink2)}
 .damStormOut b{color:var(--ink)}
 .damStormOut .k{color:var(--ink2)}
-.damStormOut .warn{color:#B45309}
+.damStormOut .warn{color:#FBBF24}
 .damStormOut .big{font-size:12.5px;color:var(--ink)}
 .damStormFoot{margin-top:5px;font:400 9.5px/1.45 ui-monospace,monospace;color:var(--ink3)}
 .damStormFoot:empty{display:none}
@@ -258,6 +258,12 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damLim .ok{color:#7DD3A8}
 .damLim.warn{color:#FCD34D}
 .damLim.bad{color:#FCA5A5}
+/* v7.22q: a bare <span class="warn"> inside the limitations box had NO colour rule - only
+   .damLim.warn existed, which styles the container - so the two warning lines rendered at whatever
+   the cascade left behind and were unreadable on the dark panel. Span-level rules, same amber as
+   .damRead uses, which reads clearly on this background. */
+.damLim .warn{color:#FBBF24}
+.damLim b{color:#FDE68A}
 .damRead{font-size:10px;color:#E2E8F0;line-height:1.6;background:rgba(2,20,24,.55);border:1px solid #14524F;border-radius:5px;padding:5px 6px}
 .damRead .warn{color:#FBBF24}
 .damRead .damHint{margin-top:3px;color:#7E93A0;font-size:9px;line-height:1.4}

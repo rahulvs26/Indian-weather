@@ -129,6 +129,9 @@ map.getSource("reservoirs").setData(data);
 const hit=reservoirFor(d);
 if(map.getSource("res-focus"))map.getSource("res-focus").setData(hit?
 {type:"FeatureCollection",features:[hit.f]}:{type:"FeatureCollection",features:[]});
+/* the 2.3 MB fetch usually lands after the first dam is already drawn, so the crossings were empty
+   until the next selection. Redraw them the moment the data arrives. */
+{const xb=dEl("damCross");if(xb)xb.innerHTML=damCrossText();}
 if(hit){
 const f=damFactsFor(d&&d.name);
 const named=f&&f.reservoir_area_km2!=null?f.reservoir_area_km2:null;
@@ -147,6 +150,28 @@ for(const id of ["res-fill","res-line","res-label","res-focus","res-focus-line"]
 if(on)reservoirSet(damSel);
 }
 
+/* ---------- v7.22q reservoir crossings on the card ---------- */
+/* Which reservoirs a traced course runs through, named with the km at which it enters.
+   Asked for as "cut the reservoir out of the upstream trace", and deliberately not done: the river
+   does not stop at a reservoir, the mapped channel continues through the backwater, and trimming
+   the line would delete real geometry and shorten the course. So the crossings are measured and
+   printed instead, and the reader can see exactly which water bodies the course touches. */
+let resIndex=null;
+function reservoirCrossings(){
+if(!route||!route.coords||!route.coords.length)return [];
+if(!resIndex&&resData)resIndex=indexReservoirs(resData,1);
+if(!resIndex)return [];
+try{return crossings(resIndex,route.coords);}catch(e){return [];}
+}
+function damCrossText(){
+const xs=reservoirCrossings();
+if(!xs.length)return "";
+const big=xs.filter(x=>x.km2>=5);
+const names=(big.length?big:xs).slice(0,6)
+.map(x=>x.name+(x.atKm!=null?" at "+x.atKm.toFixed(0)+" km":"")+(x.km2?" ("+x.km2.toFixed(0)+" km2)":"")).join(" \u00b7 ");
+return '<br><span class="k">runs through</span> '+names+(xs.length>(big.length||xs.length)?" \u2026":"")
++'. The course is not cut at a reservoir \u2014 the channel continues through the backwater.';
+}
 function addSkyTerrainBuildings(){
 try{map.setSky({   /* MapLibre v6: sky is a root-level style property (map.setSky), not a layer; fog only shows at pitch ≥60 */
 "sky-color":"#cfe4f4","sky-horizon-blend":0.6,
@@ -222,7 +247,7 @@ let damOsmPre=new Map(),damOsmPreTimer=0;
 
 const SNAP_NEAR_KM=6,SNAP_FAR_KM=12,DAM_SEARCH_MAX=14;
 
-let damP=null,damList=null,damById=null,damCache={},damCacheOrder=[],damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null,damIdleT=0;
+let damP=null,damList=null,damById=null,damCache={},damCacheOrder=[],damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null,damIdleT=0,damSelectSeq=0;
 
 const damMsg=t=>{const el=dEl("damMsg");if(el)el.textContent=t||"";};
 const damBird=()=>{const b=dEl("damBird");return !b||b.checked;};
@@ -1149,6 +1174,13 @@ return {id:dam.id,coords,cum,totalKm:km,speedMps:speed,arrivalDays:km/(speed*86.
 async function damSelect(dam){
 if(damRun&&damRun.on)damReset();
 damSel=dam;
+/* v7.22q: damSelect is async, and a route can take seconds. Switching Trace while a request is in
+   flight used to let the STALE response win: the old course was written to the map after the new
+   one, so the map showed a river running both ways - upstream to the source and downstream to the
+   sea at the same time, which is not a thing a river does. Every await below now checks that this
+   call is still the one the user is waiting for, and gives up quietly if it is not. */
+const mySeq=++damSelectSeq;
+const stillMine=()=>mySeq===damSelectSeq&&damSel===dam;
 const dir=damDirection(),ck=dam.id+(dir==="up"?"#up":"");
 const btn=dEl("damBtn");if(btn)btn.disabled=true;
 damMsg(damCache[ck]?"Course ready…":"Deriving the river course for "+dam.name+"…");
@@ -1157,6 +1189,7 @@ try{
   if(!r){
     try{ r=await damAsk(dam,SNAP_NEAR_KM,{upstream:dir==="up"}); }
     catch(e1){ r=await damAsk(dam,SNAP_FAR_KM,{upstream:dir==="up"}); }   /* widen once — many dams sit off the mapped line */
+    if(!stillMine())return;      /* the user switched dam or direction while we waited */
     damCache[ck]=r;
     damCachePut(ck,r);
   }
@@ -1203,8 +1236,10 @@ try{
   if(cx)cx.textContent=(nr.cities||[]).length
     ?"Crosses: "+nr.cities.map(c=>c.name+" ("+c.km.toFixed(0)+" km)").join(" · ")
     :"No city marker within 8 km of this course.";
+  {const xb=dEl("damCross");if(xb)xb.innerHTML=damCrossText();}
   /* v7.12: researched capacity + gate controls + release timing */
   await damLoadFacts();
+  if(!stillMine())return;      /* same guard after the facts fetch, before anything is drawn */
   const facts=damFactsFor(nr.dam.name);
   const fx=dEl("damFacts");
   if(fx)fx.innerHTML=damFactsText(facts)+' <a class="damSrc" href="data/dam-facts.json" target="_blank" rel="noopener">source list</a>';
@@ -1735,6 +1770,7 @@ dam card: no fetch, no layers, no animation frame runs before that. The arithmet
 data/_hydrology.mjs (NRCS Curve Number for depth, rational method for peak, tested against
 hand-worked values), the drawing and the fast rain animation live in data/_storm-layer.mjs. */
 import { createStormLayer, fillCoverSelect } from "./data/_storm-layer.mjs";
+import { indexReservoirs, crossings } from "./data/_crossings.mjs";
 
 const storm = createStormLayer({ getMap: () => map, getDam: () => damSel, el: dEl,
   ready: () => !!(map && mapStyleReady),
@@ -1772,3 +1808,15 @@ if (stormChk) stormChk.addEventListener("change", () => {
 const stormBlk = dEl("stormBlk");
 if (stormBlk) stormBlk.addEventListener("toggle", stormMaybe);
 window.__storm = { layer: storm, refresh: stormMaybe };
+/* v7.22q: a read-only window onto the route the solver returned, so the direction of a course can be
+   checked from outside instead of inferred from the drawing. Kept because two bugs in a row came
+   from reading the drawing rather than the data. */
+window.__dam = () => ({
+  dam: damSel ? { id: damSel.id, name: damSel.name, river: damSel.river, lon: damSel.lon, lat: damSel.lat } : null,
+  route: route ? {
+    upstream: !!route.upstream, totalKm: route.totalKm, coastal: !!route.coastal,
+    chains: route.chains, river: route.river, n: (route.coords || []).length,
+    first: (route.coords || [])[0], last: (route.coords || [])[(route.coords || []).length - 1],
+  } : null,
+  osm: route ? !!route.osm : null,
+});

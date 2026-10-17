@@ -1,0 +1,49 @@
+v7.22q: a river cannot run both ways - a race drew the course twice; text contrast; reservoirs named on the course
+
+Three things reported together: the upstream trace showed the course running in both directions and
+through reservoirs, some panel text was unreadable, and the error rate should come down.
+
+1. THE COURSE RAN BOTH WAYS. damSelect is async and a route can take seconds. Switching Trace while
+   a request was in flight let the STALE response win - the old course was written to the map after
+   the new one, so a river appeared to run upstream to its source AND downstream to the sea at the
+   same time. Every await in damSelect now carries a sequence token and gives up quietly if the user
+   has since chosen another dam or the other direction.
+   Verified by hammering it: three direction switches inside a second, then settling for 14 s, leaves
+   exactly ONE line in the source (73 km, upstream) - which is the solver's own output for upstream.
+   The solver was never wrong; the bug was in when the result was applied.
+
+2. UNREADABLE TEXT. A bare span.warn inside the limitations box had no colour rule at all: only
+   .damLim.warn existed, which styles the container, so the two warning lines inherited whatever the
+   cascade left them and were near-invisible on the dark panel. Added span-level rules, and
+   .damStormOut .warn moved from a dark brown #B45309 to the same amber the card uses elsewhere.
+   Measured after the change: those lines compute to rgb(251,191,36) on that background.
+
+3. RESERVOIRS ON THE COURSE, NOT CUT OUT OF IT. Asked for as "cut that reservoir out of the upstream
+   trace", and deliberately not done - the river does not stop at a reservoir, the mapped channel
+   continues through the backwater, and trimming it would delete real geometry and shorten the
+   course. So the crossings are measured and named instead. On the Manimuthar upstream course:
+   "runs through Kodayar-I at 20 km (8 km2) - Pechipparai at 35 km (14 km2). The course is not cut at
+   a reservoir - the channel continues through the backwater." That is the pair of reservoirs
+   visible on that line.
+   data/_crossings.mjs samples the course every 200 m - a reservoir is wider than the course's own
+   vertex spacing, so a vertex test would miss it - and prunes by bounding box before testing.
+   data/_crossings.test.mjs checks it against geometry, not against itself: a line through a known
+   polygon is found, a line 50 km away is not, a line inside a hole is not a crossing, and a line
+   over an island still is. Two bugs in my own code came out of that test: the reported km indexed
+   the caller's 2-element array with a sample index (45 km where the answer was 11), and the scan
+   stopped at the first outer-ring hit, so an island counted as water.
+
+4. A BUG THAT TOOK DOWN THE WHOLE 3D MAP, found by looking rather than by reading.
+   data/_crossings.mjs imported data/_shp.mjs for a helper it never called; _shp.mjs opens with
+   node:fs, which the browser refuses, so the import failed, map3d.js never evaluated, and
+   window.__map3d, __storm and __dam all went undefined - the 3D map simply stopped existing, with a
+   CORS error pointing at node:fs and nothing pointing at the file that caused it. Import removed;
+   all four browser-facing modules are now checked for it.
+
+Also added window.__dam(), a read-only view of the route the solver returned. Two of the bugs above
+came from reading the drawing instead of the data, and MapLibre 6.14 on this build returns 0 for
+querySourceFeatures and queryRenderedFeatures on GeoJSON sources - including for dam-route-line,
+which demonstrably draws - so serialize() is the only honest channel.
+
+Tests: hydrology, crossings, route engine (400/400 at 12 km, 0 up-flow regressions) and the OSM
+refiner all pass.

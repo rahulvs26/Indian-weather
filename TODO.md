@@ -58,6 +58,10 @@ Status legend: [ ] todo · [~] in progress · [x] done · [!] needs data/review
 - [x] Skill installed globally and used
 
 ## Still queued
+- [x] **Console + accuracy slice (v7.18)** — panel fits its container and folds; the drawn course is
+      measured (segment sampling, not vertex sampling) and the source's holes are drawn as amber
+      "not mapped" connectors instead of passing for river; Madurai and 47 other missing river cities
+      added; wave speed, input limits and the cfs⇄TMC converter added.
 - [x] **Performance sweep (v7.17)** — measured with the in-deck probe: the 3D map went from
       **47 ms/frame (~21 fps) to 16.6 ms (60 fps)** because `stepWind` kept drawing 340 particles
       into a `display:none` canvas. Off-screen pausing added (IntersectionObserver), route cache

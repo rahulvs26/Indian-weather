@@ -4,7 +4,7 @@
      build the bbox index once, then answer every dam in milliseconds.
    The walk/simplify maths is the shared engine (data/_route-engine.mjs), the same code the
    offline generator uses. Protocol: postMessage({cmd, dam}) → {ok, route} / {ok:false, error}. */
-import {buildIndex,solveRoute,coastSegments} from "./_route-engine.mjs";
+import {buildIndex,solveRoute,coastSegments} from "./_route-engine.mjs?v=7.18";
 
 let idx=null,features=null,coast=null,cities=[],loading=null;
 

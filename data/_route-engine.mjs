@@ -270,6 +270,47 @@ export function simplifyDP(pts,tolKm,lat0){
   return simplifyDP(pts.slice(0,mi+1),tolKm,lat0).slice(0,-1).concat(simplifyDP(pts.slice(mi),tolKm,lat0));
 }
 
+export const GAP_KM=4;        /* above this a drawn segment is a straight connector, not a mapped reach */
+
+/* v7.18 — "does the line actually follow the river?" Every course VERTEX comes from the mapped
+   network, so measuring only vertices reads ~0 km while the picture jumps: the culprit is the
+   straight chord between two vertices that are far apart, which cuts across land. So sample along
+   each segment and measure how far the DRAWN line sits from the nearest mapped geometry.
+   Measured on the Vaigai, whose source feature has a 11 km hole: vertex-only said 0.36 km,
+   segment sampling says how much the user actually sees. */
+export function courseDeviation(idx,features,coords,o){
+  const stepKm=(o&&o.stepKm)||1.5;
+  const giveUpKm=(o&&o.giveUpKm)||12;   /* no river within this => we have left the network */
+  let worst=0,at=null,off=0;
+  for(let i=1;i<coords.length;i++){
+    const a=coords[i-1],b=coords[i];
+    const segKm=hav(a,b);
+    if(segKm<0.15)continue;
+    const n=Math.max(1,Math.ceil(segKm/stepKm));
+    for(let k=1;k<n;k++){
+      const t=k/n,p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+      const h=nearestRiver(idx,features,p,giveUpKm,null);
+      const d=h?h.dKm:giveUpKm;
+      if(d>0.05)off++;
+      if(d>worst){worst=d;at=p;}
+    }
+    if(worst>=giveUpKm)break;
+  }
+  return {worstKm:+worst.toFixed(2),at,offSamples:off};
+}
+
+/* the straight connectors in a course: segments longer than GAP_KM, i.e. places where the source
+   geometry is broken and the line has to jump. Returned so the card can disclose them and the map
+   can draw them differently instead of passing an invented reach off as mapped. */
+export function courseGaps(coords){
+  const gaps=[];
+  for(let i=1;i<coords.length;i++){
+    const km=hav(coords[i-1],coords[i]);
+    if(km>GAP_KM)gaps.push({i,km:+km.toFixed(2),a:coords[i-1],b:coords[i]});
+  }
+  return gaps;
+}
+
 export function lineKm(coords){
   let km=0;
   for(let i=1;i<coords.length;i++)km+=hav(coords[i-1],coords[i]);
@@ -605,9 +646,16 @@ export function solveRoute(idx,features,coastSegs,dam,opts){
   const simp=simplifyDP(course,DP_TOL_KM,dam.lat).map(q=>[+q[0].toFixed(5),+q[1].toFixed(5)]);
   const km=lineKm(simp);
   const src=up?recordedStart(features[f]):null;
+  /* v7.18 quality numbers the card shows: how far the drawn line strays from the mapped channel,
+     and where the digitisation is broken so the map can draw those hops as connectors. Both are
+     skipped for the 13,002-dam audit (opts.measure=false) where the vertex-based checks suffice. */
+  const gaps=courseGaps(simp);
+  const dev=o.measure===false?null:courseDeviation(idx,features,simp);
   return {coords:simp,totalKm:+km.toFixed(2),arrivalDays:+(km/KM_DAY).toFixed(2),coastal:up?false:coastal,chains,to,
     snapKm:+hit.dKm.toFixed(2),speed_m_s:SPEED_M_S,upstream:up,source:src,
     suspect,sparse,maxSegKm:+maxSegKm.toFixed(2),synthKm:+synthKm.toFixed(2),
-    stoppedWalk,maxSegLimitKm:MAX_SEG_KM,
+    stoppedWalk,maxSegLimitKm:MAX_SEG_KM,gapKm:GAP_KM,
+    gaps:gaps.map(g=>({i:g.i,km:g.km})),
+    gapCount:gaps.length,offKm:dev?dev.worstKm:null,
     cities:crossCities(simp,o.cities||[],o.corridorKm||CORRIDOR_KM)};
 }

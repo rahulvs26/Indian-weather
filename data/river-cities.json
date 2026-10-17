@@ -2,89 +2,777 @@
  "meta": {
   "note": "City reference points used ONLY to label which cities a derived river course passes (a marker plus a name in the 3D map, and a line in the dam-release card). City-approx coordinates, the same convention as the deck's 2D map city markers and data/radars.json ('City-approx coords for study pins, not surveyed'). Not used for any measurement.",
   "use": "crossings = cities within CORRIDOR_KM (8 km) of the derived course, listed in route order",
-  "provenance": "data/radars.json stations (IMD DWR study pins) + the deck's 2D map city list (app.js CITIES) + major river cities whose distance to the derived course was measured during the v7.10 flow-direction regression (Patna 6.0 km, Varanasi 1.1, Prayagraj 4.5, Mathura 1.8, Etawah 5.4, Haridwar 0.4, Vijayawada 3.3, Srirangapatna 1.6, Thanjavur 10.6, Rajahmundry 2.3, Bharuch 0.7, Surat 4.6, Ahmedabad 0.3, Bardhaman 4.2, Sambalpur 2.7, Cuttack 3.0, Paradip 0.9 km)",
+  "provenance": "data/radars.json stations (IMD DWR study pins) + the deck's 2D map city list (app.js CITIES) + major river cities whose distance to the derived course was measured during the v7.10 flow-direction regression (Patna 6.0 km, Varanasi 1.1, Prayagraj 4.5, Mathura 1.8, Etawah 5.4, Haridwar 0.4, Vijayawada 3.3, Srirangapatna 1.6, Thanjavur 10.6, Rajahmundry 2.3, Bharuch 0.7, Surat 4.6, Ahmedabad 0.3, Bardhaman 4.2, Sambalpur 2.7, Cuttack 3.0, Paradip 0.9 km) v7.18 added the missing major river cities (Madurai, Tirunelveli, Salem, Karur, Dindigul, Theni, Tenkasi, Kadayanallur, Coimbatore, Tiruppur, Chidambaram, Nagapattinam, Kakinada, Amaravati-adjacent Godavari towns, etc.) after the Vaigai course was reported as passing Madurai with no city marker.",
   "river_hint": "the river each city sits on, for orientation only"
  },
  "cities": [
-  {"name": "Haridwar", "lon": 78.16, "lat": 29.95, "river": "Ganga (Bhagirathi)"},
-  {"name": "Rishikesh", "lon": 78.09, "lat": 30.09, "river": "Ganga (Bhagirathi)"},
-  {"name": "Devprayag", "lon": 78.6, "lat": 30.15, "river": "Bhagirathi–Alaknanda confluence"},
-  {"name": "Hastinapur", "lon": 79.72, "lat": 27.59, "river": "Ganga"},
-  {"name": "Farrukhabad", "lon": 79.58, "lat": 27.39, "river": "Ganga"},
-  {"name": "Kanpur", "lon": 80.33, "lat": 26.45, "river": "Ganga"},
-  {"name": "Prayagraj", "lon": 81.85, "lat": 25.44, "river": "Ganga–Yamuna"},
-  {"name": "Varanasi", "lon": 83.01, "lat": 25.32, "river": "Ganga"},
-  {"name": "Ghazipur", "lon": 83.57, "lat": 25.55, "river": "Ganga"},
-  {"name": "Patna", "lon": 85.14, "lat": 25.59, "river": "Ganga"},
-  {"name": "Mathura", "lon": 77.67, "lat": 27.49, "river": "Yamuna"},
-  {"name": "Agra", "lon": 78.01, "lat": 27.18, "river": "Yamuna"},
-  {"name": "Etawah", "lon": 79.02, "lat": 26.78, "river": "Yamuna"},
-  {"name": "Delhi", "lon": 77.21, "lat": 28.61, "river": "Yamuna"},
-  {"name": "Srinagar", "lon": 74.8, "lat": 34.08, "river": "Jhelum"},
-  {"name": "Jhelum", "lon": 74.72, "lat": 32.93, "river": "Jhelum"},
-  {"name": "Rupnagar", "lon": 76.34, "lat": 31.13, "river": "Sutlej"},
-  {"name": "Ropar", "lon": 75.9, "lat": 30.98, "river": "Sutlej"},
-  {"name": "Gujranwala", "lon": 74.32, "lat": 32.04, "river": "Chenab (Ravi system)"},
-  {"name": "Jalandhar", "lon": 75.58, "lat": 31.33, "river": "Sutlej (Hakra)"},
-  {"name": "Asansol", "lon": 86.99, "lat": 23.68, "river": "Damodar"},
-  {"name": "Bardhaman", "lon": 87.86, "lat": 23.25, "river": "Damodar"},
-  {"name": "Kolkata", "lon": 88.36, "lat": 22.57, "river": "Hooghly"},
-  {"name": "Guwahati", "lon": 91.76, "lat": 26.18, "river": "Brahmaputra"},
-  {"name": "Dibrugarh", "lon": 94.91, "lat": 27.47, "river": "Brahmaputra"},
-  {"name": "Jamshedpur", "lon": 86.18, "lat": 22.8, "river": "Subarnarekha"},
-  {"name": "Rourkela", "lon": 84.85, "lat": 22.25, "river": "Brahmani"},
-  {"name": "Sambalpur", "lon": 83.98, "lat": 21.47, "river": "Mahanadi"},
-  {"name": "Cuttack", "lon": 85.88, "lat": 20.46, "river": "Mahanadi"},
-  {"name": "Jajpur", "lon": 86.71, "lat": 20.66, "river": "Baitarani"},
-  {"name": "Paradip", "lon": 86.61, "lat": 20.32, "river": "Mahanadi delta"},
-  {"name": "Raipur", "lon": 81.63, "lat": 21.25, "river": "Mahanadi (tributary)"},
-  {"name": "Jabalpur", "lon": 79.99, "lat": 23.18, "river": "Narmada"},
-  {"name": "Omkareshwar", "lon": 76.7, "lat": 22.24, "river": "Narmada"},
-  {"name": "Vadodara", "lon": 73.18, "lat": 22.31, "river": "Narmada / Vishwamitri"},
-  {"name": "Bharuch", "lon": 72.99, "lat": 21.7, "river": "Narmada"},
-  {"name": "Surat", "lon": 72.83, "lat": 21.17, "river": "Tapi"},
-  {"name": "Ahmedabad", "lon": 72.57, "lat": 23.02, "river": "Sabarmati"},
-  {"name": "Gandhinagar", "lon": 72.65, "lat": 23.22, "river": "Sabarmati"},
-  {"name": "Nashik", "lon": 73.79, "lat": 19.99, "river": "Godavari (source area)"},
-  {"name": "Bhadrachalam", "lon": 80.97, "lat": 17.61, "river": "Godavari"},
-  {"name": "Rajahmundry", "lon": 81.78, "lat": 17.01, "river": "Godavari"},
-  {"name": "Wazirabad", "lon": 78.04, "lat": 17.35, "river": "Krishna"},
-  {"name": "Vijayawada", "lon": 80.65, "lat": 16.51, "river": "Krishna"},
-  {"name": "Machilipatnam", "lon": 81.13, "lat": 16.19, "river": "Krishna"},
-  {"name": "Nagarjuna Sagar", "lon": 79.25, "lat": 16.52, "river": "Krishna"},
-  {"name": "Srisailam", "lon": 78.3, "lat": 15.92, "river": "Krishna"},
-  {"name": "Kurnool", "lon": 78.04, "lat": 15.83, "river": "Tungabhadra"},
-  {"name": "Mysuru", "lon": 76.64, "lat": 12.3, "river": "Kaveri"},
-  {"name": "Srirangapatna", "lon": 76.66, "lat": 12.42, "river": "Kaveri"},
-  {"name": "Tiruchirappalli", "lon": 78.69, "lat": 10.79, "river": "Kaveri (Kollidam)"},
-  {"name": "Thanjavur", "lon": 79.14, "lat": 10.79, "river": "Kaveri (Kollidam)"},
-  {"name": "Kumbakonam", "lon": 79.35, "lat": 10.96, "river": "Kaveri distributaries"},
-  {"name": "Poompuhar", "lon": 79.83, "lat": 10.83, "river": "Kaveri delta"},
-  {"name": "Erode", "lon": 77.72, "lat": 11.34, "river": "Kaveri (Bhavani system)"},
-  {"name": "Kochi", "lon": 76.24, "lat": 9.97, "river": "Periyar"},
-  {"name": "Aluva", "lon": 76.35, "lat": 9.99, "river": "Periyar"},
-  {"name": "Thrissur", "lon": 76.21, "lat": 10.53, "river": "Bharathapuzha"},
-  {"name": "Kozhikode", "lon": 75.78, "lat": 11.26, "river": "Kallayi"},
-  {"name": "Mangaluru", "lon": 74.84, "lat": 12.87, "river": "Netravati"},
-  {"name": "Margao", "lon": 73.92, "lat": 15.28, "river": "Zuari"},
-  {"name": "Panaji", "lon": 73.83, "lat": 15.5, "river": "Mandovi"},
-  {"name": "Belgaum", "lon": 74.5, "lat": 15.85, "river": "Ghataprabha"},
-  {"name": "Kota", "lon": 75.83, "lat": 26.02, "river": "Chambal"},
-  {"name": "Gwalior", "lon": 78.18, "lat": 26.22, "river": "Sind (Yamuna system)"},
-  {"name": "Jhansi", "lon": 78.58, "lat": 25.45, "river": "Betwa"},
-  {"name": "Lucknow", "lon": 80.95, "lat": 26.85, "river": "Gomti (Ganga system)"},
-  {"name": "Bhopal", "lon": 77.41, "lat": 23.26, "river": "Betwa / upper Sindh"},
-  {"name": "Hyderabad", "lon": 78.49, "lat": 17.39, "river": "Musi (Krishna system)"},
-  {"name": "Chennai", "lon": 80.27, "lat": 13.08, "river": "Cooum / Adyar"},
-  {"name": "Bengaluru", "lon": 77.59, "lat": 12.97, "river": "Vrishabhavathi (Kaveri system)"},
-  {"name": "Thiruvananthapuram", "lon": 76.95, "lat": 8.49, "river": "Killi"},
-  {"name": "Agartala", "lon": 91.28, "lat": 23.83, "river": "Haora (Ganges-Brahmaputra)"},
-  {"name": "Silchar", "lon": 92.79, "lat": 24.83, "river": "Barak"},
-  {"name": "Karaikal", "lon": 79.83, "lat": 10.93, "river": "Cauvery delta"},
-  {"name": "Veraval", "lon": 70.37, "lat": 20.9, "river": "coastal (Saurashtra)"},
-  {"name": "Jaipur", "lon": 75.79, "lat": 26.91, "river": "Daraswati / seasonal"},
-  {"name": "Leh", "lon": 77.58, "lat": 34.15, "river": "Indus headwaters (Zanskar)"},
-  {"name": "Mumbai", "lon": 72.88, "lat": 19.08, "river": "Vashishti (Konkan)"},
-  {"name": "Jorhat", "lon": 94.2, "lat": 26.75, "river": "Brahmaputra"}
+  {
+   "name": "Haridwar",
+   "lon": 78.16,
+   "lat": 29.95,
+   "river": "Ganga (Bhagirathi)"
+  },
+  {
+   "name": "Rishikesh",
+   "lon": 78.09,
+   "lat": 30.09,
+   "river": "Ganga (Bhagirathi)"
+  },
+  {
+   "name": "Devprayag",
+   "lon": 78.6,
+   "lat": 30.15,
+   "river": "Bhagirathi–Alaknanda confluence"
+  },
+  {
+   "name": "Hastinapur",
+   "lon": 79.72,
+   "lat": 27.59,
+   "river": "Ganga"
+  },
+  {
+   "name": "Farrukhabad",
+   "lon": 79.58,
+   "lat": 27.39,
+   "river": "Ganga"
+  },
+  {
+   "name": "Kanpur",
+   "lon": 80.33,
+   "lat": 26.45,
+   "river": "Ganga"
+  },
+  {
+   "name": "Prayagraj",
+   "lon": 81.85,
+   "lat": 25.44,
+   "river": "Ganga–Yamuna"
+  },
+  {
+   "name": "Varanasi",
+   "lon": 83.01,
+   "lat": 25.32,
+   "river": "Ganga"
+  },
+  {
+   "name": "Ghazipur",
+   "lon": 83.57,
+   "lat": 25.55,
+   "river": "Ganga"
+  },
+  {
+   "name": "Patna",
+   "lon": 85.14,
+   "lat": 25.59,
+   "river": "Ganga"
+  },
+  {
+   "name": "Mathura",
+   "lon": 77.67,
+   "lat": 27.49,
+   "river": "Yamuna"
+  },
+  {
+   "name": "Agra",
+   "lon": 78.01,
+   "lat": 27.18,
+   "river": "Yamuna"
+  },
+  {
+   "name": "Etawah",
+   "lon": 79.02,
+   "lat": 26.78,
+   "river": "Yamuna"
+  },
+  {
+   "name": "Delhi",
+   "lon": 77.21,
+   "lat": 28.61,
+   "river": "Yamuna"
+  },
+  {
+   "name": "Srinagar",
+   "lon": 74.8,
+   "lat": 34.08,
+   "river": "Jhelum"
+  },
+  {
+   "name": "Jhelum",
+   "lon": 74.72,
+   "lat": 32.93,
+   "river": "Jhelum"
+  },
+  {
+   "name": "Rupnagar",
+   "lon": 76.34,
+   "lat": 31.13,
+   "river": "Sutlej"
+  },
+  {
+   "name": "Ropar",
+   "lon": 75.9,
+   "lat": 30.98,
+   "river": "Sutlej"
+  },
+  {
+   "name": "Gujranwala",
+   "lon": 74.32,
+   "lat": 32.04,
+   "river": "Chenab (Ravi system)"
+  },
+  {
+   "name": "Jalandhar",
+   "lon": 75.58,
+   "lat": 31.33,
+   "river": "Sutlej (Hakra)"
+  },
+  {
+   "name": "Asansol",
+   "lon": 86.99,
+   "lat": 23.68,
+   "river": "Damodar"
+  },
+  {
+   "name": "Bardhaman",
+   "lon": 87.86,
+   "lat": 23.25,
+   "river": "Damodar"
+  },
+  {
+   "name": "Kolkata",
+   "lon": 88.36,
+   "lat": 22.57,
+   "river": "Hooghly"
+  },
+  {
+   "name": "Guwahati",
+   "lon": 91.76,
+   "lat": 26.18,
+   "river": "Brahmaputra"
+  },
+  {
+   "name": "Dibrugarh",
+   "lon": 94.91,
+   "lat": 27.47,
+   "river": "Brahmaputra"
+  },
+  {
+   "name": "Jamshedpur",
+   "lon": 86.18,
+   "lat": 22.8,
+   "river": "Subarnarekha"
+  },
+  {
+   "name": "Rourkela",
+   "lon": 84.85,
+   "lat": 22.25,
+   "river": "Brahmani"
+  },
+  {
+   "name": "Sambalpur",
+   "lon": 83.98,
+   "lat": 21.47,
+   "river": "Mahanadi"
+  },
+  {
+   "name": "Cuttack",
+   "lon": 85.88,
+   "lat": 20.46,
+   "river": "Mahanadi"
+  },
+  {
+   "name": "Jajpur",
+   "lon": 86.71,
+   "lat": 20.66,
+   "river": "Baitarani"
+  },
+  {
+   "name": "Paradip",
+   "lon": 86.61,
+   "lat": 20.32,
+   "river": "Mahanadi delta"
+  },
+  {
+   "name": "Raipur",
+   "lon": 81.63,
+   "lat": 21.25,
+   "river": "Mahanadi (tributary)"
+  },
+  {
+   "name": "Jabalpur",
+   "lon": 79.99,
+   "lat": 23.18,
+   "river": "Narmada"
+  },
+  {
+   "name": "Omkareshwar",
+   "lon": 76.7,
+   "lat": 22.24,
+   "river": "Narmada"
+  },
+  {
+   "name": "Vadodara",
+   "lon": 73.18,
+   "lat": 22.31,
+   "river": "Narmada / Vishwamitri"
+  },
+  {
+   "name": "Bharuch",
+   "lon": 72.99,
+   "lat": 21.7,
+   "river": "Narmada"
+  },
+  {
+   "name": "Surat",
+   "lon": 72.83,
+   "lat": 21.17,
+   "river": "Tapi"
+  },
+  {
+   "name": "Ahmedabad",
+   "lon": 72.57,
+   "lat": 23.02,
+   "river": "Sabarmati"
+  },
+  {
+   "name": "Gandhinagar",
+   "lon": 72.65,
+   "lat": 23.22,
+   "river": "Sabarmati"
+  },
+  {
+   "name": "Nashik",
+   "lon": 73.79,
+   "lat": 19.99,
+   "river": "Godavari (source area)"
+  },
+  {
+   "name": "Bhadrachalam",
+   "lon": 80.97,
+   "lat": 17.61,
+   "river": "Godavari"
+  },
+  {
+   "name": "Rajahmundry",
+   "lon": 81.78,
+   "lat": 17.01,
+   "river": "Godavari"
+  },
+  {
+   "name": "Wazirabad",
+   "lon": 78.04,
+   "lat": 17.35,
+   "river": "Krishna"
+  },
+  {
+   "name": "Vijayawada",
+   "lon": 80.65,
+   "lat": 16.51,
+   "river": "Krishna"
+  },
+  {
+   "name": "Machilipatnam",
+   "lon": 81.13,
+   "lat": 16.19,
+   "river": "Krishna"
+  },
+  {
+   "name": "Nagarjuna Sagar",
+   "lon": 79.25,
+   "lat": 16.52,
+   "river": "Krishna"
+  },
+  {
+   "name": "Srisailam",
+   "lon": 78.3,
+   "lat": 15.92,
+   "river": "Krishna"
+  },
+  {
+   "name": "Kurnool",
+   "lon": 78.04,
+   "lat": 15.83,
+   "river": "Tungabhadra"
+  },
+  {
+   "name": "Mysuru",
+   "lon": 76.64,
+   "lat": 12.3,
+   "river": "Kaveri"
+  },
+  {
+   "name": "Srirangapatna",
+   "lon": 76.66,
+   "lat": 12.42,
+   "river": "Kaveri"
+  },
+  {
+   "name": "Tiruchirappalli",
+   "lon": 78.69,
+   "lat": 10.79,
+   "river": "Kaveri (Kollidam)"
+  },
+  {
+   "name": "Thanjavur",
+   "lon": 79.14,
+   "lat": 10.79,
+   "river": "Kaveri (Kollidam)"
+  },
+  {
+   "name": "Kumbakonam",
+   "lon": 79.35,
+   "lat": 10.96,
+   "river": "Kaveri distributaries"
+  },
+  {
+   "name": "Poompuhar",
+   "lon": 79.83,
+   "lat": 10.83,
+   "river": "Kaveri delta"
+  },
+  {
+   "name": "Erode",
+   "lon": 77.72,
+   "lat": 11.34,
+   "river": "Kaveri (Bhavani system)"
+  },
+  {
+   "name": "Kochi",
+   "lon": 76.24,
+   "lat": 9.97,
+   "river": "Periyar"
+  },
+  {
+   "name": "Aluva",
+   "lon": 76.35,
+   "lat": 9.99,
+   "river": "Periyar"
+  },
+  {
+   "name": "Thrissur",
+   "lon": 76.21,
+   "lat": 10.53,
+   "river": "Bharathapuzha"
+  },
+  {
+   "name": "Kozhikode",
+   "lon": 75.78,
+   "lat": 11.26,
+   "river": "Kallayi"
+  },
+  {
+   "name": "Mangaluru",
+   "lon": 74.84,
+   "lat": 12.87,
+   "river": "Netravati"
+  },
+  {
+   "name": "Margao",
+   "lon": 73.92,
+   "lat": 15.28,
+   "river": "Zuari"
+  },
+  {
+   "name": "Panaji",
+   "lon": 73.83,
+   "lat": 15.5,
+   "river": "Mandovi"
+  },
+  {
+   "name": "Belgaum",
+   "lon": 74.5,
+   "lat": 15.85,
+   "river": "Ghataprabha"
+  },
+  {
+   "name": "Kota",
+   "lon": 75.83,
+   "lat": 26.02,
+   "river": "Chambal"
+  },
+  {
+   "name": "Gwalior",
+   "lon": 78.18,
+   "lat": 26.22,
+   "river": "Sind (Yamuna system)"
+  },
+  {
+   "name": "Jhansi",
+   "lon": 78.58,
+   "lat": 25.45,
+   "river": "Betwa"
+  },
+  {
+   "name": "Lucknow",
+   "lon": 80.95,
+   "lat": 26.85,
+   "river": "Gomti (Ganga system)"
+  },
+  {
+   "name": "Bhopal",
+   "lon": 77.41,
+   "lat": 23.26,
+   "river": "Betwa / upper Sindh"
+  },
+  {
+   "name": "Hyderabad",
+   "lon": 78.49,
+   "lat": 17.39,
+   "river": "Musi (Krishna system)"
+  },
+  {
+   "name": "Chennai",
+   "lon": 80.27,
+   "lat": 13.08,
+   "river": "Cooum / Adyar"
+  },
+  {
+   "name": "Bengaluru",
+   "lon": 77.59,
+   "lat": 12.97,
+   "river": "Vrishabhavathi (Kaveri system)"
+  },
+  {
+   "name": "Thiruvananthapuram",
+   "lon": 76.95,
+   "lat": 8.49,
+   "river": "Killi"
+  },
+  {
+   "name": "Agartala",
+   "lon": 91.28,
+   "lat": 23.83,
+   "river": "Haora (Ganges-Brahmaputra)"
+  },
+  {
+   "name": "Silchar",
+   "lon": 92.79,
+   "lat": 24.83,
+   "river": "Barak"
+  },
+  {
+   "name": "Karaikal",
+   "lon": 79.83,
+   "lat": 10.93,
+   "river": "Cauvery delta"
+  },
+  {
+   "name": "Veraval",
+   "lon": 70.37,
+   "lat": 20.9,
+   "river": "coastal (Saurashtra)"
+  },
+  {
+   "name": "Jaipur",
+   "lon": 75.79,
+   "lat": 26.91,
+   "river": "Daraswati / seasonal"
+  },
+  {
+   "name": "Leh",
+   "lon": 77.58,
+   "lat": 34.15,
+   "river": "Indus headwaters (Zanskar)"
+  },
+  {
+   "name": "Mumbai",
+   "lon": 72.88,
+   "lat": 19.08,
+   "river": "Vashishti (Konkan)"
+  },
+  {
+   "name": "Jorhat",
+   "lon": 94.2,
+   "lat": 26.75,
+   "river": "Brahmaputra"
+  },
+  {
+   "name": "Madurai",
+   "lon": 78.12,
+   "lat": 9.93,
+   "river": "Vaigai"
+  },
+  {
+   "name": "Tirunelveli",
+   "lon": 77.76,
+   "lat": 8.71,
+   "river": "Tamiraparani"
+  },
+  {
+   "name": "Thoothukudi",
+   "lon": 78.13,
+   "lat": 8.76,
+   "river": "Vaigai (near the mouth region)"
+  },
+  {
+   "name": "Ramanathapuram",
+   "lon": 79.31,
+   "lat": 9.36,
+   "river": "Gadananathi / Vaigai basin"
+  },
+  {
+   "name": "Virudhunagar",
+   "lon": 77.96,
+   "lat": 9.58,
+   "river": "Vaigai (Sankarankovil)"
+  },
+  {
+   "name": "Theni",
+   "lon": 77.51,
+   "lat": 10.01,
+   "river": "Vaigai (Periyar link)"
+  },
+  {
+   "name": "Dindigul",
+   "lon": 77.98,
+   "lat": 10.36,
+   "river": "Vaigai (upper)"
+  },
+  {
+   "name": "Salem",
+   "lon": 78.16,
+   "lat": 11.66,
+   "river": "Kaveri (Thirumanimutharu)"
+  },
+  {
+   "name": "Karur",
+   "lon": 78.07,
+   "lat": 10.96,
+   "river": "Kaveri (Kollidam)"
+  },
+  {
+   "name": "Namakkal",
+   "lon": 78.17,
+   "lat": 11.22,
+   "river": "Kaveri / Thirumanimutharu"
+  },
+  {
+   "name": "Tiruppur",
+   "lon": 77.34,
+   "lat": 11.11,
+   "river": "Noyyal / Kaveri system"
+  },
+  {
+   "name": "Coimbatore",
+   "lon": 77,
+   "lat": 11.02,
+   "river": "Noyyal (Kaveri system)"
+  },
+  {
+   "name": "Udumala-pet",
+   "lon": 77.05,
+   "lat": 10.76,
+   "river": "Porunai (Kaveri system)"
+  },
+  {
+   "name": "Palakkad",
+   "lon": 76.65,
+   "lat": 10.79,
+   "river": "Bharathapuzha"
+  },
+  {
+   "name": "Thrissur (kk)",
+   "lon": 76.21,
+   "lat": 10.53,
+   "river": "Bharathapuzha"
+  },
+  {
+   "name": "Kollam",
+   "lon": 76.61,
+   "lat": 8.89,
+   "river": "Pamba (via Aruvippuzha)"
+  },
+  {
+   "name": "Kayamkulam",
+   "lon": 76.55,
+   "lat": 9.16,
+   "river": "Pamba / Achankovil system"
+  },
+  {
+   "name": "Chengannur",
+   "lon": 76.62,
+   "lat": 9.25,
+   "river": "Pamba"
+  },
+  {
+   "name": "Tenkasi",
+   "lon": 77.31,
+   "lat": 8.96,
+   "river": "Tamiraparani"
+  },
+  {
+   "name": "Kadayanallur",
+   "lon": 77.55,
+   "lat": 8.84,
+   "river": "Tamiraparani"
+  },
+  {
+   "name": "Sivakasi",
+   "lon": 77.76,
+   "lat": 9.45,
+   "river": "Vaigai (Sankarankovil)"
+  },
+  {
+   "name": "Perambalur",
+   "lon": 78.87,
+   "lat": 11.23,
+   "river": "Kaveri / Kollidam"
+  },
+  {
+   "name": "Kanchipuram",
+   "lon": 79.7,
+   "lat": 12.83,
+   "river": "Palaar (Sankarapani)"
+  },
+  {
+   "name": "Vellore",
+   "lon": 79.13,
+   "lat": 12.92,
+   "river": "Palaar (Ponnai)"
+  },
+  {
+   "name": "Hosur",
+   "lon": 77.51,
+   "lat": 12.52,
+   "river": "Ponnai / Vellore river"
+  },
+  {
+   "name": "Pudukkottai",
+   "lon": 78.82,
+   "lat": 10.38,
+   "river": "Kaveri (Manimartha)"
+  },
+  {
+   "name": "Chidambaram",
+   "lon": 79.8,
+   "lat": 11.4,
+   "river": "Manimatha / Kaveri delta"
+  },
+  {
+   "name": "Neyveli",
+   "lon": 79.48,
+   "lat": 11.38,
+   "river": "Manimatha (Kaveri system)"
+  },
+  {
+   "name": "Nagapattinam",
+   "lon": 79.84,
+   "lat": 10.76,
+   "river": "Kaveri delta (Coleroon)"
+  },
+  {
+   "name": "Mayiladuthurai",
+   "lon": 79.5,
+   "lat": 11.1,
+   "river": "Kaveri distributaries"
+  },
+  {
+   "name": "Villupuram",
+   "lon": 79.49,
+   "lat": 11.94,
+   "river": "Ponnai / Gadananathi"
+  },
+  {
+   "name": "Warangal",
+   "lon": 79.61,
+   "lat": 17.97,
+   "river": "Musi (Krishna system)"
+  },
+  {
+   "name": "Khammam",
+   "lon": 80.15,
+   "lat": 17.25,
+   "river": "Krishna"
+  },
+  {
+   "name": "Nalgonda",
+   "lon": 79.49,
+   "lat": 17.06,
+   "river": "Musi (Krishna system)"
+  },
+  {
+   "name": "Karimnagar",
+   "lon": 79.5,
+   "lat": 18.44,
+   "river": "Musi (Krishna system)"
+  },
+  {
+   "name": "Ramagundam",
+   "lon": 79.47,
+   "lat": 18.75,
+   "river": "Godavari"
+  },
+  {
+   "name": "Kakinada",
+   "lon": 82.16,
+   "lat": 16.99,
+   "river": "Godavari delta"
+  },
+  {
+   "name": "Amalapuram",
+   "lon": 81.8,
+   "lat": 16.69,
+   "river": "Godavari (Komalapalli)"
+  },
+  {
+   "name": "Ongole",
+   "lon": 80.05,
+   "lat": 15.5,
+   "river": "Krishna / Uppagu"
+  },
+  {
+   "name": "Nellore",
+   "lon": 80.03,
+   "lat": 14.44,
+   "river": "Penna / Kistna"
+  },
+  {
+   "name": "Kadapa",
+   "lon": 78.95,
+   "lat": 14.47,
+   "river": "Kadapa river (Penna)"
+  },
+  {
+   "name": "Tirupati",
+   "lon": 79.42,
+   "lat": 13.63,
+   "river": "Kistna tributary"
+  },
+  {
+   "name": "Cuddapah",
+   "lon": 78.95,
+   "lat": 14.47,
+   "river": "Kadapa"
+  },
+  {
+   "name": "Guntur",
+   "lon": 80.44,
+   "lat": 16.3,
+   "river": "Krishna"
+  },
+  {
+   "name": "Chandragiri",
+   "lon": 79.94,
+   "lat": 13.58,
+   "river": "Kistna"
+  },
+  {
+   "name": "Kakinada East",
+   "lon": 82.15,
+   "lat": 16.99,
+   "river": "Godavari"
+  },
+  {
+   "name": "Haldia",
+   "lon": 88.1,
+   "lat": 22.06,
+   "river": "Haldia (Hooghly)"
+  },
+  {
+   "name": "Port Blair",
+   "lon": 92.73,
+   "lat": 11.62,
+   "river": "South Andaman"
+  }
  ]
 }

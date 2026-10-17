@@ -171,9 +171,23 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 #damTip .dms{font-weight:500;font-size:10px;color:#D6D3D1}
 
 /* v7.6: dam-release travel simulation card (3D map view only) — matches the dark overlay style of #riverList */
-.damUI{position:absolute;left:8px;top:8px;width:252px;display:none;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:8px;padding:10px 12px;color:#E7E5E4;font:11px/1.5 ui-monospace,monospace;z-index:8}
-.stage.map3d-on .damUI{display:block}
-.damHead{display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:600;color:#fff;font-size:11.5px}
+.damUI{position:absolute;left:8px;top:8px;width:264px;display:none;background:rgba(9,13,12,.90);border:1px solid #22302b;border-radius:10px;padding:0;color:#C9D6D1;font:11px/1.45 ui-monospace,monospace;z-index:8;
+  box-shadow:0 10px 30px rgba(0,0,0,.45);backdrop-filter:blur(6px);
+  /* v7.18: the panel can never grow past the viewport — it scrolls internally instead of spilling
+     over the map controls and getting cut off */
+  max-height:calc(100vh - 22px);display:none;overflow:hidden;flex-direction:column}
+.stage.map3d-on .damUI{display:flex}
+/* --- minimalist header: title, action, day, collapse --- */
+.damBar{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 10px;border-bottom:1px solid #1d2a26;background:rgba(14,20,18,.7);border-radius:9px 9px 0 0;flex:0 0 auto}
+.damBarTitle{font-weight:600;color:#EAF3EF;font-size:11px;letter-spacing:.06em;text-transform:uppercase;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.damDay{color:#5EEAD4;font-size:10px;flex:0 0 auto}
+.damFold{flex:0 0 auto;background:transparent;border:1px solid #26332e;color:#9FB4AC;border-radius:5px;width:22px;height:20px;line-height:1;cursor:pointer;font-size:10px}
+.damFold:hover{background:#16211e;color:#EAF3EF}
+.damBody{overflow:auto;padding:8px 10px 9px;display:flex;flex-direction:column;gap:5px;scrollbar-width:thin}
+.damBody::-webkit-scrollbar{width:6px}
+.damBody::-webkit-scrollbar-thumb{background:#24322d;border-radius:3px}
+.damUI.folded .damBody{display:none}
+.damUI.folded .damBar{border-radius:9px;border-bottom-color:transparent}
 /* v7.15: the release button lives in the card header so it stays visible in full screen */
 .damBtnTop{width:auto;margin:0;padding:3px 9px;font-size:10.5px;flex:0 0 auto}
 .stage.fsmode .damUI{width:296px}
@@ -184,6 +198,9 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damBtn:hover{background:rgba(15,118,110,.6)}
 .damBtn:focus-visible{outline:2px solid #5EEAD4;outline-offset:2px}
 .damBtn:disabled{opacity:.55;cursor:default}
+/* v7.18: the header button must stay a button — .damBtn sets width:100% below, so the bar needs a
+   stronger override or the Release button swallows the title, day counter and fold toggle */
+.damBar .damBtnTop{width:auto;margin:0;padding:2px 8px;font-size:10px;flex:0 0 auto;letter-spacing:.04em}
 /* v7.9 any-dam picker: activation switch, name search, result list, status line */
 .damModeRow{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:10.5px;color:#cfe0d8;cursor:pointer;line-height:1.35}
 .damModeRow b{color:#E7E5E4}
@@ -204,11 +221,19 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damDir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;color:#E2E8F0}
 .damDir>span{color:#94A3B8;letter-spacing:.02em}
 .damDir label{display:flex;align-items:center;gap:3px;cursor:pointer}
-.damRelRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:#CBD5E1}
-.damRelRow label{color:#94A3B8}
-.damRelRow select,.damRelRow input[type=number]{background:#0B1F22;border:1px solid #14524F;color:#F1F5F9;border-radius:4px;padding:2px 4px;font-size:10px}
-.damRelRow input[type=number]{width:78px}
-.dim{color:#8FA3AE}
+.damRelRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:#B9C9C3}
+.damRelRow label{color:#8FA3A0;flex:0 0 44px;letter-spacing:.03em}
+.damRelRow select,.damRelRow input[type=number]{background:#0C1513;border:1px solid #22322D;color:#E8F2EE;border-radius:4px;padding:2px 4px;font-size:10px}
+.damRelRow select{flex:0 0 auto}
+.damRelRow input[type=number]{width:74px;flex:0 0 auto}
+.damRelRow input[type=number]:focus,.damSearch:focus,.damConvGrid input:focus{outline:none;border-color:#2DD4BF;box-shadow:0 0 0 1px rgba(45,212,191,.35)}
+.damRelRow input.bad{border-color:#F59E0B;box-shadow:0 0 0 1px rgba(245,158,11,.35)}
+.dim{color:#7D918C;font-size:9.5px}
+/* v7.18: input-limit feedback (rate above gate capacity, volume above storage, speed out of band) */
+.damLim{font-size:9.5px;line-height:1.4;color:#FCD34D}
+.damLim .ok{color:#7DD3A8}
+.damLim.warn{color:#FCD34D}
+.damLim.bad{color:#FCA5A5}
 .damRead{font-size:10px;color:#E2E8F0;line-height:1.6;background:rgba(2,20,24,.55);border:1px solid #14524F;border-radius:5px;padding:5px 6px}
 .damRead .warn{color:#FBBF24}
 .damRead .damHint{margin-top:3px;color:#7E93A0;font-size:9px;line-height:1.4}
@@ -221,7 +246,15 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damGateGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:2px 6px;margin-top:3px;max-height:104px;overflow:auto}
 .damGate{display:flex;align-items:center;gap:3px;font-size:9px;color:#94A3B8}
 .damGate input[type=range]{flex:1;min-width:34px;accent-color:#2DD4BF;height:14px}
-.damGateNote{margin-top:6px;font-size:9.5px;color:#8FA3AE;line-height:1.45}
+.damGateNote{margin-top:6px;font-size:9.5px;color:#7D918C;line-height:1.45}
+/* v7.18 interactive unit converter */
+.damConv{margin-top:4px;border:1px solid #1F2C28;border-radius:6px;background:rgba(8,14,13,.6)}
+.damConv summary{cursor:pointer;padding:4px 7px;font-size:9.5px;color:#8FA3A0;letter-spacing:.04em;user-select:none}
+.damConv summary:hover{color:#5EEAD4}
+.damConvGrid{display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;padding:2px 7px 5px}
+.damConvGrid label{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:9.5px;color:#8FA3A0}
+.damConvGrid input{width:82px;background:#0C1513;border:1px solid #22322D;color:#E8F2EE;border-radius:3px;padding:1px 3px;font:10px ui-monospace,monospace}
+.damConvFoot{padding:0 7px 6px;font-size:8.5px;color:#6E827D;line-height:1.4}
 .damChkRow{display:flex;gap:12px;margin-top:7px;flex-wrap:wrap}
 .damChk{display:flex;align-items:center;gap:4px;font-size:10.5px;color:#cfe0d8;cursor:pointer}
 .damChk input{accent-color:#2DD4BF}

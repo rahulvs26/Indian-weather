@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.17">
+<link rel="stylesheet" href="styles.css?v=7.18">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.17</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.18</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -29,9 +29,10 @@
 <div class="card">
 <div class="card-head"><span>Fig 0</span><strong>ESRI · INDIA · MONTHLY WINDS JAN–DEC</strong></div>
 <div class="stage"><div id="osmMap" role="application" aria-label="Map of India with monthly wind simulation and layers."></div><canvas id="windCanvas" aria-hidden="true"></canvas><div id="terrainWrap" aria-hidden="true"><canvas id="terrain3d"></canvas><div class="t3hud" id="t3hud"><button class="t3b" id="t3home" type="button">⌂ Start over</button><button class="t3b t3z" id="t3zout" type="button">− Zoom out</button><button class="t3b t3z" id="t3zin" type="button">+ Zoom in</button><button class="t3b" id="t3spin" type="button">⟳ spin: off</button><button class="t3b" id="t3rel" type="button">×1 relief · true</button><button class="t3b" id="t3help" type="button">? How to move</button><span class="t3hint">drag = look · tap = go there · 2 fingers / shift-drag = slide · scroll or +− = zoom</span></div><div class="t3helpbox" id="t3helpbox"><b>Moving around the 3D mountains</b><ul><li><b>Drag</b> (mouse or one finger) — look around</li><li><b>Tap</b> a place — fly there · tap the <b>sky</b> — come back home</li><li><b>Two fingers</b> or <b>shift-drag</b> — slide across the map</li><li><b>Pinch</b>, <b>scroll</b> or the <b>+ −</b> buttons — zoom</li><li><b>Arrow keys</b> look · <b>+ −</b> zoom · <b>Home</b> start over · <b>Space</b> auto-spin</li><li>Hover or tap a dam for its name, height and river</li></ul><div class="t3helpclose">Tap ? to close</div></div><div id="peakLbls"></div><div id="riverList"><b>RIVERS · tap to trace</b><div id="riverListItems"></div></div><div class="readout" id="terrainCap"></div></div><div id="map3d" role="application" aria-label="3D map of India — MapLibre GL + OpenFreeMap tiles + Mapterhorn terrain + OpenStreetMap buildings. Drag rotate · right-drag pan · scroll zoom."></div><div class="m3tools" id="m3tools"><button class="m3b" id="m3fs" type="button" title="Full screen (F) — the dam card stays with the map">⛶ Full screen</button></div><div class="readout" id="map3dCap"></div><div id="damUI" class="damUI" aria-label="Dam release simulation — choose a dam and watch the water travel down the real river to the sea">
-<div class="damHead"><b id="damTitle">💧 Dam release</b><button class="damBtn damBtnTop" id="damBtn" type="button">Release</button><span class="damDay" id="damDay">Day 0.0</span></div>
-<label class="damModeRow"><input type="checkbox" id="damMode"> <b>Find a dam</b> — tap a dot on the map, or type a name</label>
-<input class="damSearch" id="damSearch" type="search" placeholder="Type a dam name (Bhakra, Narmada, Hirakud…)" aria-label="Search dams by name, river or state">
+<div class="damBar"><span class="damBarTitle" id="damTitle">Release console</span><button class="damBtn damBtnTop" id="damBtn" type="button">Release</button><span class="damDay" id="damDay">Day 0.0</span><button class="damFold" id="damFold" type="button" aria-expanded="true" aria-controls="damBody" title="Collapse / expand">▾</button></div>
+<div class="damBody" id="damBody">
+<label class="damModeRow"><input type="checkbox" id="damMode"> <b>Find a dam</b> — tap a dot, or type a name</label>
+<input class="damSearch" id="damSearch" type="search" placeholder="Dam name (Bhakra, Mettur, Hirakud…)" aria-label="Search dams by name, river or state">
 <div class="damResults" id="damResults"></div>
 <div class="damSub" id="damSub">Pick a dam to derive its river course.</div>
 <div class="damCities" id="damCities"></div>
@@ -39,14 +40,29 @@
 <div class="damCtl">
 <div class="damDir"><span>Trace</span><label><input type="radio" name="damDir" id="damDirDown" value="down" checked> Downstream → sea</label><label><input type="radio" name="damDir" id="damDirUp" value="up"> Upstream → source</label></div>
 <div class="damGates" id="damGates"></div>
-<div class="damRelRow"><label for="damRate">Release rate</label><select id="damUnit" aria-label="Release rate unit"><option value="cms">m³/s</option><option value="cfs">cfs</option></select><input id="damRate" type="number" min="0" step="100" value="20000" inputmode="numeric"><span class="dim" id="damRateHint">leave 0 to let the gate sliders set it</span></div>
-<div class="damRelRow"><label for="damVol">Volume to release</label><input id="damVol" type="number" min="0" step="1" value="20" inputmode="decimal"><span class="dim">TMC (0 = keep releasing until you stop it)</span></div>
+<div class="damRelRow"><label for="damRate">Rate</label><select id="damUnit" aria-label="Release rate unit"><option value="cms">m³/s</option><option value="cfs">cfs</option><option value="cm">cumec</option></select><input id="damRate" type="number" min="0" step="100" value="20000" inputmode="numeric" aria-label="Release rate"></div>
+<div class="damRelRow"><label for="damVol">Volume</label><input id="damVol" type="number" min="0" step="1" value="20" inputmode="decimal" aria-label="Volume to release in TMC"><span class="dim">TMC · 0 = keep releasing</span></div>
+<div class="damRelRow"><label for="damVel">Wave</label><input id="damVel" type="number" min="0.2" max="5" step="0.1" value="1.5" inputmode="decimal" aria-label="Travel wave speed in metres per second"><span class="dim">m/s · <span id="damVelRange">typical river 0.5-3.0</span></span></div>
+<div class="damLim" id="damLim"></div>
 <div class="damRead" id="damRead"></div>
+<details class="damConv" id="damConv"><summary>Unit converter · cfs ⇄ m³/s ⇄ TMC</summary>
+<div class="damConvGrid">
+<label>Discharge Q<input id="cvQ" type="number" value="1000" step="100" min="0"></label>
+<label>m³/s<input id="cvCms" type="number" step="0.01"></label>
+<label>cfs<input id="cvCfs" type="number" step="1"></label>
+<label>cumec<input id="cvCumec" type="number" step="0.01"></label>
+<label>TMC / day<input id="cvTmcDay" type="number" step="0.001"></label>
+<label>Volume over 1 day (TMC)<input id="cvVol" type="number" step="0.001"></label>
+<label>Volume over 7 days (TMC)<input id="vol7" type="number" step="0.01"></label>
+<label>Days to pass 1 TMC<input id="cvDays" type="number" step="0.01"></label>
+</div>
+<div class="damConvFoot">1 TMC = 28,316.85 m³ = 1,000,000 ft³ · 1 cfs = 1 cumec ÷ 35.3147 · 1 TMC/day = 0.3277 m³/s = 11.57 cfs (exact conversions)</div>
+</details>
 </div>
 <div class="damStat" id="damStat">—</div>
 <div class="damMsg" id="damMsg"></div>
-<div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Zoom follows wave</label><label class="damChk"><input type="checkbox" id="damSmooth"> Smooth (flat 2D)</label></div>
-<div class="damNote">Course derived on demand from the real CWC river network (<code>rivers-cwc.geo.json</code>) — nothing downloads until “Find a dam” is switched on. Travel only — no inundation. Days = route km ÷ wave speed; all numbers illustrative.</div>
+<div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Follow wave</label><label class="damChk"><input type="checkbox" id="damSmooth"> Flat 2D</label></div>
+<div class="damNote">Course derived on demand from the real CWC river network (<code>rivers-cwc.geo.json</code>) — nothing downloads until “Find a dam” is on. Travel only, no inundation; speed, days and volumes are illustrative.</div>
 </div></div>
 <div class="controls" style="border-top:1px solid var(--line)">
 <label for="monthSlider"><b style="color:var(--ink)">Month</b> Jan→Dec (Oct–Dec = NE monsoon)</label>
@@ -271,6 +287,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.17" defer></script>
-<script type="module" src="map3d.js?v=7.17"></script>
+<script type="module" src="map3d.js?v=7.18"></script>
 </body>
 </html>

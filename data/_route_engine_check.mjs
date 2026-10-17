@@ -26,7 +26,7 @@ for(const snap of [6,12]){
   for(const d of top){
     const c=d.geometry.coordinates;
     try{
-      const r=solveRoute(idx,rivers,coast,{lon:c[0],lat:c[1],name:d.properties.name,state:d.properties.state,height:H(d)},{snapKm:snap,cities});
+      const r=solveRoute(idx,rivers,coast,{lon:c[0],lat:c[1],name:d.properties.name,state:d.properties.state,height:H(d)},{snapKm:snap,cities,measure:false});
       ok++;
       if(r.coastal)coastal++;
       if((r.cities||[]).length)withCity++;
@@ -47,7 +47,8 @@ for(const nm of ["METTUR","Hirakud","Tehri","BHAKRA","Sardar Sarovar","Srisailam
     const r=solveRoute(idx,rivers,coast,{lon:c[0],lat:c[1],name:d.properties.name},{cities});
     console.log(" ",d.properties.name.padEnd(24),String(r.totalKm).padStart(8),"km",String(r.arrivalDays).padStart(6),"d",
       r.coastal?"COASTAL":"inland ","|",String(r.chains.join(" → ")).slice(0,34).padEnd(34),
-      "| cities:",(r.cities||[]).map(x=>x.name+" "+x.km+"km").join(", ")||"—");
+      "| cities:",(r.cities||[]).map(x=>x.name+" "+x.km+"km").join(", ")||"—",
+      "| gaps",r.gapCount,"off",r.offKm+"km");
   }catch(e){console.log(" ",d.properties.name,"FAILED",e.message);}
 }
 console.log("total s",((Date.now()-t0)/1000).toFixed(1));

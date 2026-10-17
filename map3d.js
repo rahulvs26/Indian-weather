@@ -88,7 +88,7 @@ paint:{
      3. every course is cached per dam; geometry, km and days come from the CWC network only.
    Travel time stays ILLUSTRATIVE (constant kinematic wave, not measured). */
 const DAM_DAMS="data/dams.geo.json?v=7.9";
-const DAM_WORKER="data/dam-router-worker.js?v=7.9";
+const DAM_WORKER="data/dam-router-worker.js?v=7.18";
 const SNAP_NEAR_KM=6,SNAP_FAR_KM=12,DAM_SEARCH_MAX=14;
 
 let damP=null,damList=null,damById=null,damCache={},damCacheOrder=[],damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null,damIdleT=0;
@@ -261,6 +261,7 @@ function mapFullscreenSync(){
   const cinema=!!(stage&&stage.classList.contains("fsmode"));
   const btn=dEl("m3fs");
   if(btn)btn.textContent=(api||cinema)?"✕ Exit full screen":"⛶ Full screen";
+  damPanelFit();
   /* the canvas must be resized after the layout settles, or the map stays letterboxed */
   if(map){
     try{ map.resize(); }catch(_){}
@@ -268,7 +269,17 @@ function mapFullscreenSync(){
     setTimeout(()=>{ try{ map.resize(); }catch(_){} },260);
   }
 }
-addEventListener("resize",()=>{ if(map)mapFullscreenSync(); });
+/* v7.18: the console must fit its CONTAINER, not the window — the 3D stage is 420 px tall inline
+   and the full window in cinema mode, and a viewport-sized max-height made it spill out of both. */
+function damPanelFit(){
+  const ui=dEl("damUI");
+  if(!ui)return;
+  const stage=ui.parentElement;
+  const h=stage&&stage.clientHeight?stage.clientHeight:420;
+  ui.style.maxHeight=Math.max(160,h-14)+"px";
+}
+addEventListener("resize",()=>{ if(map)mapFullscreenSync(); else damPanelFit(); });
+addEventListener("load",()=>damPanelFit());
 
 /* ---- the routing worker (heavy data lives here, not in the page) ---- */
 /* v7.16 B5: the worker holds the 14 MB network + bbox index resident. Release it after 5 idle
@@ -377,34 +388,128 @@ function damFactsText(f){
 
 /* ---- release inputs: unit, rate, volume cap, gate openings ---- */
 const CFS_M3S=0.0283168466,TMC_M3=28316.8466,M3S_CFS=1/CFS_M3S;
+/* v7.18 travel-wave speed. Sources for the band shown in the panel:
+     · CWC publishes gauged river velocity and discharge daily (National Water Data Portal,
+       "River Velocity & Discharge (Manual - Daily)") — measured per station;
+     · flood-routing literature puts plains flood waves at "hundreds of kilometres in 2-3 days",
+       i.e. roughly 1.2-1.8 m/s (Reso, Indian Academy of Sciences — flood hydrology).
+   0.5-3.0 m/s is therefore the ordinary band for a travel front in an alluvial river; the panel
+   allows 0.2-5.0 and every day count stays labelled illustrative. */
+const VEL_MIN=0.2,VEL_MAX=5.0,VEL_TYP_LO=0.5,VEL_TYP_HI=3.0;
+function damVelocity(){
+  const raw=parseFloat((dEl("damVel")||{}).value);
+  if(!isFinite(raw))return 1.5;
+  return Math.min(VEL_MAX,Math.max(VEL_MIN,raw));
+}
 function damInputs(){
   const unit=(dEl("damUnit")||{}).value||"cms";
   const rateRaw=parseFloat((dEl("damRate")||{}).value)||0;
+  /* cms | cfs | cm — "cumec" is the same quantity as m³/s, only the unit label differs */
   const rateM3s=unit==="cfs"?rateRaw*CFS_M3S:rateRaw;
   const volRaw=parseFloat((dEl("damVol")||{}).value)||0;
   const volTmc=volRaw>0?volRaw:null;
   const gates=[];
-  const box=dEl("damGates");
-  if(box&&box.dataset.gateCount){
-    const per=parseFloat(box.dataset.gateCfs||"0")||0;
-    for(const inp of box.querySelectorAll("input[type=range]"))gates.push({pct:parseFloat(inp.value)/100,capacityCfs:per});
-  }
   const gateBox=dEl("damGates");
+  if(gateBox&&gateBox.dataset.gateCount){
+    const per=parseFloat(gateBox.dataset.gateCfs||"0")||0;
+    for(const inp of gateBox.querySelectorAll("input[type=range]"))gates.push({pct:parseFloat(inp.value)/100,capacityCfs:per});
+  }
   const gateCfs=Math.min(1,gates.reduce((s,g)=>s+g.pct,0))*((parseFloat((gateBox||{}).dataset.gateCfs))||0);
   /* while the sliders own the rate (their default), the typed box just mirrors the total */
   const gateDriven=!!(gates.length&&gateBox&&gateBox.dataset.gateDriven==="1");
-  return {unit,rateRaw,rateM3s,volTmc,gates,gateCfs,gateDriven};
+  const velMps=damVelocity();
+  return {unit,rateRaw,rateM3s,volTmc,gates,gateCfs,gateDriven,velMps,velKmDay:velMps*86.4};
 }
 function damPlan(){
   const inp=damInputs();
   const rateM3s=inp.gateDriven?inp.gateCfs*M3S_CFS:inp.rateM3s;
-  const waveKmDay=(route&&route.speedMps?route.speedMps:1.5)*86.4;
+  /* v7.18: the travel speed is the user's input (bounded), not a fixed constant */
+  const waveKmDay=inp.velKmDay;
   const totalKm=route?route.totalKm:0;
   const up=!!(route&&route.upstream);
   const frontDays=rateM3s>0?totalKm/waveKmDay:Infinity;
   const gateDays=(rateM3s>0&&inp.volTmc!=null)?inp.volTmc*TMC_M3/rateM3s/86400:Infinity;
   return {rateM3s,volM3:inp.volTmc!=null?inp.volTmc*TMC_M3:null,frontDays,gateDays,waveKmDay,totalKm,
-    daysToSea:frontDays,daysAllOut:frontDays+gateDays,upstream:up,inp};
+    daysToSea:frontDays,daysAllOut:frontDays+gateDays,upstream:up,velMps:inp.velMps,inp};
+}
+
+/* ---- v7.18 input limits: check every release parameter against what is published ---- */
+function damLimits(){
+  const box=dEl("damLim");
+  if(!box)return;
+  const plan=damPlan(),facts=damFactsFor(damSel&&damSel.name),inp=plan.inp;
+  const notes=[];
+  /* rate vs published gate capacity */
+  if(inp.gates.length){
+    const capM3s=parseFloat((dEl("damGates").dataset.gateCfs||"0"))*M3S_CFS;
+    if(capM3s>0&&plan.rateM3s>capM3s*1.001){
+      notes.push('<span class="bad">Rate '+plan.rateM3s.toFixed(0)+" m³/s is above the published "
+        +capM3s.toFixed(0)+" m³/s full-open capacity — the gates cannot pass it.</span>");
+    }else{
+      notes.push('<span class="ok">Rate '+plan.rateM3s.toFixed(0)+" m³/s · gates can pass up to "
+        +capM3s.toFixed(0)+" m³/s.</span>");
+    }
+  }else if(plan.rateM3s>0){
+    notes.push('<span class="warn">No gate capacity published for this dam — the rate is your input.</span>');
+  }
+  /* volume vs live storage */
+  if(facts&&facts.live_tmc!=null&&inp.volTmc!=null){
+    if(inp.volTmc>facts.live_tmc){
+      notes.push('<span class="bad">Volume '+inp.volTmc+" TMC exceeds the published live storage "
+        +facts.live_tmc+" TMC.</span>");
+    }else{
+      notes.push('<span class="ok">Volume '+inp.volTmc+" of "+facts.live_tmc+" TMC live storage.</span>");
+    }
+  }else if(inp.volTmc!=null){
+    notes.push('<span class="warn">Live storage not published — volume is unchecked.</span>');
+  }
+  /* wave speed band */
+  const v=plan.velMps;
+  if(v<VEL_TYP_LO||v>VEL_TYP_HI){
+    notes.push('<span class="warn">Wave '+v.toFixed(1)+" m/s is outside the usual alluvial band "
+      +VEL_TYP_LO+"-"+VEL_TYP_HI+" m/s.</span>");
+  }else{
+    notes.push('<span class="ok">Wave '+v.toFixed(1)+" m/s ("+plan.waveKmDay.toFixed(0)+" km/day), inside the usual 0.5-3.0 m/s band.</span>");
+  }
+  /* highlight the offending inputs */
+  const rateEl=dEl("damRate"),volEl=dEl("damVol"),velEl=dEl("damVel");
+  if(rateEl)rateEl.classList.toggle("bad",!!(inp.gates.length&&plan.rateM3s>parseFloat((dEl("damGates").dataset.gateCfs||"0"))*M3S_CFS*1.001));
+  if(volEl)volEl.classList.toggle("bad",!!(facts&&facts.live_tmc!=null&&inp.volTmc!=null&&inp.volTmc>facts.live_tmc));
+  if(velEl)velEl.classList.toggle("bad",v<VEL_TYP_LO||v>VEL_TYP_HI);
+  box.innerHTML=notes.join("<br>");
+}
+
+/* ---- v7.18 interactive unit converter: cfs ⇄ m³/s ⇄ cumec ⇄ TMC/day ⇄ volume ---- */
+function damConverter(){
+  const g=id=>dEl(id);
+  if(!g("cvQ"))return;
+  const set=(id,v)=>{const el=g(id);if(el&&document.activeElement!==el)el.value=(Math.abs(v)>=0.01||v===0)?v.toFixed(v<1?4:2):v.toFixed(5);};
+  const read=id=>{const v=parseFloat(g(id).value);return isFinite(v)?v:null;};
+  function fromCms(q){
+    if(q==null)return;
+    set("cvCms",q);
+    set("cvCfs",q*M3S_CFS);
+    set("cvCumec",q);
+    set("cvTmcDay",q*86400/TMC_M3);
+    set("cvVol",q*86400/TMC_M3);
+    set("vol7",q*86400*7/TMC_M3);
+    set("cvDays",q>0?TMC_M3/q/86400:0);
+  }
+  const map={
+    cvQ:(v)=>fromCms(v),
+    cvCms:(v)=>fromCms(v),
+    cvCfs:(v)=>fromCms(v==null?null:v*CFS_M3S),
+    cvCumec:(v)=>fromCms(v),
+    cvTmcDay:(v)=>fromCms(v==null?null:v*TMC_M3/86400),
+    cvVol:(v)=>fromCms(v==null?null:v*TMC_M3/86400),
+    vol7:(v)=>fromCms(v==null?null:v*TMC_M3/(86400*7)),
+    cvDays:(v)=>fromCms(v==null?null:TMC_M3/v/86400)
+  };
+  for(const id in map){
+    const el=g(id);
+    if(el)el.addEventListener("input",()=>map[id](read(id)));
+  }
+  fromCms(read("cvQ"));
 }
 
 /* dams that lie ON this course, ordered by distance along it (v7.12) */
@@ -482,6 +587,7 @@ function damGateSum(){
 function damReadout(){
   const box=dEl("damRead");
   damGateSum();
+  damLimits();
   if(!box)return;
   if(!route){box.innerHTML="";return;}
   const plan=damPlan(),facts=damFactsFor(damSel&&damSel.name),up=plan.upstream;
@@ -519,7 +625,8 @@ function damReadout(){
     parts.push('<i class="dim">'+ds.length+" dam(s) lie on this upstream course — a release only runs downstream.</i>");
   }
   box.innerHTML=parts.join("<br>")
-    +'<div class="damHint">Travel '+plan.waveKmDay.toFixed(0)+" km/day (1.5 m/s, illustrative) · 1 TMC = 28,317 m³ · 1 cfs = 0.0283 m³/s · travel only, no inundation</div>";
+    +'<div class="damHint">Travel '+plan.waveKmDay.toFixed(0)+" km/day ("+plan.velMps.toFixed(1)
+    +" m/s, user-set, illustrative) · 1 TMC = 28,317 m³ · 1 cfs = 0.0283 m³/s · travel only, no inundation</div>";
 }
 
 /* direction: downstream to the sea, or upstream to the reservoir origin (v7.12) */
@@ -543,7 +650,10 @@ return {id:dam.id,coords,cum,totalKm:km,speedMps:speed,arrivalDays:km/(speed*86.
   sea:{lon:last[0],lat:last[1]},name:dam.name+" → "+(r.upstream?"river source":(r.coastal?"coast":"recorded river end")),
   river:dam.river,basin:dam.basin,chains:r.chains||[],coastal:!!r.coastal,snapKm:r.snapKm,to:r.to,src:r.src||"",
   cities:r.cities||[],upstream:!!r.upstream,source:r.source||null,
-  suspect:!!r.suspect,sparse:!!r.sparse,maxSegKm:r.maxSegKm||0,maxSegLimitKm:r.maxSegLimitKm||15};
+  suspect:!!r.suspect,sparse:!!r.sparse,maxSegKm:r.maxSegKm||0,maxSegLimitKm:r.maxSegLimitKm||15,
+    /* v7.18: measured quality of the drawn course — how far it strays from the mapped channel and
+       where the source digitisation is broken. Computed in the worker (it has the full index). */
+    offKm:(typeof r.offKm==="number"?r.offKm:null),gapKm:r.gapKm||4,gapCount:r.gapCount||0};
 }
 
 async function damSelect(dam){
@@ -563,12 +673,14 @@ try{
   const nr=routeFromRoute(r,dam);
   if(!nr)throw new Error("no geometry");
   route=nr;damLoaded=false;
+  damPanelFit();
   /* v7.16: never draw a line the solver invented. A "suspect" course is either a bare dam->snap
      stub (the mapped reach ends there) or one that would need an invented bridge; either way the
      card explains it and the release is disabled. A "sparse" course follows the real channel but
      the digitisation is coarse there, so the card says how coarse. */
   if(nr.suspect){
-    const t0=dEl("damTitle");if(t0)t0.textContent="💧 "+nr.dam.name+" — no course";
+    /* v7.18: the bar is the tool label, so the dam name goes beside it ("Release · Mettur Dam") */
+    const t0=dEl("damTitle");if(t0)t0.textContent="Release · "+nr.dam.name;
     const s0=dEl("damSub");
     if(s0)s0.textContent=nr.to||"no continuous mapped channel from this dam";
     const st0=dEl("damStat");if(st0)st0.textContent="—";
@@ -585,10 +697,11 @@ try{
     damMsg("Mapped geometry is coarse on this reach (longest mapped hop "
       +nr.maxSegKm.toFixed(0)+" km, limit "+nr.maxSegLimitKm+" km) — the course follows the source data.");
   }
-  const t=dEl("damTitle");if(t)t.textContent="💧 "+nr.dam.name+" release";
+  const t=dEl("damTitle");if(t)t.textContent="Release · "+nr.dam.name;
   const sub=dEl("damSub");
   if(sub)sub.textContent=(nr.chains.length?nr.chains.join(" → "):(nr.river||"river"))+" → "
     +(nr.upstream?"recorded river source (reservoir origin)":(nr.coastal?"coast":"recorded river end (inland)"))+" · "+nr.totalKm.toFixed(0)+" km course (CWC centre-line)"
+    +" · "+damCourseNote(nr)
     +(nr.dam.state?" · "+nr.dam.state:"");
   const dayEl=dEl("damDay");if(dayEl)dayEl.textContent="Day 0.0";
   idleStat();
@@ -610,6 +723,8 @@ try{
     else{
       const s=map.getSource("dam-route");
       if(s)s.setData({type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:nr.coords},properties:{}}]});
+      const g2=map.getSource("dam-gaps");
+      if(g2)g2.setData({type:"FeatureCollection",features:damGapFeatures(nr)});
       const e2=map.getSource("dam-ends");
       if(e2)e2.setData({type:"FeatureCollection",features:[
         {type:"Feature",geometry:{type:"Point",coordinates:[nr.dam.lon,nr.dam.lat]},properties:{kind:"dam"}},
@@ -718,6 +833,40 @@ return{wet:{type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"L
   head:{type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"Point",coordinates:tip},properties:{}}]}};
 }
 
+/* v7.18 — the "not mapped" connectors. GAP_KM (4 km) is the same threshold the solver uses, so the
+   dashed amber hops are exactly the places where the source geometry is broken. */
+function damGapFeatures(r){
+  const out=[];
+  if(!r||!r.coords)return out;
+  const coords=r.coords,limit=r.gapKm||4;
+  for(let i=1;i<coords.length;i++){
+    const a=coords[i-1],b=coords[i];
+    const km=damHavKm(a,b);
+    if(km<=limit)continue;
+    out.push({type:"Feature",geometry:{type:"LineString",coordinates:[a,b]},
+      properties:{km:+km.toFixed(1)}});
+  }
+  return out;
+}
+function damHavKm(a,b){
+  const R=6371.0088,rad=d=>d*Math.PI/180;
+  const dLat=rad(b[1]-a[1]),dLon=rad(b[0]-a[0]);
+  const s=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(rad(a[1]))*Math.cos(rad(b[1]))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));
+}
+/* one honest sentence about how well the drawn course tracks the mapped channel */
+function damCourseNote(r){
+  if(!r||!r.coords)return "";
+  const gaps=typeof r.gapCount==="number"?r.gapCount:(damGapFeatures(r).length);
+  const longGap=gaps?Math.max(...damGapFeatures(r).map(f=>f.properties.km)):0;
+  const off=typeof r.offKm==="number"?r.offKm:null;
+  let s=gaps
+    ?"amber = "+gaps+" not-mapped connector"+(gaps>1?"s":"")+" (longest "+longGap.toFixed(0)+" km)"
+    :"every drawn segment follows the mapped channel";
+  if(off!=null)s+=" · max "+off.toFixed(1)+" km off the mapped river";
+  return s;
+}
+
 function addDamLayers(){
 /* isStyleLoaded() waits for SOURCES too, so it stays false while vector tiles stream and the
    route layers were never added; the style.load flag is the honest readiness signal */
@@ -728,6 +877,13 @@ if(!map.getSource("dam-route")){
   map.addLayer({id:"dam-route-line",type:"line",source:"dam-route",
     layout:{"line-cap":"round","line-join":"round"},
     paint:{"line-color":"#0F766E","line-width":2.2,"line-opacity":0.6,"line-dasharray":[1.7,1.3]}});
+  /* v7.18: the places where the source digitisation breaks and the line has to jump. They are
+     drawn in a different colour and dash so an invented connector is never mistaken for a mapped
+     reach — measured offKm/gaps for the selected dam are printed in the card. */
+  map.addSource("dam-gaps",{type:"geojson",data:{type:"FeatureCollection",features:damGapFeatures(route)}});
+  map.addLayer({id:"dam-gap-line",type:"line",source:"dam-gaps",
+    layout:{"line-cap":"butt","line-join":"round"},
+    paint:{"line-color":"#F59E0B","line-width":2.4,"line-opacity":0.95,"line-dasharray":[0.6,1.6]}});
   map.addSource("dam-ends",{type:"geojson",data:{type:"FeatureCollection",features:[
     {type:"Feature",geometry:{type:"Point",coordinates:[route.dam.lon,route.dam.lat]},properties:{kind:"dam"}},
     {type:"Feature",geometry:{type:"Point",coordinates:[route.sea.lon,route.sea.lat]},properties:{kind:"sea"}}]}});
@@ -763,6 +919,10 @@ const csrc=map.getSource("dam-cities");
 if(csrc)csrc.setData({type:"FeatureCollection",features:(route.cities||[]).map(c=>({
   type:"Feature",geometry:{type:"Point",coordinates:[c.lon,c.lat]},properties:{name:c.name,km:c.km}}))});
 damSet(0,false);
+/* v7.18 fix: on the FIRST selection this is the branch damSelect takes (it only calls damFrameAll
+   when the route layers already exist), so without this the camera stayed on the default India view
+   while the card described a course 1,000 km away. */
+damFrameAll();
 return true;
 }
 
@@ -892,6 +1052,9 @@ route:()=>route?{id:route.id,n:route.coords.length,totalKm:+route.totalKm.toFixe
   arrivalDays:+route.arrivalDays.toFixed(2),dam:route.dam,sea:route.sea,river:route.river,
   coastal:route.coastal,chains:route.chains,snapKm:route.snapKm,
   upstream:!!route.upstream,source:route.source||null,
+  /* v7.18 course-quality numbers, so verification can read the measured values */
+  suspect:!!route.suspect,sparse:!!route.sparse,maxSegKm:route.maxSegKm||0,
+  gapCount:route.gapCount||0,gapKm:route.gapKm||4,offKm:route.offKm==null?null:route.offKm,
   cities:(route.cities||[]).map(c=>({name:c.name,km:c.km}))}:null
 };
 
@@ -910,6 +1073,25 @@ dEl("damRate")&&dEl("damRate").addEventListener("input",()=>{
   if(box)box.dataset.gateDriven="0";          /* the typed rate now drives the sim */
   damReadout();
 });
+dEl("damVel")&&dEl("damVel").addEventListener("input",()=>damReadout());
+/* v7.18: collapse / expand the console (remembered per session; ?fold=1 starts folded) */
+dEl("damFold")&&dEl("damFold").addEventListener("click",()=>{
+  const ui=dEl("damUI"),btn=dEl("damFold");
+  const folded=ui.classList.toggle("folded");
+  btn.textContent=folded?"▸":"▾";
+  btn.setAttribute("aria-expanded",folded?"false":"true");
+  try{sessionStorage.setItem("t3consoleFold",folded?"1":"0");}catch(_){}
+});
+(function(){
+  const ui=dEl("damUI"),btn=dEl("damFold");
+  if(!ui||!btn)return;
+  let folded=/[?&]fold=1/.test(location.search);
+  try{const v=sessionStorage.getItem("t3consoleFold");if(v==="1")folded=true;else if(v==="0"&&!/[?&]fold=1/.test(location.search))folded=false;}catch(_){}
+  ui.classList.toggle("folded",folded);
+  btn.textContent=folded?"▸":"▾";
+  btn.setAttribute("aria-expanded",folded?"false":"true");
+})();
+damConverter();
 for(const id of ["damDirDown","damDirUp"])dEl(id)&&dEl(id).addEventListener("change",()=>damReselect());
 /* v7.14 full screen: button, F key, and resize on every full-screen change */
 dEl("m3fs")&&dEl("m3fs").addEventListener("click",(e)=>mapFullscreenToggle(e));

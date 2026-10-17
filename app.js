@@ -1155,22 +1155,64 @@ if($("btn3d"))$("btn3d").addEventListener("click",()=>setTerrainView(!terrainOn)
 /* v7.5 third view: true-scale 3D map — MapLibre GL JS + OpenFreeMap vector tiles + Mapterhorn DEM
    + OSM buildings (all keyless). Mutually exclusive with the 3D-mountains view; MapLibre (map3d.js)
    loads lazily on first activation, and only the attribution obligation applies. */
-if($("btn3dm"))$("btn3dm").addEventListener("click",async()=>{
+/* v7.5 third view: true-scale 3D map - MapLibre GL JS + OpenFreeMap tiles + Mapterhorn DEM
+   + OSM buildings (all keyless). Mutually exclusive with the 3D-mountains view; MapLibre (map3d.js)
+   loads lazily on first activation, and only the attribution obligation applies.
+   v7.21: one setMapView() drives all three views, and the switch also lives INSIDE the 3D stage
+   (#m3v2d / #m3v3d / #m3vmap). The single button used to sit in the 2D map's control bar, which is
+   hidden while the 3D map is showing, so a user could enter the 3D map and not get back out. */
+async function setMapView(view){
 const stage=document.querySelector("#map .stage"),cap=$("map3dCap");
+/* mark the switch BEFORE any await: building a view can take seconds and the buttons must never
+   look stale while it loads */
+mapViewButtons(view);
+if(view==="map"){
 if(!stage.classList.contains("map3d-on")){
 if(terrainOn)await setTerrainView(false);
-stage.classList.add("map3d-on");$("btn3dm").textContent="3D map…";if(cap)cap.textContent="";
-if(window.__applyLayers)window.__applyLayers();   /* refresh self-test: 2D hidden (3D on) */
+stage.classList.add("map3d-on");if(cap)cap.textContent="";
+if(window.__applyLayers)window.__applyLayers();
 const ok=window.__map3d?await window.__map3d.setActive(true).catch(()=>false):false;
-if(stage.classList.contains("map3d-on")){   /* guard: user may have toggled back off while loading */
-if(!ok){stage.classList.remove("map3d-on");$("btn3dm").textContent="3D map";if(cap)cap.textContent="3D map needs network (OpenFreeMap tiles + Mapterhorn DEM) — staying on 2D.";}
-else $("btn3dm").textContent="2D map";
+if(stage.classList.contains("map3d-on")&&!ok){
+stage.classList.remove("map3d-on");if(window.__map3d)window.__map3d.setActive(false);
+if(cap)cap.textContent="3D map needs network (OpenFreeMap tiles + Mapterhorn DEM) - staying on 2D.";
+view="2d";
+}
 }
 }else{
-stage.classList.remove("map3d-on");if(window.__map3d)window.__map3d.setActive(false);$("btn3dm").textContent="3D map";
+if(stage.classList.contains("map3d-on")){stage.classList.remove("map3d-on");if(window.__map3d)window.__map3d.setActive(false);}
+if(view==="3d")await setTerrainView(true);else if(terrainOn)await setTerrainView(false);
 if(map){map.invalidateSize();setTimeout(()=>window.__applyLayers&&window.__applyLayers(),350);}
 }
+mapViewButtons(view==="map"&&stage.classList.contains("map3d-on")?"map":(terrainOn&&!stage.classList.contains("map3d-on")?"3d":"2d"));
+}
+/* every switch shows the same three states, so the way out is always on screen */
+function mapViewButtons(want){
+const stage=document.querySelector("#map .stage");
+const onMap=want==="map"||(stage&&stage.classList.contains("map3d-on")&&want!=="2d"&&want!=="3d");
+const onTer=want==="3d"||(!onMap&&terrainOn);
+for(const [id,is] of [["m3v2d",!onMap&&!onTer],["m3v3d",onTer],["m3vmap",onMap]]){
+const b=$(id);if(!b)continue;
+b.classList.toggle("on",is);b.setAttribute("aria-pressed",is?"true":"false");
+}
+if($("btn3dm"))$("btn3dm").textContent=onMap?"2D map":"3D map";
+if($("btn3d"))$("btn3d").textContent=onTer?"2D map":"3D mountains";
+}
+if($("btn3dm"))$("btn3dm").addEventListener("click",()=>{
+const stage=document.querySelector("#map .stage");
+setMapView(stage.classList.contains("map3d-on")?"2d":"map");
 });
+if($("m3v2d"))$("m3v2d").addEventListener("click",()=>setMapView("2d"));
+if($("m3v3d"))$("m3v3d").addEventListener("click",()=>setMapView("3d"));
+if($("m3vmap"))$("m3vmap").addEventListener("click",()=>setMapView("map"));
+/* Escape leaves any 3D view, so the keyboard always has a way out too */
+addEventListener("keydown",e=>{
+if(e.key!=="Escape")return;
+const stage=document.querySelector("#map .stage");
+if(!stage)return;
+if(stage.classList.contains("map3d-on")||terrainOn)setMapView("2d");
+});
+window.__setMapView=setMapView;
+mapViewButtons("2d");
 
 /* ================= Fig6 CLIMATE CONDUCTOR (links every phenomenon) ================= */
 function buildGraph(){

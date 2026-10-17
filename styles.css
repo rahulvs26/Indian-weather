@@ -48,7 +48,14 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 .stage.map3d-on #map3dCap{display:block}
 /* v7.14 full screen: the whole stage (map + dam card + caption) goes full screen, so the release
    controls stay reachable without scrolling back */
-.m3tools{position:absolute;right:8px;top:8px;z-index:9;display:none;gap:6px}
+.m3tools{position:absolute;right:8px;top:8px;z-index:9;display:none;gap:6px;align-items:center}
+/* v7.21: the only way back out of the 3D map used to be a button in the 2D map's own control bar,
+   which is hidden while the 3D map is showing — so there was no way back. The switch now lives in
+   the stage it controls. */
+.m3view{display:flex;gap:4px;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:6px;padding:2px}
+.m3viewb{border-color:transparent;background:transparent;padding:3px 7px;font-size:10.5px;color:#B9C9C3}
+.m3viewb:hover{background:rgba(15,118,110,.5);color:#fff}
+.m3viewb.on{background:rgba(15,118,110,.5);border-color:#2DD4BF;color:#fff}
 .stage.map3d-on .m3tools{display:flex}
 .m3b{font:600 11px ui-monospace,monospace;color:#E7E5E4;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:6px;padding:4px 9px;cursor:pointer}
 .m3b:hover{background:rgba(15,118,110,.55);border-color:#2DD4BF}

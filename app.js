@@ -420,7 +420,14 @@ window.__loadWater=async()=>{
 if(window.__waterDone)return;window.__waterDone=true;
 try{
 const res=await getJSON("data/reservoirs.geo.json","reservoirs");
-L.geoJSON(res,{style:{color:"#0284C7",weight:1,fillColor:"#0284C7",fillOpacity:0.25,smoothFactor:2}}).bindPopup(l=>{const p=l.feature.properties;return `<b>${p.res_name||"Reservoir"}</b><br>river: ${p.river||"—"} · basin: ${p.basin||"—"} · area ${p.area}<br>Source: user reservoir shapefile`;}).addTo(waterG);
+L.geoJSON(res,{style:{color:"#0284C7",weight:1,fillColor:"#0284C7",fillOpacity:0.25,smoothFactor:2}}).bindPopup(l=>{const p=l.feature.properties;
+/* v7.22o: the source's `area` is in HECTARES - measured against each polygon's own geodesic area the
+   ratio is 96-98, i.e. hectares with about 4% of the outline generalised away - and this popup was
+   printing it bare, so "Indira Sagar 84841.6" read as square kilometres. It now shows km2, with the
+   mapped outline alongside so the two can be compared. */
+return `<b>${p.res_name||"Reservoir"}</b><br>river: ${p.river||"—"} · basin: ${p.basin||"—"}<br>`
++(p.area_km2!=null?`area <b>${p.area_km2} km²</b> (published)${p.area_geom_km2!=null?`, ${p.area_geom_km2} km² as mapped`:""}<br>`:"")
++`Source: WRIS / IndiaWRIS reservoir outlines`;}).addTo(waterG);
 const gl=await getJSON("data/glacial.geo.json","glacial");
 L.geoJSON(gl,{style:{color:"#1D4ED8",weight:1,fillColor:"#BAE6FD",fillOpacity:0.5}}).bindPopup(l=>{const p=l.feature.properties;return `<b>${p.name||"Glacial lake"}</b><br>${p.state} · ${p.basin} basin · ${p.elev} m · ${p.area_ha} ha<br>Source: user glacial-lake shapefile`;}).addTo(waterG);
 const tn=await getJSON("data/tn-water.geo.json","tnwater");

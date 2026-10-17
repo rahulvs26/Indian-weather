@@ -1199,6 +1199,11 @@ if(on){
   try{
     await damDams();
     damLayerAdd();
+    /* v7.22: loading the list used to leave the results area blank even when a name was already
+       typed - the box was filled before the list arrived and nothing re-rendered it, so the search
+       looked broken (reported with "vaigai"). Re-render whatever is already in the box. */
+    const qb=dEl("damSearch");
+    if(qb&&qb.value.trim())damSearchRender(qb.value);
     damMsg(damList.length.toLocaleString()+" dams · tap a dot on the map or type a name below.");
   }catch(e){damMsg("Dam list unavailable: "+(e.message||e));}
   try{damEnsureWorker();damWorkerIdleTimer();}catch(e){damMsg("Router unavailable in this browser: "+(e.message||e));}
@@ -1499,6 +1504,9 @@ const damModeBox=dEl("damMode");
 if(damModeBox)damModeBox.addEventListener("change",()=>damSetMode(damModeBox.checked));
 const damSearchBox=dEl("damSearch");
 if(damSearchBox)damSearchBox.addEventListener("input",()=>damSearchRender(damSearchBox.value));
+  /* v7.22: also re-render on focus, so a name typed while the 2.8 MB list was still loading shows up
+     as soon as the user comes back to the box, even if no further keystroke arrives */
+  if(damSearchBox)damSearchBox.addEventListener("focus",()=>{if(damSearchBox.value.trim())damSearchRender(damSearchBox.value);});
 const damSmoothBox=dEl("damSmooth");
 if(damSmoothBox)damSmoothBox.addEventListener("change",()=>damSmooth(damSmoothBox.checked));
 /* v7.12: release controls — typing a rate takes over from the gate sliders, typing again hands it back */

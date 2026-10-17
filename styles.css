@@ -177,6 +177,7 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damRes span{color:#9fb4c7;font-size:9.5px}
 .damNo{font-size:10px;color:#9fb4c7;padding:2px 4px}
 .damMsg{margin-top:5px;font-size:10px;color:#5EEAD4;min-height:12px}
+.damCities{margin-top:4px;font-size:10px;color:#FDE68A;line-height:1.45}
 .damChkRow{display:flex;gap:12px;margin-top:7px;flex-wrap:wrap}
 .damChk{display:flex;align-items:center;gap:4px;font-size:10.5px;color:#cfe0d8;cursor:pointer}
 .damChk input{accent-color:#2DD4BF}

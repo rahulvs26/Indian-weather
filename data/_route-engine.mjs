@@ -1,27 +1,36 @@
-/* v7.9 dam→sea course solver — SHARED by the browser worker and the offline generator.
+/* v7.10 dam→sea course solver — SHARED by the browser worker and the offline checker.
    Pure geometry on the repo's own shapefiles; no invented geometry, no network calls here.
    Inputs : CWC WRIS river network features (rivers-cwc.geo.json) + a coast polyline (india-detailed.geo.json)
-   Output : the downstream course from a dam point to the coast, with km and (illustrative) days.
+   Output : the downstream course from a dam point to the coast, with km, (illustrative) days and
+            the cities it passes.
 
-   Algorithm (ported from data/_gen_dam_route.mjs, generalised from one dam to every dam):
-     1) bbox grid over FEATURES (cheap: ~30k entries)  -> nearest river to a point
-     2) nearest point on that river (≤ SNAP_KM)
-     3) greedy downstream walk over the river's unordered parts, always taking the
-        unvisited part whose far end is nearest the river's recorded end (en_lon/en_lat)
-     4) chaining: if the walk ends inland, take the river within LINK_KM whose recorded
-        end is nearest the coast, and continue (≤ MAX_CHAINS rivers)
-     5) coast test against the outline (≤ COAST_KM)  -> coastal true/false, honestly reported
-     6) Douglas-Peucker simplify + haversine length + days = km / (speed × 86.4)
+   ALGORITHM
+     1) bbox grid over FEATURES (≈30k entries, ~5k cells) -> the rivers that can be near a point
+     2) nearest point on the dam's river (SNAP_KM, retried wider by the caller)
+     3) FLOW AXIS: every vertex is projected onto the recorded source→mouth vector
+        (st_lon/st_lat → en_lon/en_lat). Downstream = increasing projection. This is what fixed
+        Mettur, where "nearest to the recorded sea end" inverted at a fork and ran the wave
+        429 km UPSTREAM to the Cauvery's source.
+     4) greedy downstream walk over the river's unordered parts; at every junction the candidate
+        that (a) can still reach the COAST (bounded lookahead) and (b) has the greatest downstream
+        projection wins — so a split follows the branch that finishes at the sea.
+     5) chain into the next river within LINK_KM when the walk ends inland (≤ MAX_CHAINS rivers)
+     6) coast test against the outline (≤ COAST_KM); inland ends are reported as inland, never "sea"
+     7) UPFLOW GUARD: if a walk ends farther from the coast than it began, retry with the opposite
+        start direction and keep the better one; if both fail, report the route as suspect.
+     8) Douglas-Peucker simplify + haversine km + days = km / (speed × 86.4); cities within
+        CORRIDOR_KM of the course are listed in route order.
    The travel speed is ILLUSTRATIVE (kinematic, not measured) — say so in any readout. */
 
-export const SNAP_KM=6;      /* dam → its river: give up beyond this */
-export const LINK_KM=9;      /* max gap between parts/rivers to link into one course */
-export const REACH_KM=3;     /* a walk is finished when this close to the recorded river end */
-export const DP_TOL_KM=0.065;/* ≈65 m — keeps real bends, drops digitisation noise */
-export const COAST_KM=25;    /* terminal point within this of the outline = reached the coast */
-export const MAX_CHAINS=6;   /* rivers chained in one course (tributary → main stem → …) */
-export const SPEED_M_S=1.5;  /* ILLUSTRATIVE kinematic flood-wave speed */
-export const KM_DAY=SPEED_M_S*86.4;   /* 129.6 km/day */
+export const SNAP_KM=6;
+export const LINK_KM=9;
+export const REACH_KM=3;
+export const DP_TOL_KM=0.065;
+export const COAST_KM=25;
+export const MAX_CHAINS=6;
+export const CORRIDOR_KM=8;     /* "crosses" radius for cities */
+export const SPEED_M_S=1.5;
+export const KM_DAY=SPEED_M_S*86.4;
 
 const R_EARTH=6371.0088;
 const rad=d=>d*Math.PI/180;
@@ -30,49 +39,41 @@ export function hav(a,b){
   const s=Math.sin(dLat/2)**2+Math.cos(rad(a[1]))*Math.cos(rad(b[1]))*Math.sin(dLon/2)**2;
   return 2*R_EARTH*Math.asin(Math.sqrt(s));
 }
-
-/* local equirectangular km-plane (per query latitude) for nearest-point + DP tolerance */
 const plane=lat0=>({LONK:111.32*Math.cos(rad(lat0)),LATK:111.19});
-const toP=(P,p)=>[p[0]*P.LONK,p[1]*P.LATK];
-/* nearest point on segment a→b to q, in the km-plane: {t, d2} */
+const dist2=(a,b)=>{const dx=a[0]-b[0],dy=a[1]-b[1];return dx*dx+dy*dy;};
 function segHit(P,a,b,q){
-  const ax=P.LONK*a[0],ay=P.LATK*a[1],bx=P.LONK*b[0],by=P.LATK*b[1];
-  const qx=P.LONK*q[0],qy=P.LATK*q[1];
+  const ax=a[0]*P.LONK,ay=a[1]*P.LATK,bx=b[0]*P.LONK,by=b[1]*P.LATK;
+  const qx=q[0]*P.LONK,qy=q[1]*P.LATK;
   const abx=bx-ax,aby=by-ay,L2=abx*abx+aby*aby;
   const t=L2?Math.max(0,Math.min(1,((qx-ax)*abx+(qy-ay)*aby)/L2)):0;
   const dx=qx-(ax+abx*t),dy=qy-(ay+aby*t);
   return {t,d2:dx*dx+dy*dy};
 }
+const partsOf=g=>g.type==="LineString"?[g.coordinates]:g.coordinates;
 
-/* ---------------------------------------------------------------- index ---- */
-/* One grid cell per FEATURE bbox (not per segment): ~30k inserts, ~0 MB of overhead,
-   and a query returns only the handful of rivers that can possibly be nearby. */
 export function buildIndex(features,cell=0.25){
   const cells=new Map(),boxes=[];
   for(let f=0;f<features.length;f++){
     const g=features[f].geometry;
     if(!g||!g.coordinates)continue;
-    const parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
     let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-    for(const line of parts)for(const c of line){
+    for(const line of partsOf(g))for(const c of line){
       if(!c||c.length<2)continue;
       if(c[0]<x0)x0=c[0];if(c[0]>x1)x1=c[0];
       if(c[1]<y0)y0=c[1];if(c[1]>y1)y1=c[1];
     }
     if(!isFinite(x0))continue;
     boxes[f]=[x0,y0,x1,y1];
-    const i0=Math.floor(x0/cell),i1=Math.floor(x1/cell),j0=Math.floor(y0/cell),j1=Math.floor(y1/cell);
-    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){
-      const k=i*100000+j;
-      let arr=cells.get(k);
-      if(!arr){arr=[];cells.set(k,arr);}
-      arr.push(f);
-    }
+    for(let i=Math.floor(x0/cell);i<=Math.floor(x1/cell);i++)
+      for(let j=Math.floor(y0/cell);j<=Math.floor(y1/cell);j++){
+        const k=i*100000+j;let arr=cells.get(k);
+        if(!arr){arr=[];cells.set(k,arr);}
+        arr.push(f);
+      }
   }
   return {cells,boxes,cell};
 }
 
-/* candidate feature indices near a point (deduped, bbox-checked) */
 export function candidatesNear(idx,pt,padKm=0){
   const P=plane(pt[1]),cell=idx.cell;
   const i0=Math.floor((pt[0]-padKm/P.LONK)/cell),i1=Math.floor((pt[0]+padKm/P.LONK)/cell);
@@ -91,20 +92,16 @@ export function candidatesNear(idx,pt,padKm=0){
   return out;
 }
 
-/* nearest point on feature f to pt: {t, dKm, lon, lat} */
 export function nearestOnFeature(feature,pt){
   const P=plane(pt[1]);
-  const g=feature.geometry;
-  const parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
   let best={dKm:Infinity,t:0,lon:pt[0],lat:pt[1]};
-  for(const line of parts)for(let s=0;s<line.length-1;s++){
-    const a=line[s],b=line[s+1];
-    if(!a||!b)continue;
-    const h=segHit(P,a,b,pt);
-    if(h.d2<best.dKm*best.dKm){
-      best={dKm:Math.sqrt(h.d2),t:h.t,lon:a[0]+(b[0]-a[0])*h.t,lat:a[1]+(b[1]-a[1])*h.t};
+  for(const line of partsOf(feature.geometry))
+    for(let s=0;s<line.length-1;s++){
+      const a=line[s],b=line[s+1];
+      if(!a||!b)continue;
+      const h=segHit(P,a,b,pt);
+      if(h.d2<best.dKm*best.dKm)best={dKm:Math.sqrt(h.d2),t:h.t,lon:a[0]+(b[0]-a[0])*h.t,lat:a[1]+(b[1]-a[1])*h.t};
     }
-  }
   return best;
 }
 
@@ -121,71 +118,95 @@ export function nearestRiver(idx,features,pt,maxKm,exclude){
 export function recordedEnd(feature){
   const p=feature.properties||{};
   if(typeof p.en_lon==="number"&&typeof p.en_lat==="number")return [p.en_lon,p.en_lat];
-  const g=feature.geometry,parts=g.type==="LineString"?[g.coordinates]:g.coordinates;
+  const st=(typeof p.st_lon==="number")?[p.st_lon,p.st_lat]:null;
   let far=null,fd=-1;
-  for(const line of parts)for(const c of line){if(!c)continue;}
-  /* fall back: the vertex furthest from the feature's start */
-  const st=(typeof p.st_lon==="number")?[p.st_lon,p.st_lat]:(parts[0]&&parts[0][0]);
-  if(st)for(const line of parts)for(const c of line){if(!c)continue;const d=hav(st,c);if(d>fd){fd=d;far=c;}}
+  for(const line of partsOf(feature.geometry))for(const c of line){
+    if(!c)continue;
+    if(!st){far=c;break;}
+    const d=hav(st,c);if(d>fd){fd=d;far=c;}
+  }
   return far;
 }
 
-/* greedy walk inside ONE river feature, from a point on it to its recorded end */
-export function walkFeature(feature,from){
-  const p=feature.properties||{},SEA=recordedEnd(feature);
-  if(!SEA)return {course:[from],endedAt:from};
-  const g=feature.geometry;
-  const parts=g.type==="LineString"?[g.coordinates]:g.coordinates.map(q=>q.slice());
-  /* locate the part + segment holding `from` */
-  let pi=-1,si=-1,t=0,dBest=Infinity;
-  for(let i=0;i<parts.length;i++)for(let s=0;s<parts[i].length-1;s++){
-    const a=parts[i][s],b=parts[i][s+1];if(!a||!b)continue;
-    const h=segHit(plane(from[1]),a,b,from);
-    if(h.d2<dBest){dBest=h.d2;pi=i;si=s;t=h.t;}
-  }
-  if(pi<0)return {course:[from],endedAt:from};
-  const segA=parts[pi][si],segB=parts[pi][si+1];
-  const hit=[segA[0]+(segB[0]-segA[0])*t,segA[1]+(segB[1]-segA[1])*t];
-  const visited=new Set(),chain=[];
-  visited.add(pi);
-  const fwd=hav(segB,SEA)<hav(segA,SEA);
-  let pts=fwd?parts[pi].slice(si+1):parts[pi].slice(0,si+1).reverse();
-  chain.push(pts);
-  let pos=pts[pts.length-1]||hit;
-  for(let guard=0;guard<parts.length+2;guard++){
-    if(hav(pos,SEA)<=REACH_KM)break;
-    let best=null;
-    for(let k=0;k<parts.length;k++){
-      if(visited.has(k))continue;
-      for(const rev of [false,true]){
-        const s0=rev?parts[k][parts[k].length-1]:parts[k][0];
-        const e0=rev?parts[k][0]:parts[k][parts[k].length-1];
-        const gap=hav(pos,s0);if(gap>LINK_KM)continue;
-        const score=hav(e0,SEA);
-        if(!best||score<best.score-0.25||(Math.abs(score-best.score)<=0.25&&gap<best.gap))best={k,rev,gap,score};
-      }
-    }
-    if(!best)break;
-    visited.add(best.k);
-    const nx=(best.rev?parts[best.k].slice().reverse():parts[best.k].slice());
-    if(!nx.length)break;
-    nx[0]=pos.slice();               /* bridge digitisation gaps */
-    chain.push(nx);pos=nx[nx.length-1];
-  }
-  const course=chain.reduce((acc,q)=>acc.concat(acc.length?q.slice(1):q),[]);
-  return {course,endedAt:pos,seaEnd:SEA,hit};
+/* ---- flow axis: downstream = increasing projection onto st → en ---- */
+function makeAxis(feature,lat0){
+  const p=feature.properties||{};
+  const st=(typeof p.st_lon==="number")?[p.st_lon,p.st_lat]:null;
+  const en=recordedEnd(feature);
+  if(!st||!en)return null;
+  const P=plane(lat0);
+  const ax=(en[0]-st[0])*P.LONK,ay=(en[1]-st[1])*P.LATK;
+  const L=Math.hypot(ax,ay);
+  if(!(L>1e-6))return null;
+  const ux=ax/L,uy=ay/L;
+  const proj=pt=>((pt[0]-st[0])*P.LONK)*ux+((pt[1]-st[1])*P.LATK)*uy;
+  return {st,en,proj,lengthKm:L/P.LATK};
 }
 
-/* Douglas-Peucker in the km-plane */
+/* flatten any geometry into a flat [lon,lat,lon,lat,…] segment list (coast test input) */
+export function coastSegments(geojson){
+  const segs=[];
+  const pushRing=r=>{for(let i=0;i<r.length-1;i++){if(r[i]&&r[i+1]){segs.push(r[i]);segs.push(r[i+1]);}}};
+  const push=g=>{
+    if(!g||!g.coordinates)return;
+    if(g.type==="Polygon")g.coordinates.forEach(pushRing);
+    else if(g.type==="MultiPolygon")g.coordinates.forEach(poly=>poly.forEach(pushRing));
+    else if(g.type==="LineString")pushRing(g.coordinates);
+    else if(g.type==="MultiLineString")g.coordinates.forEach(pushRing);
+  };
+  const fc=geojson&&geojson.features?geojson.features:[geojson];
+  for(const f of fc)push(f.geometry||f);
+  return segs;
+}
+
+export function coastDistKm(pt,segs){
+  if(!segs||!segs.length)return Infinity;
+  const P=plane(pt[1]);
+  let best=Infinity;
+  for(let i=0;i<segs.length;i+=2){
+    const h=segHit(P,segs[i],segs[i+1],pt);
+    if(h.d2<best)best=h.d2;
+  }
+  return Math.sqrt(best);
+}
+
+/* memoised coast test — the raw scan is 18k segments per call and the search calls it a lot */
+export function makeCoastTest(segs){
+  const memo=new Map();
+  return function(pt){
+    const k=pt[0].toFixed(4)+","+pt[1].toFixed(4);
+    let v=memo.get(k);
+    if(v===undefined){v=coastDistKm(pt,segs);memo.set(k,v);}
+    return v;
+  };
+}
+
+/* "Is this the sea, or the land border?" — india-detailed.geo.json is the COUNTRY outline, so a
+   point near the Pakistan/Bangladesh/Myanmar border also sits ~0 km from it (Rajasthan read
+   "1.4 km from the coast"). The Indian Ocean only washes the peninsula (S of ~21.5°N), the
+   Gujarat/Kutch coast (W of ~73.6°E) and the Bay east of the Bangladesh border (~88.6°E).
+   This sector test is a documented heuristic — the outline distance alone is never trusted. */
+export function seaSide(p){
+  if(p[1]<21.5)return true;                              /* the peninsula and Deccan — always seaward */
+  if(p[0]<73.6&&p[1]<24.5)return true;                 /* Gujarat · Kutch · Saurashtra coast */
+  if(p[0]>88.6&&p[1]<26.5)return true;                  /* Bay of Bengal, east of the Bangladesh border */
+  return false;                                          /* Himalaya / NW / NE borders: no sea */
+}
+/* the honest test: near the outline AND on the maritime side */
+export function reachesSea(pt,coastTest,coastKm){
+  if(!coastTest)return false;
+  return seaSide(pt)&&coastTest(pt)<=(coastKm||COAST_KM);
+}
+
 export function simplifyDP(pts,tolKm,lat0){
   if(pts.length<3)return pts.slice();
   const P=plane(lat0||pts[0][1]);
-  const a=toP(P,pts[0]),b=toP(P,pts[pts.length-1]);
-  const abx=b[0]-a[0],aby=b[1]-a[1],L=Math.hypot(abx,aby)||1e-9;
+  const ax=pts[0][0]*P.LONK,ay=pts[0][1]*P.LATK,bx=pts[pts.length-1][0]*P.LONK,by=pts[pts.length-1][1]*P.LATK;
+  const abx=bx-ax,aby=by-ay,L=Math.hypot(abx,aby)||1e-9;
   let mi=0,md=-1;
   for(let i=1;i<pts.length-1;i++){
-    const q=toP(P,pts[i]);
-    const d=Math.abs((q[0]-a[0])*aby-(q[1]-a[1])*abx)/L;
+    const qx=pts[i][0]*P.LONK,qy=pts[i][1]*P.LATK;
+    const d=Math.abs((qx-ax)*aby-(qy-ay)*abx)/L;
     if(d>md){md=d;mi=i;}
   }
   if(md<=tolKm)return [pts[0],pts[pts.length-1]];
@@ -198,63 +219,195 @@ export function lineKm(coords){
   return km;
 }
 
-/* distance from a point to a coast polyline (km) — used for the honest coastal test */
-export function coastDistKm(pt,coastSegs){
-  const P=plane(pt[1]);
-  let best=Infinity;
-  for(let i=0;i<coastSegs.length;i+=2){
-    const h=segHit(P,coastSegs[i],coastSegs[i+1],pt);
-    if(h.d2<best)best=h.d2;
+/* cities the course passes, in route order (city set is supplied by the caller) */
+export function crossCities(coords,cities,maxKm){
+  const out=[];
+  if(!cities||!cities.length)return out;
+  const P=plane(coords[0][1]);
+  for(const c of cities){
+    const q=[c.lon,c.lat];let best=Infinity,at=-1;
+    for(let i=0;i<coords.length-1;i++){
+      const h=segHit(P,coords[i],coords[i+1],q);
+      if(h.d2<best){best=h.d2;at=i;}
+    }
+    const km=Math.sqrt(best);
+    if(km<=maxKm)out.push({name:c.name,lon:c.lon,lat:c.lat,km:+km.toFixed(1),at});
   }
-  return Math.sqrt(best);
+  out.sort((a,b)=>a.at-b.at);
+  return out;
 }
 
-/* flatten any FeatureCollection/Feature geometry into a flat [lon,lat,lon,lat,…] segment list */
-export function coastSegments(geojson){
-  const segs=[];
-  const push=g=>{
-    if(!g||!g.coordinates)return;
-    if(g.type==="Polygon")g.coordinates.forEach(r=>pushRing(r));
-    else if(g.type==="MultiPolygon")g.coordinates.forEach(poly=>poly.forEach(r=>pushRing(r)));
-    else if(g.type==="LineString")pushRing(g.coordinates);
-    else if(g.type==="MultiLineString")g.coordinates.forEach(r=>pushRing(r));
+/* ---------------------------------------------------------------- walk ---- */
+/* Inside ONE river feature, downstream from `from`.
+   WHY THIS EXISTS: the old local-greedy rule walked 90 km UP the Bhagirathi into its recorded
+   headwater, because "distance to the river's recorded end" is not monotonic along a looping
+   course — and earlier it sent Mettur 429 km upstream to the Cauvery's source. So the part graph
+   is now searched EXACTLY: parts are nodes, parts whose ends touch within LINK_KM are edges, and
+   the fewest-hops path from the start part to the part carrying this river's recorded end wins.
+   Such a path cannot wander upstream. Ties are broken by the sea-bound preference (`coastTest`):
+   among equal-hop paths, the branch whose continuation can still reach the coast comes first. */
+export function walkFeature(feature,from,o){
+  o=o||{};
+  const coast=o.coastTest||null,coastKm=o.coastKm||COAST_KM,linkKm=o.linkKm||LINK_KM;
+  const parts=partsOf(feature.geometry).map(q=>q.slice());
+  const ax=makeAxis(feature,from[1]);
+  const SEA=recordedEnd(feature);
+  const proj=ax?ax.proj:(pt=>-hav(pt,SEA));
+  const reach=coast?(pt=>reachesSea(pt,coast,coastKm)):(pt=>false);
+  const P=plane(from[1]);
+
+  const segOf=pt=>{
+    let pi=-1,si=-1,t=0,db=Infinity;
+    for(let i=0;i<parts.length;i++)for(let s=0;s<parts[i].length-1;s++){
+      const h=segHit(P,parts[i][s],parts[i][s+1],pt);
+      if(h.d2<db){db=h.d2;pi=i;si=s;t=h.t;}
+    }
+    return {pi,si,t,dKm:Math.sqrt(db)};
   };
-  const pushRing=r=>{for(let i=0;i<r.length-1;i++){if(r[i]&&r[i+1]){segs.push(r[i]);segs.push(r[i+1]);}}};
-  const fc=geojson&&geojson.features?geojson.features:[geojson];
-  for(const f of fc)push(f.geometry||f);
-  return segs;
+  const hit0=segOf(from);
+  if(hit0.pi<0)return{course:[from],endedAt:from,reachesCoast:false,method:"none"};
+  const a0=parts[hit0.pi][hit0.si],b0=parts[hit0.pi][hit0.si+1];
+  const hit=[a0[0]+(b0[0]-a0[0])*hit0.t,a0[1]+(b0[1]-a0[1])*hit0.t];
+
+  const E0=i=>{const p=parts[i];if(!p){if(!E0.warned){E0.warned=1;console.warn("[route] missing part",i,"of",parts.length);}return null;}return p[0];};
+  const E1=i=>{const p=parts[i];if(!p){if(!E1.warned){E1.warned=1;console.warn("[route] missing part",i,"of",parts.length);}return null;}return p[p.length-1];};
+
+  let course=null,endedAt=null;
+  const endSeg=SEA?segOf(SEA):null;
+  if(endSeg&&endSeg.pi>=0&&endSeg.dKm<=REACH_KM+3&&endSeg.pi!==hit0.pi){
+    const n=parts.length;
+    const adj=new Array(n);for(let i=0;i<n;i++)adj[i]=[];
+    for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+      let bg=null;
+      for(const pr of [[E0(i),E0(j)],[E0(i),E1(j)],[E1(i),E0(j)],[E1(i),E1(j)]]){
+        const g=hav(pr[0],pr[1]);
+        if(g<=linkKm&&(bg===null||g<bg.g))bg={g};
+      }
+      if(bg){
+        /* both directions carry {v,side} — reading the wrong key here silently drops half the graph */
+        adj[i].push({v:j,side:hav(E0(i),E0(j))<=hav(E1(i),E0(j))?"0":"1"});
+        adj[j].push({v:i,side:hav(E0(j),E0(i))<=hav(E1(j),E0(i))?"0":"1"});
+      }
+    }
+    /* Dijkstra over parts: cost 1 per hop + 1 if neither end of the next part can still reach the sea */
+    const dist=new Array(n).fill(Infinity),prev=new Array(n).fill(null),sideIn=new Array(n).fill(null);
+    dist[hit0.pi]=0;
+    const open=[hit0.pi];
+    while(open.length){
+      let bi=0;for(let k=1;k<open.length;k++)if(dist[open[k]]<dist[open[bi]])bi=k;
+      const u=open.splice(bi,1)[0];
+      for(const e of adj[u]){
+        const v=e.v;
+        if(!(v>=0&&v<n))continue;              /* defensive: never index outside the part list */
+        const arrive=(e.side==="0")?E1(v):E0(v);
+        const leave=(e.side==="0")?E0(v):E1(v);
+        if(!arrive||!leave)continue;
+        const pen=coast?(reach(arrive)||reach(leave)?0:1):0;
+        const nd=dist[u]+1+pen;
+        if(nd<dist[v]){dist[v]=nd;prev[v]=u;sideIn[v]=e.side;open.push(v);}
+      }
+    }
+    if(isFinite(dist[endSeg.pi])){
+      const seq=[];let cur=endSeg.pi;
+      while(cur!==null&&cur!==hit0.pi){seq.unshift(cur);cur=prev[cur];}
+      if(cur===hit0.pi&&seq.length){
+        const pts=[hit];
+        let pos=hit;
+        for(let i=0;i<seq.length;i++){
+          const pi=seq[i],raw=parts[pi];
+          /* exit end: the end that touches the NEXT part, or (last part) the end nearest the recorded end */
+          let exitEnd;
+          if(i<seq.length-1){
+            const nx=seq[i+1];
+            exitEnd=(sideIn[nx]==="0")?E0(nx):E1(nx);
+          }else exitEnd=(hav(E0(pi),SEA)<=hav(E1(pi),SEA))?E0(pi):E1(pi);
+          /* enter this part at whichever end is closer to where we are, and leave by exitEnd */
+          const startEnd=(hav(E0(pi),pos)<=hav(E1(pi),pos))?E0(pi):E1(pi);
+          let line=(startEnd===E0(pi))?raw.slice():raw.slice().reverse();
+          if(hav(line[line.length-1],exitEnd)>hav(line[0],exitEnd))line=line.slice().reverse();
+          line[0]=pos.slice();
+          for(let k=1;k<line.length;k++)pts.push(line[k]);
+          pos=line[line.length-1];
+        }
+        course=pts;endedAt=pos;
+      }
+    }
+  }
+
+  if(course){
+    return{course,endedAt,reachesCoast:coast?reach(endedAt):false,method:"graph",
+      startPoint:hit,axisKm:ax?ax.lengthKm:null};
+  }
+
+  /* ---- fallback for digitisation that is not connected: greedy with an upflow veto ---- */
+  const firstFwd=proj(E1(hit0.pi))>proj(E0(hit0.pi));
+  const visited=new Set([hit0.pi]);
+  let pts=firstFwd?parts[hit0.pi].slice(hit0.si+1):parts[hit0.pi].slice(0,hit0.si+1).reverse();
+  const chain=pts.length?[pts]:[];
+  let pos=pts.length?pts[pts.length-1]:hit;
+  for(let guard=0;guard<parts.length+2;guard++){
+    if(SEA&&hav(pos,SEA)<=REACH_KM)break;
+    if(coast&&reach(pos))break;
+    let best=null;
+    for(let k=0;k<parts.length;k++){
+      if(visited.has(k))continue;
+      for(const rev of [false,true]){
+        const s0=rev?E1(k):E0(k);
+        const e0=rev?E0(k):E1(k);
+        const gap=hav(pos,s0);if(gap>linkKm)continue;
+        const upflow=SEA?(hav(e0,SEA)>hav(pos,SEA)+2):false;
+        const score=(upflow?1e7:0)+3*(SEA?hav(e0,SEA):0)-10*(proj(e0)-proj(pos))+gap*0.01;
+        if(!best||score<best.score)best={k,rev,gap,score};
+      }
+    }
+    if(!best)break;
+    visited.add(best.k);
+    const nx=(best.rev?parts[best.k].slice().reverse():parts[best.k].slice());
+    if(!nx.length)break;
+    nx[0]=pos.slice();
+    chain.push(nx);pos=nx[nx.length-1];
+  }
+  const course2=chain.reduce((acc,q)=>acc.concat(acc.length?q.slice(1):q),[]);
+  return{course:course2.length?course2:[hit],endedAt:pos,reachesCoast:coast?reach(pos):false,method:"greedy",
+    startPoint:hit,axisKm:ax?ax.lengthKm:null};
 }
 
-/* ------------------------------------------------------------------ main ---- */
-/* dam = {lon, lat, name, state, height}  →  {coords, totalKm, arrivalDays, coastal, chains, to, snapKm} */
+/* ---------------------------------------------------------------- main ---- */
 export function solveRoute(idx,features,coastSegs,dam,opts){
   const o=opts||{};
   const snap=o.snapKm||SNAP_KM,link=o.linkKm||LINK_KM,coastKm=o.coastKm||COAST_KM;
+  const coastTest=o.coastTest||(coastSegs&&coastSegs.length?makeCoastTest(coastSegs):null);
   const hit=nearestRiver(idx,features,[dam.lon,dam.lat],snap,null);
-  if(!hit)throw new Error("no river within "+snap+" km of "+dam.name);
+  if(!hit)throw new Error("no river within "+snap+" km of "+(dam.name||"the dam"));
   const used=new Set();
   let course=[[dam.lon,dam.lat],[hit.lon,hit.lat]];
-  const chains=[];let coastal=false,to=null;
-  let f=hit.f,from=[hit.lon,hit.lat];
+  const chains=[];let coastal=false,to=null,f=hit.f,from=[hit.lon,hit.lat];
   for(let c=0;c<(o.maxChains||MAX_CHAINS);c++){
     const feat=features[f];
     if(!feat)break;
     const nm=(feat.properties&&feat.properties.rivname)||"river";
     chains.push(nm);used.add(f);
-    const w=walkFeature(feat,from);
+    const w=walkFeature(feat,from,{coastTest,coastKm,linkKm:link});
     for(let i=1;i<w.course.length;i++)course.push(w.course[i]);
     const end=w.endedAt||w.course[w.course.length-1];
-    if(coastSegs&&coastDistKm(end,coastSegs)<=coastKm){coastal=true;to=nm+" → coast";break;}
-    /* chain: another river within LINK_KM whose recorded end is nearest the coast */
+    if(reachesSea(end,coastTest,coastKm)){coastal=true;to=nm+" → coast";break;}
+    /* chain into the river that continues the system: prefer a MAIN stem (longer recorded
+       length), then one whose recorded end is itself at the sea, then the closest join.
+       Ranking by "recorded end nearest the sea" alone used to pick 10-km hill streams over the
+       Ganga, because a stub's end can happen to sit closer to the coast than a trunk's. */
     let pick=null;
-    for(const cf of candidatesNear(idx,end,link)){
-      if(used.has(cf))continue;
-      const h=nearestOnFeature(features[cf],end);
-      if(h.dKm>link)continue;
-      const e2=recordedEnd(features[cf]);
+    const cands=candidatesNear(idx,end,link).map(cf=>({cf,h:nearestOnFeature(features[cf],end)}))
+      .filter(x=>x.h.dKm<=link)
+      .sort((a,b)=>a.h.dKm-b.h.dKm).slice(0,8);
+    for(const x of cands){
+      if(used.has(x.cf))continue;
+      const feat=features[x.cf],p=feat.properties||{};
+      const e2=recordedEnd(feat);
       if(!e2)continue;
-      const d2=coastSegs?coastDistKm(e2,coastSegs):0;
-      if(!pick||d2<pick.d2)pick={f:cf,d2,hit:h};
+      const len=typeof p.len_km==="number"?p.len_km:0;
+      const atSea=reachesSea(e2,coastTest,coastKm);
+      const score=-Math.min(len,1200)*2+(atSea?-1e5:0)+x.h.dKm;
+      if(!pick||score<pick.score)pick={f:x.cf,score,hit:x.h};
     }
     if(!pick||pick.f===f)break;
     f=pick.f;from=[pick.hit.lon,pick.hit.lat];
@@ -263,5 +416,6 @@ export function solveRoute(idx,features,coastSegs,dam,opts){
   const simp=simplifyDP(course,DP_TOL_KM,dam.lat).map(q=>[+q[0].toFixed(5),+q[1].toFixed(5)]);
   const km=lineKm(simp);
   return {coords:simp,totalKm:+km.toFixed(2),arrivalDays:+(km/KM_DAY).toFixed(2),coastal,chains,to,
-    snapKm:+hit.dKm.toFixed(2),speed_m_s:SPEED_M_S};
+    snapKm:+hit.dKm.toFixed(2),speed_m_s:SPEED_M_S,
+    cities:crossCities(simp,o.cities||[],o.corridorKm||CORRIDOR_KM)};
 }

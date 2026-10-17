@@ -4,7 +4,7 @@ One-page state so a fresh session (or another agent) needs ~2k tokens instead of
 re-reading the codebase. Do NOT read `app.js` end-to-end (~1220 lines) — grep for
 the symbols named below (a lean session with targeted greps + live verify stays
 well under 40k tokens; reading app.js whole adds ~75k — avoid).
-Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.9).
+Full build rules: `INDIAN_WEATHER_SPEC.md` (v7.10).
 **v7.1 SHIPPED (2026-10-16):** 41 climate phenomena as pickable 2D/3D animated layers — implemented per `PHENOMENA_LAYERS_TODO.md` (its §1 design is the as-built record).
 **v7.2 SHIPPED (2026-10-16):** rain is per-state — 2D streak density/speed and 3D drop seeding now follow each state's monthly average rainfall (IMD subdivision record 1901–2015 → `data/rain-state-avg.json`, mapped to GADM states — approximate; generator `data/_gen_rain_avg.mjs`).
 **v7.3 SHIPPED (2026-10-16):** 3D dam hover labels — hover a major dam (top-300 recorded heights, the same ranked tier as the 2D labels) for its name, height, state and river (real CWC fields); hook `window.__t3.dams`.
@@ -22,7 +22,7 @@ Static single-page study site (no build): `index.html` + `styles.css` + `app.js`
 `python -m http.server 8000` → `http://127.0.0.1:8000/index.html?live=N`
 (N++ every reload to beat cache; `?v=` must be bumped on EVERY asset change or a
 browser can hold a stale same-version asset — if in doubt verify on a fresh origin,
-e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.9).
+e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.10).
 
 ## Working rules (non-negotiable)
 1. No invented data; every fact cites a source (6 IMD PDFs in `pdf/` + web). Any
@@ -39,7 +39,7 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.9).
 5. Palette: paper/ink/muted/teal + amber(heat) + blue(cold) + violet #6D28D9
    (MJO-enhanced zone ONLY).
 
-## Current verified state (2026-10-17, v7.9)
+## Current verified state (2026-10-17, v7.10)
 - Self-test line `#layerDebug`: `months=12 stations=23 states=36 rivers=109+633west
   basins=25 dams=13002 cwc=30395 mjo=8 rm=<0|1> · layers on=12/14 · phen=<N>/41 · rainavg=<N>/36 · zoom=<z> · vectors-ok`.
   `rm=1` means the system asks for reduced motion — relevant to animations.
@@ -300,6 +300,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.9).
   `performance.now()` only, with a 120 ms `setInterval` fallback because rAF freezes in background tabs;
   (2) `map.addSource` throws while the style is still loading, so `damStart` retries `addDamLayers()` for
   up to 6 s instead of failing on the first call.
+- v7.10 dam-routing traps: (1) "distance to the recorded sea end" is NOT monotonic along a looping
+  river — a greedy step on it walks upstream (Mettur 429 km, Bhagirathi 90 km into its headwater);
+  direction must come from the flow axis and the path from the exact part-graph search, never from
+  a per-step sea-distance heuristic; (2) the coast test polygon is the COUNTRY outline, so points near
+  the land borders pass it — always pair it with `seaSide()`; (3) `isStyleLoaded()` also waits for
+  SOURCES, so it stays false while vector tiles stream and `addSource` "fails" — use the
+  `style.load` flag (`mapStyleReady`); (4) in a BACKGROUNDED tab MapLibre never applies camera
+  changes (rAF frozen): `easeTo` looks like a no-op and `getZoom()` keeps the old value — force
+  `map._render(performance.now())` before reading the camera in probes (the dam run itself advances
+  anyway thanks to its 120 ms timer fallback).
 - v7.2 rain weights: `applyHydro` also reseeds 3D drops (`wxRDrop.fill(null)`) — applyHydro is
   defined before `wxRDrop` exists but is only CALLED after the wx block (first call = the seed
   line right after it); never call applyHydro earlier or the reseed hits a TDZ. `__rainSample`
@@ -430,6 +440,16 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.9).
   ≈6.6 to ≈5.2, `reached` true, `#damStat` = "Reached the sea in ≈3.2 days (illustrative)", `#damDay`
   = "Day 3.2", layers `dam-route-line / dam-wet-line / dam-head-* / dam-end-*` present, 0 console errors.
   Tap-a-dot: `map.queryRenderedFeatures([x,y],{layers:["dam-pts"]})` then a canvas click selects it.
+- v7.10 flow direction + cities (the Mettur regression): `node data/_route_engine_check.mjs` must
+  print **UP-FLOW regressions 0** at both snap radii, 389/400 at 6 km and 400/400 at 12 km, and the
+  spot checks must show Mettur → 300 km COASTAL via Cauvery River with Tiruchirappalli + Kumbakonam,
+  Hirakud → 413 km → 86.71/20.30, Tehri → 2077 km via `Bhagirathi → Ganga River → … → coast` with
+  Devprayag…Kolkata, Bhakra → 252 km **inland**. In the browser: search "mettur" → `__dam.route()`
+  {coastal:true, cities:[Tiruchirappalli, Kumbakonam]}; `map.getSource("dam-cities").serialize()
+  .data.features.length` = 2 and `queryRenderedFeatures({layers:["dam-city-dot"]})` = 2 after a forced
+  `map._render()`; release samples show `pitch` 0 throughout and `zoom` falling (7.44→5.94), ending
+  "Reached the sea in ≈2.3 days (illustrative)". Console carries OpenFreeMap glyph-endpoint 404s
+  (upstream font server — labels still render with a local fallback); no app errors.
 
 - v7.7 phenomena visibility (2D + Fig6 + boot): with saved picks on, a FRESH load must
   reach `#phenCount` = `13 / 41 on` (or `N / 41 on`) within ~2 s of the map bridge — poll
@@ -451,12 +471,15 @@ e.g. `localhost` vs `127.0.0.1`). Brand in header shows version (now v7.9).
   see `SHAPE_INTEGRATION.md`), `data/months.json`, `data/mjo.json`, etc.
 - Dam route: `data/dam-route-hirakud.geo.json` (v7.6 hero route; provenance in properties)
   + `data/_gen_dam_route.mjs` (re-runnable generator: CWC walk + DP simplify).
-- v7.9 any-dam routing: `data/_route-engine.mjs` (shared solver — bbox grid, greedy walk, chaining,
-  coast test, DP), `data/dam-router-worker.js` (module worker owning the 14 MB network),
-  `data/_route_engine_check.mjs` (read-only coverage check: run `node data/_route_engine_check.mjs`).
+- v7.9 any-dam routing: `data/_route-engine.mjs` (shared solver — bbox grid, flow-axis direction,
+  exact part-graph walk, sea-bound forks, `seaSide()` maritime-sector coast test, DP, city crossings),
+  `data/dam-router-worker.js` (module worker owning the 14 MB network),
+  `data/river-cities.json` (city reference points for the "Crosses:" line + map markers),
+  `data/_route_engine_check.mjs` (regression: up-flow count, coverage, city crossings — run
+  `node data/_route_engine_check.mjs`).
 - Rain averages: `data/rain-state-avg.json` (36 states × 12 months, mm/month) regenerated by
   `node data/_gen_rain_avg.mjs` from the fetched IMD 1901–2015 subdivision CSV kept local in
   git-ignored `data/_src/` (mirror URL in the JSON meta + CITATIONS 11).
-- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.9), `SHAPE_INTEGRATION.md`
+- Docs: `INDIAN_WEATHER_SPEC.md` (frozen build spec, v7.10), `SHAPE_INTEGRATION.md`
   (shapefile checklist, all ticked), `CITATIONS.md` (all sources/©), `README.md`.
 - NEVER commit: `pdf/` (IMD ©), `Shape files/` (1.1 GB) — both git-ignored.

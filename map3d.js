@@ -33,7 +33,7 @@ const VIEW={center:[78.9,22.6],zoom:4.3,pitch:52,bearing:-8};  /* opens tilted s
 const DAM_SECONDS=24;                                          /* v7.6: whole journey plays in this many real seconds */
 const DAM_RM=matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-let libP=null,map=null,mlRef=null,rsWired=false;
+let libP=null,map=null,mlRef=null,rsWired=false,mapStyleReady=false;
 let route=null,damZAll=4.4,damLoaded=false,damRun=null;
 
 const dEl=id=>document.getElementById(id);
@@ -179,7 +179,8 @@ const last=coords[coords.length-1],speed=r.speed_m_s||1.5;
 return {id:dam.id,coords,cum,totalKm:km,speedMps:speed,arrivalDays:km/(speed*86.4),
   dam:{name:dam.name,lon:dam.lon,lat:dam.lat,state:dam.state,height:dam.h,river:dam.river},
   sea:{lon:last[0],lat:last[1]},name:dam.name+" → "+(r.coastal?"coast":"recorded river end"),
-  river:dam.river,basin:dam.basin,chains:r.chains||[],coastal:!!r.coastal,snapKm:r.snapKm,to:r.to,src:r.src||""};
+  river:dam.river,basin:dam.basin,chains:r.chains||[],coastal:!!r.coastal,snapKm:r.snapKm,to:r.to,src:r.src||"",
+  cities:r.cities||[]};
 }
 
 async function damSelect(dam){
@@ -205,6 +206,16 @@ try{
   const dayEl=dEl("damDay");if(dayEl)dayEl.textContent="Day 0.0";
   idleStat();
   damMsg(r.snapKm>SNAP_NEAR_KM?("course joins the mapped river "+r.snapKm.toFixed(1)+" km from the dam — illustrative snap)"):"");
+  /* v7.10: mark the cities this course passes (markers + labels on the map, names in the card) */
+  const cx=dEl("damCities");
+  if(cx)cx.textContent=(nr.cities||[]).length
+    ?"Crosses: "+nr.cities.map(c=>c.name+" ("+c.km.toFixed(0)+" km)").join(" · ")
+    :"No city marker within 8 km of this course.";
+  if(map&&mapStyleReady){
+    const csrc=map.getSource("dam-cities");
+    if(csrc)csrc.setData({type:"FeatureCollection",features:(nr.cities||[]).map(c=>({
+      type:"Feature",geometry:{type:"Point",coordinates:[c.lon,c.lat]},properties:{name:c.name,km:c.km}}))});
+  }
   if(map&&map.isStyleLoaded()){
     if(!map.getSource("dam-route")){if(addDamLayers()){} }
     else{
@@ -316,7 +327,9 @@ return{wet:{type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"L
 }
 
 function addDamLayers(){
-if(!map||!route||!map.isStyleLoaded())return false;
+/* isStyleLoaded() waits for SOURCES too, so it stays false while vector tiles stream and the
+   route layers were never added; the style.load flag is the honest readiness signal */
+if(!map||!route||!mapStyleReady)return false;
 if(!map.getSource("dam-route")){
   const emptyFC={type:"FeatureCollection",features:[]};
   map.addSource("dam-route",{type:"geojson",data:{type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:route.coords},properties:{}}]}});
@@ -339,8 +352,19 @@ if(!map.getSource("dam-route")){
     paint:{"circle-radius":15,"circle-color":"#5EEAD4","circle-opacity":0.25}});
   map.addLayer({id:"dam-head-dot",type:"circle",source:"dam-head",
     paint:{"circle-radius":6,"circle-color":"#0F766E","circle-stroke-color":"#FAF9F6","circle-stroke-width":1.8}});
+  map.addSource("dam-cities",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+  map.addLayer({id:"dam-city-dot",type:"circle",source:"dam-cities",
+    paint:{"circle-radius":3.6,"circle-color":"#FAF9F6","circle-stroke-color":"#1A1A1A","circle-stroke-width":1.6}});
+  try{map.addLayer({id:"dam-city-label",type:"symbol",source:"dam-cities",
+    layout:{"text-field":["get","name"],"text-size":11,"text-offset":[0,1.2],"text-anchor":"top","text-max-width":9,
+      "text-allow-overlap":false},
+    paint:{"text-color":"#14181A","text-halo-color":"#FAF9F6","text-halo-width":1.5}});}catch(e){}   /* needs style glyphs — circles still show */
 }
 damLoaded=true;
+/* v7.10: the city markers are filled here as well — damSelect may have run before the layers existed */
+const csrc=map.getSource("dam-cities");
+if(csrc)csrc.setData({type:"FeatureCollection",features:(route.cities||[]).map(c=>({
+  type:"Feature",geometry:{type:"Point",coordinates:[c.lon,c.lat]},properties:{name:c.name,km:c.km}}))});
 damSet(0,false);
 return true;
 }
@@ -450,7 +474,8 @@ state:()=>({running:!!(damRun&&damRun.on),day:+((damRun?damRun.km:0)/(route?rout
   pitch:map?+map.getPitch().toFixed(1):null,zoom:map?+map.getZoom().toFixed(2):null}),
 route:()=>route?{id:route.id,n:route.coords.length,totalKm:+route.totalKm.toFixed(2),speedKmDay:+(route.speedMps*86.4).toFixed(1),
   arrivalDays:+route.arrivalDays.toFixed(2),dam:route.dam,sea:route.sea,river:route.river,
-  coastal:route.coastal,chains:route.chains,snapKm:route.snapKm}:null
+  coastal:route.coastal,chains:route.chains,snapKm:route.snapKm,
+  cities:(route.cities||[]).map(c=>({name:c.name,km:c.km}))}:null
 };
 
 const damBtn=dEl("damBtn");
@@ -473,7 +498,7 @@ maxPitch:80,antialias:true,attributionControl:{compact:true}
 });
 map.addControl(new ml.NavigationControl({visualizePitch:true}),"top-right");
 map.addControl(new ml.ScaleControl({maxWidth:90,unit:"metric"}),"bottom-left");
-map.on("style.load",()=>{try{addSkyTerrainBuildings();}catch(e){console.warn("[map3d] style extras failed:",e.message||e);}});
+map.on("style.load",()=>{mapStyleReady=true;try{addSkyTerrainBuildings();}catch(e){console.warn("[map3d] style extras failed:",e.message||e);}});
 map.on("error",e=>{if(e&&e.error)console.warn("[map3d]",e.error.message||e.error);});
 if(!rsWired){rsWired=true;addEventListener("resize",()=>{if(map)map.resize();});}
 /* resolve once the style + sources are ready — style.load fires even in background

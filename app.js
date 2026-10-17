@@ -419,7 +419,7 @@ window.__waterDone=false;
 window.__loadWater=async()=>{
 if(window.__waterDone)return;window.__waterDone=true;
 try{
-const res=await getJSON("data/reservoirs.geo.json","reservoirs");
+const res=await getJSON("data/reservoirs.geojson","reservoirs");
 L.geoJSON(res,{style:{color:"#0284C7",weight:1,fillColor:"#0284C7",fillOpacity:0.25,smoothFactor:2}}).bindPopup(l=>{const p=l.feature.properties;
 /* v7.22o: the source's `area` is in HECTARES - measured against each polygon's own geodesic area the
    ratio is 96-98, i.e. hectares with about 4% of the outline generalised away - and this popup was

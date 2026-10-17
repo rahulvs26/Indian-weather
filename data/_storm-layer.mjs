@@ -97,6 +97,9 @@ export function createStormLayer(ctx) {
      catchment: 99.7% of the 27,479 rivers in the network share their tile with more than 25 others
      (data/_gen_river_stats.mjs). Calling a tile area a catchment overstated the Vaippar by more
      than two orders of magnitude, which the user caught. */
+  /* river-stats.json is interned (v7.22v): b and t are indices into basinNames and tileNames,
+     because 27,479 rivers share 25 basins and 98 tiles and the repeated text was most of a 5.2 MB
+     file. Resolved here so the panel still prints names. */
   function riverFacts(dam) {
     if (!data || !dam) return null;
     const cands = [];
@@ -107,9 +110,9 @@ export function createStormLayer(ctx) {
     if (!cands.length) return null;
     let best = cands[0];
     for (const r of cands) if (r.km > best.km) best = r;
-    return { river: best.name, km: best.km, features: best.n, tileRivers: best.tileRivers,
-      tileKm2: best.tileKm2, tileName: best.tiles && best.tiles.length ? best.tiles[0].name : null,
-      composite: !!best.composite, basin: best.basin };
+    return { river: best.name, km: best.km, features: best.n, tileRivers: best.tr,
+      tileKm2: best.tk, tileName: best.t >= 0 && data.stats ? (data.stats.tileNames[best.t] || null) : null,
+      composite: !!best.c, basin: best.b >= 0 && data.stats ? (data.stats.basinNames[best.b] || null) : null };
   }
 
   /* rain columns inside the catchment, thinned by intensity; deterministic so the picture does

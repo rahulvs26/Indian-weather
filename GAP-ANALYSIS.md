@@ -1,165 +1,162 @@
-# GAP-ANALYSIS — what is still missing or weak, measured (v7.21)
+# Gap analysis and value engineering — v7.22v
 
-Companion to `PERF-GAPS-v7.20.md` (frame budget) and `PERF-GAPS.md` (the v7.17 sweep). This file
-covers everything else: correctness, data coverage, capability that is wired to nothing, and the
-work the user has asked for that has not been built. Every line is a measurement or a code fact,
-not an impression. Severity: **S1** breaks a promise the UI makes · **S2** visibly limits a feature ·
-**S3** hygiene.
+Measured, not estimated. Every number below comes from a script in `data/` that can be re-run:
+`data/_cost_audit.mjs` (bytes and lines), `data/_payload_audit.mjs` (who fetches what), and the
+existing check suites. Findings that changed the build are marked **[fixed in this pass]**.
 
 ---
 
-## S1 — the OSM shaping works for about one course in three
+## 1. The cost base
 
-The v7.20 promise is "the line follows the real river". Measured over the dams that have researched
-facts, asking the worker for a shape:
+| | |
+|---|---|
+| Code the browser executes | 291 KB, 3,356 lines (`app.js` 1,533 · `map3d.js` 1,823) |
+| Modules the browser imports | 37 KB, 4 modules (`_storm-layer` · `_hydrology` · `_crossings` · `_catchment`) |
+| Build and check scripts (not shipped) | 47 KB, ~2,900 lines, 8 test suites |
+| Data the app can fetch | **39.3 MB across 25 files** before this pass |
+| Files over 500 KB | 10 |
+| First-paint shell | 799 KB (HTML + CSS + JS); MapLibre and its style load only on the first 3D-map activation |
 
-| dam | CWC course | shaped | gain | corridor used | outcome |
-|---|---|---|---|---|---|
-| Mettur | 325 km | **347 km** | 1.07× | 4.5 km | works |
-| Hirakud | 400 km | — | — | 4.5 km | refused |
-| Sardar Sarovar | 140 km | — | — | 4.5 km (also 9, 18) | refused |
-
-**1 of 3 shaped.** The deck does the honest thing when it fails (it keeps the CWC line and says so),
-but a feature that works for a third of its inputs is not finished.
-
-Measured causes, in order of size:
-
-1. **The corridor filter fragments the graph.** Sardar Sarovar: 784 segments kept inside 4.5 km form
-   **764 separate components** — in a braided or deltaic reach the surviving pieces need not touch.
-   Widening the corridor to 9 and 18 km did not reconnect them.
-2. **The reachable network stops short of the end.** On Sardar Sarovar the nearest reachable node to
-   the course's end is **77 km** away (58.6 km even at a 15 km corridor): OSM's lower Narmada is not
-   carried as connected `waterway=river` geometry in those tiles.
-3. **Tile zoom is capped by the tile budget.** A 400 km course must drop to z9 (77 tiles at z10, 612
-   at z12), and OpenMapTiles generalises geometry with zoom, so long courses get the least detail
-   exactly where they need the most.
-4. **Overpass is not a reliable fallback** from this machine: `overpass-api.de` times out,
-   `overpass.osm.ch` holds Switzerland only, two further mirrors refuse the request.
-
-Fixes already shipped this round (each verified against `data/_osm-refine.test.mjs`): a separate
-end-snap budget, end-node selection among *reachable* nodes, a corridor tapered near both ends, and
-corridor widening at 1× / 2× / 4×.
-
-**Recommended:** ship a real river-geometry extract as a static file beside `rivers-cwc.geo.json` —
-HydroSHEDS or a national dataset, indexed in the worker like CWC is today. That removes the network
-dependency, removes the zoom/generalisation problem, and would shape every dam. Until then the
-"Real shape" toggle should be described in the UI as *best effort*.
+The payload is the number that matters. It is fetched over a phone connection in a country where
+large parts of the deck's subject matter are still metered.
 
 ---
 
-## S1 — 35 of 39 dam rows still need a published reservoir level
+## 2. Gap analysis
 
-`data/dam-facts.json`: 39 dams, and the slope→velocity feature (v7.19) needs a full-reservoir level.
+### G1 — the 2D reservoir popup had lost its area **[fixed in this pass]**
+`v7.22o` added `area_km2` to the *repaired* reservoir file and edited the 2D popup to print it — but
+the 2D map reads a **second, older copy** of the same 5,160 reservoirs. The popup asked for a field
+the file it was reading does not have, so clicking any reservoir on the 2D map printed no area at
+all. I fixed the units last turn and broke the field with it, and it survived a full verification pass
+because the popup is only built on click and my checks were all on the 3D map.
 
-| figure | filled | missing |
-|---|---|---|
-| gross capacity | 31 | 8 |
-| live storage | 13 | 26 |
-| gate count / capacity | 3 / 2 | 36 / 37 |
-| `frl_m` (reservoir level, v7.19) | **4** | **35** |
-| human-verified (`verify_status: "verified"`) | **1** (Mettur) | 38 |
+### G2 — the catchment is a watershed *unit*, not the dam's catchment
+The storm panel now reports the published WRIS watershed unit containing the dam (Vaippar 435 km²,
+Mettur 615 km², Bhakra 966 km²). That is the finest unit the source publishes. A large dam's own
+catchment spans several of them — Bhakra's is about 4,480 km² against the 966 km² unit found here. So
+every volume and peak figure in the panel is a **floor**, and the card says so. Closing this properly
+means summing the units that drain to the dam, which needs flow routing from the DEM onto the river
+network. Not started.
 
-Known-bad row still to fix: Hirakud's `live_tmc` 205.56 TMC looks like the gross figure. The mixed
-`max_ow_level_m` field now has a `max_ow_level_kind` note per row, but 8 rows are still
-"kind unconfirmed".
+### G3 — 1 of 39 dam records hand-verified
+`data/dam-facts.json` holds 39 researched rows. Exactly one has been checked by hand against its
+source page. Hirakud's `live_tmc` 205.56 looks like the gross figure printed in the wrong field, and
+eight rows still record the *kind* of number unconfirmed. Everything the deck prints about a dam comes
+from this file, so this is the single highest-consequence gap in the project.
 
-Effort: ~30 min per dam of reading and cross-checking, so this is a research task, not a code task.
-Priority order should follow what users actually open: Mettur (done), Sardar Sarovar (done), Bhakra
-(done), Tehri (done), then Hirakud, Nagarjunasagar (done), Srisailam, Idukki, Indira Sagar.
+### G4 — the reservoir area and the dam record disagree, and nothing shows it
+Mettur Dam's reservoir is 123.86 km² in the WRIS outline and 42.5 km² in the dam record — nearly 3×.
+Both are sourced; they measure different things (full-pool extent versus something else). At present
+the 3D card prints both when a dam is selected, but the 2D popup prints only the outline's figure, and
+nowhere is the disagreement explained. This is exactly the class of thing that teaches a reader
+something false by accident.
+
+### G5 — no rainfall events anywhere
+The deck holds monthly average rainfall by state (`rain-state-avg.json`) and monsoon/MJO phenomena.
+There is no event rainfall, no hyetograph, no observed discharge series. So the storm panel can only
+model a storm the *user* invents. That is honest, but it means the headline hydrology feature has no
+observed counterpart to check itself against.
+
+### G6 — the 3,356 lines of UI have no tests
+All eight suites cover data and engines: the route solver, the OSM refiner, the projection, the
+Curve Number arithmetic, the crossing detector. **Nothing covers `app.js` or `map3d.js`.** Every bug in
+this log that reached a user was in the untested half: the dead search box, the four MapLibre property
+traps, the `node:fs` import that deleted the 3D map, the two-reservoir-file split, the contrast rule
+that styled a container instead of a span. The tests catch bad arithmetic; the shipped defects are
+all wiring and lifecycle.
+
+### G7 — nothing in this project can see itself
+The screenshot tool failed ("needs a visible tab") through the whole reservoir and catchment work, and
+`readPixels` returns a black buffer because MapLibre is not created with `preserveDrawingBuffer`. Three
+of the six MapLibre query APIs return 0 for GeoJSON sources in this build — including for a layer that
+demonstrably draws. So the final visual state of every 3D change in this log is unverified by machine
+and rests on the user looking at it. **This is the risk that would have caught G1.**
+
+### G8 — an empty field with a live consumer
+`catchment_km2` is wired into the dam card and reads from `dam-facts.json`, where no row has a value.
+It is correct to leave it null rather than invent numbers, but the panel should say *why* it is asking
+the user to type the figure — currently it just asks.
+
+### G9 — build scripts with no index
+~2,900 lines across 40 scripts in `data/`, including three that exist only to patch another script
+(`_wire_crossings.mjs`, `_fix_crossings.mjs`, `_add_reservoir_layers.mjs`) and were deleted in the
+commits that used them. There is no registry saying which script produces which file, so the next
+person cannot tell a build step from a one-off. `_payload_audit.mjs` half does this now.
 
 ---
 
-## S2 — catchments exist only as basin polygons, so there is nothing to put a cloud over
+## 3. Value engineering
 
-The user asked for reservoir catchments, a rain cloud sized to intensity, and runoff into the streams.
-What the repo actually has, measured:
+### Removed in this pass — 9.3 MB of payload, all of it measured waste
 
-| file | features | keys | used by |
+| | before | after | why |
 |---|---|---|---|
-| `data/subbasins.geo.json` | **98** | `ba_name`, `sub_basin` | `app.js` (2D map) |
-| `data/basins.geo.json` | **25** | `ba_name`, `area_sqkm`, `state` | `app.js` |
-| `data/reservoirs.geo.json` | 5,162 | `res_name`, `river`, `basin`, `area` | `app.js` |
-| `data/riverbanks.geo.json` | 1,032 | `rivname` | **nothing** |
+| `river-stats.json` | 5,209 KB | **2,064 KB** | 27,479 rivers each carried a full basin name and tile name; there are 25 basins and 98 tiles. Interned into two dictionaries, plus the `tiles` array (1,972 KB) reduced to the one tile ever shown |
+| `reservoirs.geo.json` | 2,272 KB | **deleted** | duplicate of `reservoirs.geojson`, and the stale copy was the one the 2D map read — the cause of G1 |
+| `riverbanks.geo.json` | 1,952 KB | **deleted** | referenced by nothing, ever |
 
-98 sub-basins cannot be per-dam catchments: the Vaigai sub-basin contains every dam on the Vaigai and
-its tributaries. So **the catchment feature cannot be built from what is here** — it needs either a
-sub-basin polygon dataset with per-dam allocation, or a derived catchment from the river network
-(upstream graph walk + buffer), which would be explicitly illustrative, not an official boundary.
+Net, measured after the pass: the app's fetchable payload goes from **39.3 MB across 25 files to
+34.0 MB across 24** (`data/_payload_audit.mjs`), with no feature lost and one bug fixed. The
+reservoir file that survives is the repaired one: 0 invalid features, areas in km², and the published
+figure alongside the measured outline.
 
-The rainfall→runoff→cloud feature is therefore **not started**, and it is not a small piece of work:
-it needs an event rainfall source (the deck holds monthly averages in `rain-state-avg.json`, which is
-not an event), a runoff method with cited parameters, and the catchment geometry. EPA SWMM would do
-the hydrograph properly but is a numerical engine and would need the `app-credits` block.
+### What earns its bytes
 
----
+| Feature | Cost | Value |
+|---|---|---|
+| `rivers-cwc.geo.json` | 14.6 MB | the whole routing, release, catchment and crossing story. 400/400 dams route, 0 up-flow regressions. Irreplaceable |
+| `dams.geo.json` | 2.9 MB | 13,002 searchable dams; the only route into every downstream feature |
+| `watersheds.geo.json` | 5.8 MB | real published catchments, replacing a number that was 46× wrong. Fetched **only** when the storm block opens |
+| `river-stats.json` | 2.0 MB | the panel's "this river is 79 km in 1 feature" line. Still the largest item per line of value it supports |
 
-## S2 — two data files are wired to nothing
+### What should be questioned
 
-- `data/riverbanks.geo.json` — 1.032 MB, 1,032 features, **not referenced by any source file**. It
-  is riverbank geometry (the wide, braided outline) and would be genuinely useful for the S1 shaping
-  problem above, or for drawing the valley floor. Either wire it in or delete it.
-- `data/live.example.json` — a template for a live-data feed, referenced 0 times. Keep as a template
-  and document it, or delete.
+- **`subbasins.geo.json` 3.9 MB + `basins.geo.json` 1.4 MB = 5.3 MB** for the basin-view layer. Since
+  the storm layer stopped using sub-basins, these now serve one click-to-highlight feature. That is a
+  lot of bytes for a highlight. Either give it more to do (per-basin rainfall totals, reservoir counts
+  per basin) or move it behind a chip so it is never fetched by default.
+- **`india-rivers-west.geojson` 181 KB and `india-rivers.geojson` 83 KB** both exist alongside
+  `rivers-cwc` — a third and fourth rendering of the same rivers. Candidates for consolidation.
+- **The 3D-mountains view** (procedural terrain, ~500 lines in `app.js`) now overlaps the 3D map,
+  which uses real DEM tiles and real buildings. Two 3D views is a maintenance cost paid for
+  comparison, and the procedural one invents reservoir shapes — which is exactly the thing this
+  project stopped doing when the real outlines arrived. *Recommendation: retire it, keep the view
+  switch that reaches the real one.*
 
-Neither costs runtime (a file nothing fetches), so this is repo hygiene, not performance.
+### The expensive lesson, priced
 
----
-
-## S2 — the derived course is honest but still schematic where CWC is
-
-v7.18 disclosed the CWC schematic line as amber "not mapped" connectors, and v7.20 shaped the course
-on the map's own OSM geometry where possible. The residual, measured over the 400 tallest dams
-(`node data/_route_engine_check.mjs`):
-
-- **0** up-flow regressions; 400/400 routed at 12 km snap; ~11 ms per dam.
-- Course length drawn vs the mapped channel: p90 0.73 km off, **max 7.37 km** across 11,997 dams.
-- Tehri still carries **203 connectors** (longest 34 km) and Hirakud 47 — the Ganga plain's
-  digitisation is coarse, and no solver can invent what the source does not contain.
-
-So the honest statement is: *where the shape pass succeeds the line follows the real river; where it
-does not, the line follows the schematic source and the card says so.* Closing this fully is the same
-static-extract item as S1.
+Every one of the four bugs in G1, G6 and G7 sat in the wiring, and every one cost more to find than it
+would have cost to prevent. Two were invisible to my verification because verification itself was
+blind. The cheapest available insurance is a smoke test that runs the real page and asserts the things
+a user would notice — that the 2D popup has an area, that the 3D map exists at all, that the modules
+the browser imports do not reach for `node:` — and it needs no screenshot tool to run.
 
 ---
 
-## S3 — accessibility and hygiene
+## 4. Recommended order, by value per effort
 
-- **`prefers-reduced-motion` is honoured in 3 places** (`app.js:5/524/621`, `map3d.js:34`,
-  `styles.css:138`) but not in the full-screen transition or the release camera — the old C3 item,
-  still open and worth doing for accessibility rather than speed.
-- **46 `aria-*` attributes and 0 `<img>`/`alt=`** — the deck is vector/SVG built, so there is no
-  `<img>` to describe; the gap is figure descriptions for screen readers, which exist as text.
-- **Five throwaway debug scripts remain** in `data/`: `_debug_feature.mjs`, `_debug_straight.mjs`,
-  `_debug_walk2.mjs`, `_dp_check.mjs`, `_hop_source.mjs`. Two are useful regression tools
-  (`_dp_check`, `_hop_source`), three are one-off debugging and should go.
-- **`PERF-GAPS.md` (v7.17) and `PERF-GAPS-v7.20.md` overlap.** Merge them so there is one
-  performance document; the v7.20 file supersedes it except for the environment caveat.
-
----
-
-## S3 — measured and *not* gaps (so nobody re-investigates them)
-
-- Frame budget: **p50 16.6-16.7 ms (60 fps)** in every state, including profile mode and during a
-  release. Terrain, buildings, 13,002 dam dots, city labels, the wet line and the camera follow are
-  each free when switched off.
-- A full DEM profile pass is 639 elevation lookups in **2 ms**; the slope feature is not a cost.
-- Card writes during a release: 17/s, no frame effect (closes the old C2 item).
-- Route solve: ~11 ms per dam, worker off the main thread; route cache LRU 80, OSM cache 24 entries,
-  worker terminated after 5 idle minutes; heap 145-179 MB with no unbounded growth path.
-- Style curation: 133 layers, measured repeatedly as irrelevant to frame time — **do not** spend
-  effort here.
+1. **Smoke test the real page** (cheap, closes G6 and G7 going forward). Assert: `window.__map3d`
+   exists after activation; no browser-executed module imports `node:*`; every data file the HTML
+   names is fetchable; a reservoir feature exposes `area_km2`.
+2. **Build script registry** (cheap, closes G9). One table: script → output file → what it measures.
+3. **Verify the dam records** (expensive, closes G3 — highest consequence in the project).
+4. **Slim the basin layer** (cheap, reclaims up to 5.3 MB): chip-gated, or extend it so the bytes earn
+   themselves.
+5. **Retire the 3D-mountains view** (moderate, removes invented geometry and ~500 lines).
+6. **Dam catchments by flow accumulation** (expensive, closes G2 and makes the volume figures true
+   rather than a floor).
 
 ---
 
-## Ranked next actions
+## 5. Reproducing this
 
-1. **Static river-geometry extract** (closes S1 shaping coverage and the residual schematic courses).
-   One download step, then it is offline and fast like `rivers-cwc.geo.json`.
-2. **`frl_m` research for the next 6-8 dams** the users open most (unlocks slope→velocity for them).
-3. **Catchment decision** — either source per-dam catchments, or take the derived-and-labelled route
-   and build the cloud/rainfall layer on top of it. Then, and only then, the second opt-in hydrology
-   layer.
-4. **Merge the two perf documents**, delete the three one-off debug scripts, wire or delete
-   `riverbanks.geo.json`.
-5. **`prefers-reduced-motion` for the full-screen transition and the release camera.**
-6. **Hand-verify the 38 dam-facts rows**, starting with Hirakud's suspect live storage.
+```
+node data/_cost_audit.mjs       # bytes, lines, what is referenced
+node data/_payload_audit.mjs    # which files the browser fetches, and the two-reservoir check
+node data/_hydrology.test.mjs   # Curve Number arithmetic against hand-worked values
+node data/_crossings.test.mjs   # reservoir crossings against known geometry
+node data/_route_engine_check.mjs  # 400 dams: routing, up-flow regressions, timing
+node data/_watershed_check.mjs  # published watershed areas vs the tile geometry
+node data/_crs_check.mjs        # the India LCC inverse against the Dam file's own lat/lon
+```

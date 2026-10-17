@@ -213,6 +213,8 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damRes:hover{border-color:#2DD4BF;background:rgba(15,118,110,.28)}
 .damRes span{color:#9fb4c7;font-size:9.5px}
 .damNo{font-size:10px;color:#9fb4c7;padding:2px 4px}
+.damOsmNote{font-size:9px;line-height:1.4;color:#7FE9D7;margin-top:1px}
+.damOsmNote:empty{display:none}
 .damMsg{margin-top:5px;font-size:10px;color:#5EEAD4;min-height:12px}
 .damCities{margin-top:4px;font-size:10px;color:#FDE68A;line-height:1.45}
 .damFacts{margin-top:5px;font-size:10px;color:#CBD5E1;line-height:1.5;border-left:2px solid #0F766E;padding-left:6px}

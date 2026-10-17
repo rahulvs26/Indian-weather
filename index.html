@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.19">
+<link rel="stylesheet" href="styles.css?v=7.20">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.19</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.20</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -70,8 +70,9 @@
 </details>
 </div>
 <div class="damStat" id="damStat">—</div>
+<div class="damOsmNote" id="damOsmNote"></div>
 <div class="damMsg" id="damMsg"></div>
-<div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Follow wave</label><label class="damChk"><input type="checkbox" id="damSmooth"> Flat 2D</label></div>
+<div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Follow wave</label><label class="damChk"><input type="checkbox" id="damSmooth"> Flat 2D</label><label class="damChk"><input type="checkbox" id="damOsm" checked> Real shape</label></div>
 <div class="damNote">Course derived on demand from the real CWC river network (<code>rivers-cwc.geo.json</code>) — nothing downloads until “Find a dam” is on. Travel only, no inundation; speed, days and volumes are illustrative.</div>
 </div></div>
 <div class="controls" style="border-top:1px solid var(--line)">
@@ -297,6 +298,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.17" defer></script>
-<script type="module" src="map3d.js?v=7.19"></script>
+<script type="module" src="map3d.js?v=7.20"></script>
 </body>
 </html>

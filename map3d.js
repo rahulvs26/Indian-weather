@@ -88,7 +88,7 @@ paint:{
      3. every course is cached per dam; geometry, km and days come from the CWC network only.
    Travel time stays ILLUSTRATIVE (constant kinematic wave, not measured). */
 const DAM_DAMS="data/dams.geo.json?v=7.9";
-const DAM_WORKER="data/dam-router-worker.js?v=7.18";
+const DAM_WORKER="data/dam-router-worker.js?v=7.20";
 const SNAP_NEAR_KM=6,SNAP_FAR_KM=12,DAM_SEARCH_MAX=14;
 
 let damP=null,damList=null,damById=null,damCache={},damCacheOrder=[],damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null,damIdleT=0;
@@ -314,7 +314,8 @@ damWorker.onmessage=e=>{
   const w=damWait[m.id];
   if(!w)return;
   delete damWait[m.id];
-  if(m.ok)w.resolve(m.route);else w.reject(new Error(m.error));
+  if(m.ok)w.resolve(m.route!==undefined?m.route:(m.osm!==undefined?{osm:m.osm,ways:m.ways}:m));
+  else w.reject(new Error(m.error));
 };
 damWorker.onerror=e=>{damMsg("Router error: "+(e.message||"worker failed"));};
 damWorker.postMessage({cmd:"preload"});
@@ -329,6 +330,118 @@ return new Promise((resolve,reject)=>{
 });
 }
 
+/* v7.20: ask the worker to re-shape the course on OpenStreetMap geometry (lazy, only when the
+   toggle is on and a dam is selected). Cached per dam+direction so a repeat is instant. */
+let osmCache=new Map(),osmInFlight=null,damOsmSrc="";
+const OSM_CACHE_MAX=12;
+function damAskOsm(coords){
+  const w=damEnsureWorker(),id="o"+(++damSeq);
+  return new Promise((resolve,reject)=>{
+    damWait[id]={resolve,reject};
+    w.postMessage({cmd:"osm",id,coords,opts:{corridorKm:4.5}});
+  });
+}
+function damOsmOn(){const b=dEl("damOsm");return !!(b&&b.checked);}
+
+/* apply an OSM-shaped course: swap the drawn geometry, keep the CWC line as a thin reference so
+   the user can see the schematic source it was shaped from, and state both lengths. */
+function damApplyOsm(res,meta){
+  if(!res||!res.coords||res.coords.length<3){damOsmNote(null,"OpenStreetMap shape unavailable — showing the CWC schematic line.");return false;}
+  const cwc=route.coords;
+  if(!route.osmCwc)route.osmCwc={coords:cwc.slice(),cum:route.cum.slice(),totalKm:route.totalKm};
+  const cum=[0];let km=0;
+  for(let i=1;i<res.coords.length;i++){km+=hav(res.coords[i-1],res.coords[i]);cum.push(km);}
+  route.osm={coords:res.coords,cum,totalKm:km,spineKm:cwc.length?route.totalKm:null,devKm:res.devKm,segs:res.segs,ways:meta&&meta.ways};
+  route.coords=res.coords;route.cum=cum;route.totalKm=km;
+  route.arrivalDays=damTimingTotal();
+  if(map){
+    const s=map.getSource("dam-route");
+    if(s)s.setData({type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:res.coords},properties:{}}]});
+    const ref=map.getSource("dam-cwc");
+    if(ref)ref.setData({type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:cwc},properties:{}}]});
+    const g2=map.getSource("dam-gaps");
+    if(g2)g2.setData({type:"FeatureCollection",features:damGapFeatures(route)});
+    damEndPoints();
+  }
+  damOsmNote(res,"Course shape from OpenStreetMap ("
+    +(meta&&meta.src==="overpass"?"Overpass fallback":"the map's own OpenFreeMap tiles")+") · "
+    +km.toFixed(0)+" km against the CWC schematic line's "+(route.osm.spineKm||0).toFixed(0)+" km"
+    +(res.devKm!=null?" · stays within "+res.devKm.toFixed(1)+" km of it":""));
+  const sub0=dEl("damSub");          /* the course label must say which geometry is on screen */
+  if(sub0)sub0.textContent=sub0.textContent.replace(/CWC centre-line/,"OpenStreetMap shape, CWC routing")
+    .replace(/CWC schematic ([\d.]+) km/,(m,n)=>"CWC schematic "+n+" km");
+  damReadout();
+  return true;
+}
+function damEndPoints(){
+  if(!map||!route)return;
+  const last=route.coords[route.coords.length-1];
+  const e2=map.getSource("dam-ends");
+  if(e2)e2.setData({type:"FeatureCollection",features:[
+    {type:"Feature",geometry:{type:"Point",coordinates:[route.dam.lon,route.dam.lat]},properties:{kind:"dam"}},
+    {type:"Feature",geometry:{type:"Point",coordinates:[last[0],last[1]]},properties:{kind:"sea"}}]});
+}
+function damTimingTotal(){
+  const p=damProfile();
+  if(p&&p.totalDays)return p.totalDays;
+  return route.totalKm/(damVelocity()*86.4);
+}
+function damOsmNote(res,text){
+  const box=dEl("damOsmNote");
+  if(box)box.textContent=text||"";
+  if(res&&res.src)damOsmSrc=res.src;
+}
+/* the OSM pass runs after the CWC route is already on screen, so nothing waits for the network:
+   if Overpass is slow the card keeps saying so and the shaped line simply arrives later. Results are
+   cached in memory (LRU) and in localStorage, so a dam looked at twice needs no network at all. */
+const OSM_LS="t3osm";
+/* the cache stores the shaping RESULT, so which source produced it (tiles or Overpass) goes with it —
+   otherwise a result shaped by the fallback would be reported as coming from the map's own tiles */
+function damOsmLsGet(ck){
+  try{
+    const all=JSON.parse(localStorage.getItem(OSM_LS)||"{}");
+    const e=all[ck];
+    return e&&e.coords&&e.coords.length>2?e:null;
+  }catch(_){ return null; }
+}
+function damOsmLsPut(ck,rec){
+  try{
+    const all=JSON.parse(localStorage.getItem(OSM_LS)||"{}");
+    all[ck]={coords:rec.coords.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)]),devKm:rec.devKm,spineKm:rec.spineKm,
+    km:rec.km,segs:rec.segs,src:rec.src||"",t:Date.now()};
+    const keys=Object.keys(all);
+    if(keys.length>24){keys.sort((a,b)=>(all[a].t||0)-(all[b].t||0)).slice(0,keys.length-24).forEach(k=>delete all[k]);}
+    localStorage.setItem(OSM_LS,JSON.stringify(all));
+  }catch(_){}
+}
+function damOsmMaybe(){
+  const ck=damSel?damSel.id+(route&&route.upstream?"#up":""):null;
+  if(!damOsmOn()||!route||!ck){damOsmNote(null,"");return;}
+  const mem=osmCache.get(ck);
+  if(mem){damApplyOsm(mem,{ways:mem.ways});return;}
+  const stored=damOsmLsGet(ck);
+  if(stored){osmCache.set(ck,stored);damApplyOsm(stored,{ways:stored.ways});damOsmNote(stored,"Course shape from OpenStreetMap (cached"
+    +(stored.src?" · "+stored.src:"")+") · "
+    +stored.km.toFixed(0)+" km against the CWC schematic line's "+stored.spineKm.toFixed(0)+" km"
+    +(stored.devKm!=null?" · stays within "+stored.devKm.toFixed(1)+" km of it":""));return;}
+  if(route.osmCwc)return;                      /* already shaped once; do not refetch */
+  damOsmNote(null,"shaping the course on OpenStreetMap (Overpass is often slow)…");
+  const slow=setTimeout(()=>{damOsmNote(null,"still shaping on OpenStreetMap — the CWC line stays until it arrives");},9000);
+  damAskOsm(route.coords).then(res=>{
+    clearTimeout(slow);
+    if(!damSel||(damSel.id+(route&&route.upstream?"#up":""))!==ck)return;   /* the user moved on */
+    if(res&&res.osm){
+      const rec={coords:res.osm.coords,devKm:res.osm.devKm,segs:res.osm.segs,km:res.osm.km,spineKm:res.osm.spineKm,
+        ways:res.ways,src:res.src};
+      osmCache.set(ck,rec);
+      while(osmCache.size>OSM_CACHE_MAX)osmCache.delete(osmCache.keys().next().value);
+      damOsmLsPut(ck,rec);
+      damApplyOsm(rec,{ways:res.ways});
+    }else{
+      damOsmNote(null,"OpenStreetMap shape unavailable — showing the CWC schematic line.");
+    }
+  }).catch(()=>{clearTimeout(slow);damOsmNote(null,"OpenStreetMap shape unavailable — showing the CWC schematic line.");});
+}
 /* ---- researched dam facts (capacity + gates) — data/dam-facts.json, loaded once ---------- */
 const DAM_FACTS_URL="data/dam-facts.json?v=7.19";
 let damFactsP=null,damFactsById=null;
@@ -945,7 +1058,9 @@ try{
   const t=dEl("damTitle");if(t)t.textContent="Release · "+nr.dam.name;
   const sub=dEl("damSub");
   if(sub)sub.textContent=(nr.chains.length?nr.chains.join(" → "):(nr.river||"river"))+" → "
-    +(nr.upstream?"recorded river source (reservoir origin)":(nr.coastal?"coast":"recorded river end (inland)"))+" · "+nr.totalKm.toFixed(0)+" km course (CWC centre-line)"
+    +(nr.upstream?"recorded river source (reservoir origin)":(nr.coastal?"coast":"recorded river end (inland)"))+" · "
+    +nr.totalKm.toFixed(0)+" km course ("+(damOsmSrc?"OpenStreetMap shape, CWC routing":(nr.osm?"OpenStreetMap shape":"CWC centre-line"))+")"
+    +(nr.osmCwc&&!nr.osm?" · CWC schematic "+nr.osmCwc.totalKm.toFixed(0)+" km":"")
     +" · "+damCourseNote(nr)
     +(nr.dam.state?" · "+nr.dam.state:"");
   const dayEl=dEl("damDay");if(dayEl)dayEl.textContent="Day 0.0";
@@ -966,6 +1081,7 @@ try{
   PROF_RETRY=0;
   DAM_SPEED_AUTO=true;
   damSlopeRefresh();
+  damOsmMaybe();
   damReadout();
   if(map&&mapStyleReady){
     if(!map.getSource("dam-route")){if(addDamLayers()){} }
@@ -1133,6 +1249,12 @@ if(!map.getSource("dam-route")){
   map.addLayer({id:"dam-gap-line",type:"line",source:"dam-gaps",
     layout:{"line-cap":"butt","line-join":"round"},
     paint:{"line-color":"#F59E0B","line-width":2.4,"line-opacity":0.95,"line-dasharray":[0.6,1.6]}});
+  /* v7.20: the CWC schematic line stays on the map as a thin grey reference once the course has
+     been shaped on OpenStreetMap, so the difference between the source and the real shape is visible */
+  map.addSource("dam-cwc",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+  map.addLayer({id:"dam-cwc-line",type:"line",source:"dam-cwc",
+    layout:{"line-cap":"butt","line-join":"round"},
+    paint:{"line-color":"#94A3B8","line-width":1.1,"line-opacity":0.75,"line-dasharray":[0.4,1.2]}});
   map.addSource("dam-ends",{type:"geojson",data:{type:"FeatureCollection",features:[
     {type:"Feature",geometry:{type:"Point",coordinates:[route.dam.lon,route.dam.lat]},properties:{kind:"dam"}},
     {type:"Feature",geometry:{type:"Point",coordinates:[route.sea.lon,route.sea.lat]},properties:{kind:"sea"}}]}});
@@ -1343,6 +1465,28 @@ for(const id of ["damFrl","damEnd","damMann","damDepth"]){
   if(el)el.addEventListener("input",()=>{PROF_CACHE=null;damSlopeUI();damSlopeSeed();damReadout();});
 }
 dEl("damUseSpeed")&&dEl("damUseSpeed").addEventListener("click",()=>damUseSpeed());
+/* v7.20: "Real shape" toggles the OpenStreetMap re-shape; turning it off restores the CWC line */
+dEl("damOsm")&&dEl("damOsm").addEventListener("change",()=>{
+  if(!route)return;
+  if(!damOsmOn()){
+    if(route.osm&&route.osmCwc){
+      route.coords=route.osmCwc.coords;route.cum=route.osmCwc.cum;route.totalKm=route.osmCwc.totalKm;
+      const s=map&&map.getSource("dam-route");
+      if(s)s.setData({type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:route.coords},properties:{}}]});
+      const ref=map&&map.getSource("dam-cwc");
+      if(ref)ref.setData({type:"FeatureCollection",features:[]});
+      const g2=map&&map.getSource("dam-gaps");
+      if(g2)g2.setData({type:"FeatureCollection",features:damGapFeatures(route)});
+      damEndPoints();
+    }
+    damOsmNote(null,"Showing the CWC schematic line.");
+    damReadout();
+    return;
+  }
+  if(route.osm&&!route.osmCwc)route.osmCwc={coords:route.coords.slice(),cum:route.cum.slice(),totalKm:route.totalKm};
+  PROF_CACHE=null;
+  damOsmMaybe();
+});
 dEl("damProfMode")&&dEl("damProfMode").addEventListener("change",()=>{damReset();damReadout();});
 /* v7.18: collapse / expand the console (remembered per session; ?fold=1 starts folded) */
 dEl("damFold")&&dEl("damFold").addEventListener("click",()=>{

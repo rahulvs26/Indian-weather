@@ -20,16 +20,15 @@ const IOD_SEASON={1:.15,2:.15,3:.25,4:.4,5:.6,6:.8,7:.9,8:1,9:1,10:.9,11:.5,12:.
 
 /* ================= MONTH MODEL (1–12, shared) ================= */
 let MONTHS=[];
-const monthSlider=$("monthSlider"),monthReadout=$("monthReadout"),wheelLabel=$("wheelLabel"),
-wheelRotor=$("wheelRotor"),wheelReadout=$("wheelReadout"),monthWheelMini=$("monthWheelMini");
+/* v7.22x: the season wheel is gone. monthWheelMini is the small month tag in the map control bar
+   and stays; wheelLabel, wheelRotor and wheelReadout belonged to the removed figure. */
+const monthSlider=$("monthSlider"),monthReadout=$("monthReadout"),monthWheelMini=$("monthWheelMini");
 function monthByNum(m){return MONTHS.find(x=>x.m===m)||MONTHS[0];}
 function setMonth(m){
 m=Math.max(1,Math.min(12,m));INDWeather.month=m;
 const d=monthByNum(m);if(!d)return;
-monthSlider.value=m;monthWheelMini.textContent=d.label;wheelLabel.textContent=d.label;
-wheelRotor.setAttribute("transform",`rotate(${(-80+(m-1)*(160/11)).toFixed(1)})`);
+monthSlider.value=m;monthWheelMini.textContent=d.label;
 monthReadout.textContent=`${d.label} · ${d.season} · wind: ${d.wind} · rain: ${d.rain} · AS ${d.arabian}% / BoB ${d.bay}% · ${d.s}`;
-wheelReadout.textContent=`${d.label} · ${d.note}`;
 CLIM.m=m;
 if(window.__windVec)window.__windVec(d);
 if(window.__branchSize)window.__branchSize(d);
@@ -43,9 +42,8 @@ if(window.__riverMonth)window.__riverMonth(d);
 if(window.__terrainMonth)window.__terrainMonth(d);
 if(window.__phenMonthSync)window.__phenMonthSync(m);
 }
-(function(){let h="";for(let i=0;i<12;i++){const a=-80+i*(160/11);h+=`<line x1="0" y1="-64" x2="0" y2="-52" transform="rotate(${a})" stroke="#1A1A1A" stroke-width="1.4"/>`;}$("wheelTicks").innerHTML=h;})();
-$("wheelPrev").addEventListener("click",()=>setMonth(INDWeather.month-1));
-$("wheelNext").addEventListener("click",()=>setMonth(INDWeather.month+1));
+/* v7.22x: the season wheel's tick ring and its prev/next buttons went with the figure. The month
+   slider below and the month model above are untouched - every seasonal layer still reads them. */
 monthSlider.addEventListener("input",e=>setMonth(+e.target.value));
 
 /* ================= OSM MAP + WIND PARTICLES + ARROWS ================= */
@@ -546,24 +544,90 @@ document.querySelector("#map .card").appendChild(fb);
 }
 initMap();
 
-/* ================= Fig1 plotter ================= */
-const ISO=[
-{label:"Andaman Sea",date:"13 May",x:0.06,s:"monsoon_report_2025_2.pdf p38"},
-{label:"Kerala onset",date:"24 May",x:0.20,s:"monsoon_report_2025_2.pdf p38"},
-{label:"Hiatus pause",date:"29 May–16 Jun",x:0.32,s:"monsoon_report_2025_2.pdf p38"},
-{label:"Konkan / Bengal",date:"7–8 Jun",x:0.45,s:"swmonsoon_yprao.pdf p39"},
-{label:"Vidarbha / MP",date:"12 Jun",x:0.58,s:"swmonsoon_yprao.pdf p39"},
-{label:"E. UP",date:"15 Jun",x:0.68,s:"swmonsoon_yprao.pdf p39"},
-{label:"Full cover",date:"27 Jun",x:0.80,s:"monsoon_report_2025_2.pdf p38"},
-{label:"Delhi / NW",date:"~3 Jul",x:0.92,s:"swmonsoon_yprao.pdf p39"}];
-(function(){let h="";for(let i=0;i<=24;i++){const x=120+i*20,maj=i%5===0;h+=`<line x1="${x}" y1="252" x2="${x}" y2="${maj?266:260}" stroke-width="${maj?1.6:1}"/>`;}$("plotTicks").innerHTML=h;
-let w="";ISO.forEach((s,i)=>{const wx=120+s.x*480;w+=`<g><circle cx="${wx}" cy="290" r="7" fill="${i===1?"#0F766E":"#FAF9F6"}" stroke="#1A1A1A" stroke-width="1.5"/><circle cx="${wx}" cy="290" r="2" fill="#1A1A1A"/><text x="${wx}" y="278" font-size="9" text-anchor="middle" font-family="monospace" fill="#6B7280">${i+1}</text></g>`;});$("plotWells").innerHTML=w;})();
-const beam=$("plotBeam"),head=$("plotHead"),dateSlider=$("dateSlider"),monsoonReadout=$("monsoonReadout");
-const beamS=spring(v=>beam.setAttribute("transform",`translate(${v},150)`),0);
-const headS=spring(v=>head.setAttribute("transform",`translate(${v},196)`),0);
-function setDate(i){i=Math.max(0,Math.min(7,+i));const s=ISO[i];const bx=120+s.x*480;beamS.target=bx-260;headS.target=bx;monsoonReadout.textContent=`${i+1}/8 · ${s.label} · ${s.date} · ${s.s}`;head.querySelector("rect").setAttribute("fill",s.label.includes("Hiatus")?"#B91C1C":"#0F766E");}
-dateSlider.addEventListener("input",e=>setDate(e.target.value));setDate(1);
-let tour=null;$("playBtn").addEventListener("click",()=>{if(tour){clearInterval(tour);tour=null;$("playBtn").textContent="▶ tour";return;}$("playBtn").textContent="■ stop";let i=+dateSlider.value;tour=setInterval(()=>{i=(i+1)%8;dateSlider.value=i;setDate(i);},RM?99999:900);});
+/* v7.22x: the monsoon plotter, its milestones and its play button were here.
+   The text they carried is kept in data/_removed_plotter.html and in ONDATA.md - the dates were real
+   and sourced, only the gantry metaphor went. */
+
+
+/* v7.22x section 2: the MJO article. Prose comes from data/_mjo-article.mjs; the per-phase India
+   effect and its source are read out of data/mjo.json at runtime, so the facts on screen are the
+   deck's own data and the map popup and this article cannot disagree. */
+(function(){
+const PROSE=window.__MJO_PROSE||{},POS=window.__MJO_POS||{},AMP=window.__MJO_AMPLITUDE||[],
+      FACTS=window.__MJO_FACTS||[],SRC=window.__MJO_SOURCES||[];
+const g=document.getElementById("mjoSectors");if(!g)return;
+const R=118,CX=180,CY=150;
+let PH=[],sel=null;
+function xy(p){const q=POS[p]||[0.5,0.5];return[+(CX+q[0]*R*2-R).toFixed(1),+(CY+q[1]*R*2-R).toFixed(1)];}
+function draw(){
+  let h="";
+  for(const s of PH){
+    const c=xy(s.p),on=sel===s.p;
+    h+='<g class="mjoSec" data-id="'+s.p+'" tabindex="0" role="button" aria-label="Phase '+s.p+', '+s.over+'">'
+      +'<circle cx="'+c[0]+'" cy="'+c[1]+'" r="'+(on?14:11)+'" fill="'+(on?"#5EEAD4":"#0b3b38")
+      +'" stroke="'+(on?"#062b28":"#2DD4BF")+'" stroke-width="'+(on?2.6:1.4)+'"/>'
+      +'<text x="'+c[0]+'" y="'+(c[1]+3.6)+'" text-anchor="middle" font-size="10" font-family="monospace"'
+      +' fill="'+(on?"#062b28":"#a7f3d0")+'" pointer-events="none">'+s.p+'</text>'
+      +'<title>Phase '+s.p+': '+s.over+'</title></g>';
+  }
+  g.innerHTML=h;
+  g.querySelectorAll(".mjoSec").forEach(el=>{
+    const go=()=>select(+el.getAttribute("data-id"));
+    el.addEventListener("click",go);
+    el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});
+  });
+}
+function select(p){
+  sel=p;draw();
+  const s=PH.find(x=>x.p===p);if(!s)return;
+  const set=(id,v,html)=>{const e=document.getElementById(id);if(!e)return;html?e.innerHTML=v:e.textContent=v;};
+  set("mjoName","Phase "+p+" \u00b7 "+s.over);
+  const pr=PROSE[p]||{};
+  set("mjoText",pr.mech||"");
+  set("mjoIndia","<b>For India:</b> "+s.india+" <span class=\"dim\">(\u201c"+s.src+"\u201d)</span>",true);
+  set("mjoWhy",pr.why||"",true);
+  const c=xy(p),cur=document.getElementById("mjoCursor");
+  if(cur){cur.setAttribute("cx",c[0]);cur.setAttribute("cy",c[1]);cur.setAttribute("opacity",".9");}
+}
+/* amplitude is the difference between a forecast and a coin toss, so it is stated, not implied.
+   The slider runs 0-30 in tenths; everything below divides by 10 exactly once, here. */
+function amp(raw){
+  const v=(+raw)/10;
+  const ev=document.getElementById("mjoAmpVal");if(ev)ev.textContent=v.toFixed(1);
+  const a=AMP.find(x=>v>=x.min&&v<x.max)||AMP[AMP.length-1];
+  const nt=document.getElementById("mjoAmpNote");
+  if(nt&&a)nt.innerHTML="<b>"+a.label+"</b> \u2014 "+a.note;
+}
+const f=document.getElementById("mjoFactsBody");
+if(f)f.innerHTML=FACTS.map(r=>'<tr><th scope="row">'+r.k+'</th><td>'+r.v+'</td></tr>').join("");
+const sl=document.getElementById("mjoSrcList");
+if(sl)sl.innerHTML=SRC.map(s=>"<li>"+s.t+"</li>").join("");
+const cv=document.getElementById("mjoConv");
+if(cv)cv.textContent=window.__MJO_CONVENTION||"";
+const rng=document.getElementById("mjoAmpRange");
+if(rng){rng.addEventListener("input",e=>amp(e.target.value));amp(rng.value);}
+/* the facts come from the same file the map layer reads, so both screens quote one source */
+(function(j){
+  try{
+    PH=(j&&j.phases?j.phases:[]).map(d=>({p:d.p,over:d.over,india:d.india||"not recorded in the sources used",src:d.s||""}));
+  }catch(e){PH=[];}
+  if(!PH.length)PH=Object.keys(PROSE).map(k=>({p:+k,over:"—",india:"not recorded in the sources used",src:""}));
+  PH.sort((a,b)=>a.p-b.p);
+  draw();
+  select(PH[0]?PH[0].p:1);
+})(window.__MJO_DATA||null);
+fetch("data/mjo.json").then(r=>r.json()).then(j=>{
+  try{
+    PH=(j&&j.phases?j.phases:[]).map(d=>({p:d.p,over:d.over,india:d.india||"not recorded in the sources used",src:d.s||""}));
+    PH.sort((a,b)=>a.p-b.p);draw();select(sel||(PH[0]?PH[0].p:1));
+    const cd=document.getElementById("mjoDataNote");
+    if(cd)cd.textContent="Per-phase India effects and their sources are read from data/mjo.json ("
+      +PH.length+" phases). "+(((j&&j.meta&&j.meta.s)||"").toString());
+  }catch(e){}
+}).catch(()=>{const cd=document.getElementById("mjoDataNote");
+  if(cd)cd.textContent="data/mjo.json did not load, so the per-phase India notes below are not shown. Serve over http, not file://.";});
+window.__mjoArticle={select,amp};
+})();
 
 /* ================= Fig2 seesaw (BOM ±0.4) ================= */
 (function(){let t="";for(let i=-5;i<=5;i++){const a=i*14;t+=`<line x1="0" y1="-38" x2="0" y2="-32" transform="rotate(${a})"/>`;}$("iodTicks").innerHTML=t;})();
@@ -599,12 +663,24 @@ document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click"
 /* ================= Fig5 MJO LOOM ================= */
 let MJOP=[];
 const mjoSlider=$("mjoSlider"),mjoReadout=$("mjoReadout"),mjoCells=$("mjoCells"),mjoShuttle=$("mjoShuttle");
+/* v7.22y: everything from here to the __mjoMap call is the removed loom's own drawing. It is
+   wrapped rather than deleted because mjoPhase() still owns INDWeather.mjo, which the map's MJO pulse
+   layer reads. Left unguarded it was not merely a dead display: mjoSlider.value threw on null and
+   aborted the function BEFORE __mjoMap ran, so the map blob froze while the phase counter carried on
+   advancing. One guard now, and the phase-to-map path cannot be broken by a removed figure again. */
 function mjoPhase(p){p=Math.max(1,Math.min(8,p));INDWeather.mjo=p;const d=MJOP.find(x=>x.p===p);if(!d)return;
-mjoSlider.value=p;
-mjoShuttle.setAttribute("transform",`translate(${(110+(p-1)*(500/7)).toFixed(1)},130)`);
+if(mjoCells||mjoSlider||mjoShuttle||mjoReadout){
+/* v7.22x: guarded for the same reason as mjoReadout above. This one was the dangerous case - an
+   unguarded mjoShuttle.setAttribute inside mjoPhase() threw inside a promise, so it was swallowed by
+   the .catch and the phase never initialised, with nothing in the console to say why. */
+if(mjoShuttle)mjoShuttle.setAttribute("transform",`translate(${(110+(p-1)*(500/7)).toFixed(1)},130)`);
 [...mjoCells.children].forEach((g,i)=>{const r=g.querySelector("rect");const ph=i+1;let fill="#FAF9F6";if(ph<=3)fill="#DCEDE9";else if(ph<=5)fill="#F6E8D8";r.setAttribute("fill",fill);r.setAttribute("stroke-width",ph===p?"2.5":"1");});
-mjoReadout.textContent=`Ph${p} over ${d.over} → India: ${d.india} · ${d.s}`;
-mjoReadout.title="30-60-day eastward pulse; Ph1-3 wet S peninsula, Ph4-5 dry/break (Pai 2011). Map zone arrows: violet = MJO-enhanced (Ph1-3), grey = suppressed (Ph4-5).";
+/* v7.22x: the MJO loom figure is gone, so mjoReadout and mjoSlider are null. These three writes are
+   the loom's own display. They are guarded, not deleted, because mjoPhase() is still the single
+   place that advances INDWeather.mjo, and the map's MJO pulse layer reads that. */
+if(mjoReadout)mjoReadout.textContent=`Ph${p} over ${d.over} → India: ${d.india} · ${d.s}`;
+if(mjoReadout)mjoReadout.title="30-60-day eastward pulse; Ph1-3 wet S peninsula, Ph4-5 dry/break (Pai 2011). Map zone arrows: violet = MJO-enhanced (Ph1-3), grey = suppressed (Ph4-5).";
+}
 if(window.__mjoMap)window.__mjoMap(p,d);
 /* if the pulse is off-screen, pan gently so the phase change is visible */
 try{if(window.__mjoG&&map.hasLayer(window.__mjoG)){const t=[-5,15+(p-1)*17],pp=map.latLngToContainerPoint(t),s=map.getSize();if(pp.x<-30||pp.x>s.x+30||pp.y<-30||pp.y>s.y+30)map.panInside(t,{animate:true,paddingTopLeft:[100,70],paddingBottomRight:[70,100]});}}catch(_){}
@@ -614,20 +690,21 @@ Promise.resolve(getJSON("data/mjo.json","mjo")).then(j=>{
 MJOP=j.phases;
 let h="";const names=["AFR","W-IO","C-IO","E-IO","MC","W-PAC","E-PAC","ATL"];
 MJOP.forEach((d,i)=>{const x=90+i*(500/7);h+=`<g><rect x="${(x-30).toFixed(1)}" y="90" width="60" height="80" fill="#FAF9F6" stroke="#1A1A1A"/><text x="${x.toFixed(1)}" y="112" font-size="10" text-anchor="middle" font-family="monospace" fill="#1A1A1A">Ph${d.p}</text><text x="${x.toFixed(1)}" y="126" font-size="8" text-anchor="middle" font-family="monospace" fill="#6B7280">${names[i]}</text><text x="${x.toFixed(1)}" y="158" font-size="8" text-anchor="middle" font-family="monospace" fill="#6B7280">${d.p<=3?"WET":(d.p<=5?"DRY":"—")}</text></g>`;});
-mjoCells.innerHTML=h;
-mjoSlider.addEventListener("input",e=>mjoPhase(+e.target.value));
+if(mjoCells)mjoCells.innerHTML=h;
+if(mjoSlider)mjoSlider.addEventListener("input",e=>mjoPhase(+e.target.value));
 mjoPhase((monthByNum(INDWeather.month||7)||{}).mjoTyp||2);
-}).catch(()=>{mjoReadout.textContent="mjo.json failed to load — use local server.";});
+}).catch(()=>{if(mjoReadout)mjoReadout.textContent="mjo.json failed to load — use local server.";});
 let mjoTourShared=null;
 /* month slider → month-typical MJO phase (illustrative linkage; a running tour wins) */
-window.__mjoMonthSync=d=>{if(!d||!d.mjoTyp||mjoTourShared)return;try{mjoPhase(d.mjoTyp);mjoReadout.textContent+=" · month-typical phase (illustrative)";}catch(_){}};
+window.__mjoMonthSync=d=>{if(!d||!d.mjoTyp||mjoTourShared)return;try{mjoPhase(d.mjoTyp);if(mjoReadout)mjoReadout.textContent+=" · month-typical phase (illustrative)";}catch(_){}};
 function paintMjoBtns(running){["mjoPlay","mjoPlayMap"].forEach(id=>{const b=$(id);if(!b)return;if(id==="mjoPlay")b.textContent=running?"■ stop":"▶ propagate";else b.textContent=running?"■ MJO":"▶ MJO";});}
 window.__toggleMjo=()=>{if(mjoTourShared){clearInterval(mjoTourShared);mjoTourShared=null;paintMjoBtns(false);return;}
 /* tour starts: bring the whole MJO corridor (Africa→Pacific) into view if it is not already */
 try{if(window.__mjoG&&map.hasLayer(window.__mjoG)){const cb=L.latLngBounds([[-16,6],[14,144]]);if(!map.getBounds().contains(cb))map.flyToBounds(cb,{duration:1.5,padding:[24,24]});}}catch(_){}
 /* advance every 1.1s; under prefers-reduced-motion still advance (2.6s) but the blob snaps */
 paintMjoBtns(true);mjoTourShared=setInterval(()=>{INDWeather.mjo=INDWeather.mjo%8+1;mjoPhase(INDWeather.mjo);},RM?2600:1100);};
-$("mjoPlay").addEventListener("click",window.__toggleMjo);
+/* v7.22x: mjoPlay belonged to the removed loom; mjoPlayMap is the map control and stays. */
+if($("mjoPlay"))$("mjoPlay").addEventListener("click",window.__toggleMjo);
 if($("mjoPlayMap"))$("mjoPlayMap").addEventListener("click",window.__toggleMjo);
 
 /* ================= 3D TERRAIN — Himalaya/Ghats relief from keyless Terrarium DEM ================= */
@@ -1420,11 +1497,12 @@ for(const c of ["M","O","S","X","L"]){h+=`<div class="phenHead" data-cat="${c}">
  for(const it of PHEN.items)if(it.cat===c)h+=`<label class="phenItem" data-cat="${c}" title="${it.label}"><input type="checkbox" data-id="${it.id}" ${PHEN.on.has(it.id)?"checked":""}><span class="pdot" style="background:${it.color}"></span><span class="pid">${it.id}</span><span>${it.name}</span></label>`;}
 list.innerHTML=h;
 list.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.id&&window.__phen.toggle)window.__phen.toggle(t.dataset.id,t.checked);});
-for(const ch of document.querySelectorAll(".pchip[data-cat]"))ch.addEventListener("click",()=>{
- if(ch.dataset.cat==="all"){document.querySelectorAll(".pchip[data-cat]").forEach(c=>c.setAttribute("aria-pressed","true"));document.querySelectorAll(".phenItem,.phenHead").forEach(el=>el.classList.remove("cat-off"));return;}
- const on=ch.getAttribute("aria-pressed")!=="false";ch.setAttribute("aria-pressed",String(!on));
- document.querySelectorAll(`.phenItem[data-cat="${ch.dataset.cat}"],.phenHead[data-cat="${ch.dataset.cat}"]`).forEach(el=>el.classList.toggle("cat-off",on));
-});
+/* v7.22y: the category chips used to be hide-toggles. Tapping "Monsoon" set aria-pressed=false on
+   Monsoon and put a .cat-off class on the Monsoon rows, which HID them and left the other 27 showing -
+   the opposite of what a row reading All / Monsoon / Oscillations means. They now belong to the show-only
+   filter in the phenomena reader block, which also owns aria-pressed. Both handlers had been attached at
+   once, which is why tapping "Monsoon" showed nothing: one hid the Monsoon rows while the other showed
+   only the Monsoon rows, and the two cancelled to zero visible items. */
 const clr=document.getElementById("phenClear");
 if(clr)clr.addEventListener("click",()=>{PHEN.on.clear();document.querySelectorAll("#phenList input").forEach(cb=>cb.checked=false);phenApply();});
 }
@@ -1433,12 +1511,54 @@ window.__phen.toggle=(id,on)=>{if(on)PHEN.on.add(id);else PHEN.on.delete(id);try
 window.__phen.apply=phenApply;
 window.__phen.month=phenSync;
 
+/* v7.22x: the phenomena reader. */
+(function(){
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const list=document.getElementById("phenList");
+const reader=document.getElementById("phenReader");
+function showInfo(id){
+  const it=(window.__phen&&window.__phen.items?window.__phen.items:[]).find(x=>x.id===id);
+  if(!it||!reader)return;
+  const cat=(window.__PHEN_CATS&&window.__PHEN_CATS[it.cat])||it.cat;
+  reader.innerHTML='<h4>'+esc(it.name)+'</h4>'
+    +'<p class="dim">'+esc(it.id)+' \u00b7 '+esc(cat)+' \u00b7 '+esc(it.label||"")+'</p>'
+    +'<p>'+esc(it.info||"No description recorded in the sources used.")+'</p>'
+    +(it.src?('<p class="dim">Source: '+esc(it.src)+'</p>'):'');
+  reader.scrollIntoView({block:"nearest"});
+}
+if(list){
+  list.addEventListener("click",e=>{
+    const lab=e.target.closest?e.target.closest(".phenItem"):null;
+    if(lab){const cb=lab.querySelector("input");if(cb)showInfo(cb.dataset.id);}
+  });
+}
+/* show-only category filter */
+document.querySelectorAll(".pchip[data-cat]").forEach(ch=>{
+  ch.setAttribute("aria-pressed","false");
+  ch.addEventListener("click",()=>{
+    const cat=ch.dataset.cat;
+    const solo=cat!=="all"&&ch.getAttribute("aria-pressed")!=="true";
+    document.querySelectorAll(".pchip[data-cat]").forEach(c=>c.setAttribute("aria-pressed",c.dataset.cat===(solo?cat:"all")?"true":"false"));
+    document.querySelectorAll(".phenItem,.phenHead").forEach(el=>{
+      const show=cat==="all"||(solo?el.dataset.cat===cat:true);
+      el.style.display=show?"":"none";
+    });
+  });
+});
+if(window.__phen){window.__phen.info=showInfo;
+  window.__phen.items=(window.__phen.items||[]);}
+})();
+
 async function phenInit(){
 const data=await (await fetch("data/phenomena.json?v=7.7")).json();
 for(const it of data.items)PHEN.items.push(it);
 try{const saved=JSON.parse(localStorage.getItem("phen.on")||"[]");if(Array.isArray(saved))for(const id of saved)if(PHEN.items.some(i=>i.id===id))PHEN.on.add(id);}catch(_){}
 phenBuild2();
 phenBuildPanel(data.cats||{});
+/* v7.22x: the phenomena reader needs the items and the category names. Exposed because the reader is
+   a separate closure and both would otherwise have to re-fetch a 31 KB file. */
+window.__PHEN_CATS=data.cats||{};
+if(window.__phen)window.__phen.items=PHEN.items;
 PHEN.loaded=true;window.__phen.loaded=true;
 phenApply();
 try{if(window.__phen3d&&window.__phen3d.info&&window.__phen3d.info().built&&window.__phen3d.rebuild)window.__phen3d.rebuild();}catch(_){}

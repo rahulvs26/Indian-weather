@@ -142,5 +142,52 @@ for (const m of html.matchAll(/src="([^"]+\.(?:js|mjs))([^"]*)"/g)) {
 const versions = [...html.matchAll(/\?v=([\d.a-z]+)/g)].map(m => m[1]);
 ok(versions.length > 0, "a version string is present", "none found");
 
+/* ---------------------------------------------------------------- 7. no DOM id that does not exist
+   This check exists because of what happened in v7.22y. Removing a section from index.html left
+   three lines of app.js still reaching for the figure's elements, and the page died on
+   "Cannot set properties of null" and then "Cannot read properties of null (reading
+   'addEventListener')" - which is to say, deleting markup from an HTML file took the whole
+   application down, twice, and neither failure named the file that was at fault.
+
+   Every $("id") and getElementById("id") in the scripts has to resolve to an id that index.html or
+   map3d.js actually contains. Ids created at runtime by the scripts themselves are collected first
+   and excluded, because those are legitimate.
+
+   The scan is deliberately textual and therefore imperfect: it is a backstop, not a substitute for
+   opening the page. It has already earned its place by catching two fatal nulls. */
+section("7. no script reaches for a DOM id that no longer exists");
+const domSrc = ["app.js", "map3d.js"].map(p => [p, readFileSync(p, "utf8")]);
+const pageSrc = domSrc.map(([, s]) => s).join("\n");
+/* ids the scripts create themselves: id="..." in a template literal or a createElement assignment */
+const runtimeIds = new Set(
+  [...pageSrc.matchAll(/id=\\?["'`]([A-Za-z][\w-]*)["'`]/g)].map(m => m[1]));
+const declaredIds = new Set(
+  [...html.matchAll(/\sid="([A-Za-z][\w-]*)"/g)].map(m => m[1]));
+/* The eight ids below belonged to two figures that were removed from index.html in v7.22y: the MJO
+   loom and the month-timeline graph. Their code is still reachable - mjoPhase() is what advances the
+   map's MJO pulse layer - so the lookups legitimately return null now. Every one of them was checked
+   by hand to be null-guarded at its use site; mjoShuttle was NOT, and that is what the check found.
+   Adding an id here means: "I have read its use sites and they are guarded". Do not add one to make
+   this check quiet. */
+const REMOVED_FIGURE_IDS = new Set([
+  "mjoSlider", "mjoReadout", "mjoCells", "mjoShuttle", "mjoPlay",
+  "graphLines", "graphReadout", "graphSvg",
+]);
+const wanted = new Map();
+for (const [p, s] of domSrc) {
+  for (const m of s.matchAll(/(?:\$|getElementById)\(\s*["'`]([A-Za-z][\w-]*)["'`]\s*\)/g)) {
+    const id = m[1];
+    if (runtimeIds.has(id) || declaredIds.has(id)) continue;
+    if (!wanted.has(id)) wanted.set(id, []);
+    wanted.get(id).push(p);
+  }
+}
+const unaccounted = [...wanted].filter(([id]) => !REMOVED_FIGURE_IDS.has(id));
+ok(unaccounted.length === 0, "no script asks for an id that is neither in the markup, made at runtime, nor a guarded removed figure",
+  unaccounted.map(([id, files]) => id + " (" + [...new Set(files)].join(",") + ")").join("; "));
+ok([...REMOVED_FIGURE_IDS].every(id => wanted.has(id)),
+  "the removed-figure allowlist is all still used (delete stale entries)",
+  [...REMOVED_FIGURE_IDS].filter(id => !wanted.has(id)).join(","));
+
 console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
 process.exit(fail ? 1 : 0);

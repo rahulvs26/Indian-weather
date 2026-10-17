@@ -7,7 +7,7 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.22r">
+<link rel="stylesheet" href="styles.css?v=7.22z">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -123,6 +123,7 @@
 <button class="pchip" id="phenClear">clear</button>
 </div>
 <div class="phenList" id="phenList"></div>
+<div class="phenReader" id="phenReader" aria-live="polite"><p class="dim">Tap any phenomenon above to read what it is, why it matters and where the numbers come from.</p></div>
 <div class="phenNote">Schematic (illustrative) geometry · seasons follow the month slider · sources: CLIMATE_PHENOMENA_TODO.md · debug: window.__phen / __phen3d.info()</div>
 </details>
 <div class="card-foot"><span>Hint: click radar / zone for source</span><span class="readout" id="monthReadout">—</span></div>
@@ -135,92 +136,81 @@
 </section>
 
 <!-- 2 MONSOON PLOTTER -->
-<section class="block" id="monsoon" aria-labelledby="h-monsoon">
-<h2 id="h-monsoon">2 · Monsoon advance plotter + season wheel + MJO loom</h2>
-<p class="sub">Three linked instruments, shared models: plotter head = onset, brass wheel = calendar JAN–DEC, pulse loom = MJO phase. Wheel/slider drive the map month; loom drives the active/break tint.</p>
-<div class="card">
-<div class="card-head"><span>Fig 1</span><strong>MONSOON ADVANCE PLOTTER</strong></div>
-<div class="stage">
-<svg id="plotterSvg" viewBox="0 0 720 360" role="img" aria-label="Gantry plotter with moving monsoon head. Slider below controls date.">
-<polygon points="60,300 360,330 660,300 360,270" fill="#E8E5DE" stroke="#1A1A1A" stroke-width="1.5"/>
-<polygon points="60,300 60,288 360,318 360,330" fill="#CFCBC2" stroke="#1A1A1A" stroke-width="1"/>
-<polygon points="360,330 660,300 660,288 360,318" fill="#D8D4CB" stroke="#1A1A1A" stroke-width="1"/>
-<g fill="#1A1A1A"><ellipse cx="120" cy="312" rx="14" ry="5"/><ellipse cx="600" cy="312" rx="14" ry="5"/></g>
-<g><rect x="300" y="296" width="120" height="18" fill="#FAF9F6" stroke="#1A1A1A"/><line x1="308" y1="302" x2="412" y2="302" stroke="#6B7280"/><line x1="308" y1="307" x2="392" y2="307" stroke="#6B7280"/></g>
-<g fill="none" stroke="#1A1A1A"><circle cx="78" cy="296" r="3"/><circle cx="642" cy="296" r="3"/><circle cx="360" cy="322" r="3"/></g>
-<g fill="#1A1A1A"><circle cx="78" cy="296" r=".9"/><circle cx="642" cy="296" r=".9"/><circle cx="360" cy="322" r=".9"/></g>
-<polygon points="90,270 110,278 110,150 90,142" fill="#B9B4A8" stroke="#1A1A1A"/>
-<polygon points="610,270 630,278 630,150 610,142" fill="#B9B4A8" stroke="#1A1A1A"/>
-<rect x="120" y="252" width="480" height="20" fill="#FAF9F6" stroke="#1A1A1A"/>
-<g id="plotTicks" stroke="#1A1A1A"></g>
-<g id="plotWells"></g>
-<g id="plotBeam"><polygon points="0,0 90,18 90,34 0,16" fill="#1A1A1A" opacity=".92"/><polygon points="430,0 520,18 520,34 430,16" fill="#1A1A1A" opacity=".92"/><rect x="80" y="-6" width="360" height="16" fill="#2A2A2A" stroke="#000"/></g>
-<g id="plotHead"><rect x="-16" y="0" width="32" height="46" rx="3" fill="#0F766E" stroke="#0B4F4A" stroke-width="1.5"/><circle cx="0" cy="12" r="5" fill="#FAF9F6"/><circle cx="0" cy="12" r="2" fill="#0F766E"/><polygon points="-4,46 4,46 0,58" fill="#0F766E" stroke="#0B4F4A"/><ellipse cx="0" cy="60" rx="10" ry="3" fill="#0F766E" opacity=".3"/></g>
-<g id="hiatusFlag"><rect x="225" y="120" width="86" height="22" fill="#fff" stroke="#B91C1C"/><text x="268" y="135" font-size="11" text-anchor="middle" fill="#B91C1C" font-family="monospace">HIATUS</text><line x1="268" y1="142" x2="268" y2="252" stroke="#B91C1C" stroke-dasharray="4 3"/></g>
-<text x="20" y="30" font-size="11" fill="#6B7280" font-family="monospace">engraved · IMD onset plotter · 1 unit = 1 day</text>
-</svg>
-</div>
-<div class="controls">
-<label for="dateSlider"><b style="color:var(--ink)">Onset scrub</b></label>
-<input type="range" id="dateSlider" min="0" max="7" step="1" value="1" aria-describedby="monsoonReadout">
-<button class="btn ghost" id="playBtn">▶ tour</button>
-</div>
-<div class="card-foot"><span>Hint: drag slider · head visits each well</span><span class="readout" id="monsoonReadout">—</span></div>
-</div>
+<section class="block" id="mjo" aria-labelledby="h-mjo">
+<h2 id="h-mjo">2 &middot; The Madden&ndash;Julian Oscillation, explained</h2>
+<p class="sub">An interactive reference article: the tropical intraseasonal oscillation that governs
+the rhythm of the Indian monsoon &mdash; what it is, how it is measured, what each phase does, and what
+it is regularly confused with. Tap any of the eight sectors of the phase diagram.</p>
 
-<div class="card" style="margin-top:16px">
-<div class="card-head"><span>Fig 4</span><strong>SEASON WHEEL ENGINE · JAN–DEC</strong></div>
-<div class="stage">
-<svg id="wheelSvg" viewBox="0 0 720 240" role="img" aria-label="Brass season wheel with twelve detents January to December. Left and right arrows change month.">
-<polygon points="60,200 360,224 660,200 360,176" fill="#E8E5DE" stroke="#1A1A1A" stroke-width="1.5"/>
-<polygon points="180,196 200,200 200,120 180,116" fill="#B9B4A8" stroke="#1A1A1A"/>
-<polygon points="520,196 540,200 540,120 520,116" fill="#B9B4A8" stroke="#1A1A1A"/>
-<g transform="translate(360,120)">
-<circle r="72" fill="#FAF9F6" stroke="#1A1A1A" stroke-width="2"/>
-<g id="wheelTicks"></g>
-<g id="wheelRotor"><rect x="-10" y="-78" width="20" height="26" rx="4" fill="#0F766E" stroke="#0B4F4A"/><circle r="10" fill="#1A1A1A"/><circle r="3" fill="#FAF9F6"/></g>
-<text id="wheelLabel" y="8" font-size="22" text-anchor="middle" font-weight="700" font-family="monospace">JUL</text>
-<text y="30" font-size="11" text-anchor="middle" font-family="monospace" fill="#6B7280">12 DETENTS · SPRING LOADED</text>
-</g>
-<g><circle cx="120" cy="120" r="22" fill="#fff" stroke="#1A1A1A"/><text x="120" y="128" font-size="20" text-anchor="middle">‹</text><rect id="wheelPrev" x="98" y="98" width="44" height="44" fill="transparent"/></g>
-<g><circle cx="600" cy="120" r="22" fill="#fff" stroke="#1A1A1A"/><text x="600" y="128" font-size="20" text-anchor="middle">›</text><rect id="wheelNext" x="578" y="98" width="44" height="44" fill="transparent"/></g>
-<text x="20" y="30" font-size="11" fill="#6B7280" font-family="monospace">engraved · one model drives map + wheel + slider</text>
-</svg>
-</div>
-<div class="card-foot"><span>Hint: click ‹ › or use ←/→ on month slider — same month model</span><span class="readout" id="wheelReadout">—</span></div>
-</div>
+<div class="mjoArticle">
+  <div class="mjoLead">
+    <p><b>The Madden&ndash;Julian Oscillation (MJO)</b> is a cycle of organised convection that travels
+    eastward across the tropics in roughly 30 to 60 days, returning to where it began. It was first
+    described by Madden and Julian in 1972 from Pacific records, and it propagates over the Indian
+    Ocean, the Maritime Continent and the Pacific in turn. Because it repeatedly brings organised
+    convection close to the subcontinent every few weeks, it is the reason an active southwest monsoon
+    is not continuous but arrives in spells.</p>
+    <p><b>It is not the monsoon.</b> The monsoon is the seasonal reversal of wind caused by the
+    land&ndash;ocean heating contrast and is broadly in place from June to September. The MJO is an
+    intraseasonal wobble on top of it, active for a few weeks and then gone. Treating the two as the
+    same thing is the single most common error in amateur monsoon forecasting.</p>
+    <p><b>How it works.</b> Warm water in the equatorial oceans heats and moistens the lower
+    troposphere; deep convection develops; the latent heating excites a Rossby wave response in the
+    upper troposphere. That wave travels eastward, and when it reaches the next warm pool it
+    reinforces convection there. The cycle repeats. The whole system is limited to the warm
+    Indo-Pacific belt &mdash; over the cold air of Eurasia and over land the wave is absorbed, which is
+    why the cycle resets over the Maritime Continent.</p>
+  </div>
 
-<div class="card" style="margin-top:16px">
-<div class="card-head"><span>Fig 5</span><strong>MJO PULSE LOOM · 8 PHASES EASTWARD</strong></div>
-<div class="stage">
-<svg id="mjoSvg" viewBox="0 0 720 250" role="img" aria-label="Equatorial belt strip with eight phase cells. A convection shuttle travels eastward. Slider below sets phase.">
-<polygon points="60,210 360,232 660,210 360,188" fill="#E8E5DE" stroke="#1A1A1A" stroke-width="1.5"/>
-<g id="mjoCells"></g>
-<g id="mjoShuttle"><ellipse class="halo" cx="0" cy="0" rx="42" ry="28" fill="none" stroke="#0F766E" stroke-width="1.5"/><ellipse cx="0" cy="0" rx="34" ry="22" fill="#0F766E" opacity=".85" stroke="#0B4F4A" stroke-width="1.5"/><ellipse cx="0" cy="0" rx="14" ry="9" fill="#FAF9F6" opacity=".9"/><line class="wake" x1="-34" y1="0" x2="-52" y2="0" stroke="#B91C1C" stroke-width="2" stroke-dasharray="4 3"/></g>
-<text x="20" y="30" font-size="11" fill="#6B7280" font-family="monospace">engraved · shuttle = enhanced convection · wake = suppressed</text>
-<text x="700" y="30" font-size="11" text-anchor="end" fill="#6B7280" font-family="monospace">30–60 DAY PULSE →</text>
-</svg>
-</div>
-<div class="controls">
-<label for="mjoSlider"><b style="color:var(--ink)">MJO phase</b> 1–8</label>
-<input type="range" id="mjoSlider" min="1" max="8" step="1" value="2" aria-describedby="mjoReadout">
-<button class="btn ghost" id="mjoPlay">▶ propagate</button>
-</div>
-<div class="card-foot"><span>Hint: Ph1–3 wet for S peninsula · Ph4–5 dry/break</span><span class="readout" id="mjoReadout">—</span></div>
-</div>
-<div class="card" style="margin-top:16px">
-<div class="card-head"><span>Fig 6</span><strong>CLIMATE CONDUCTOR · ALL PHENOMENA ONE SCORE</strong></div>
-<div class="stage">
-<svg id="graphSvg" viewBox="0 0 720 250" role="img" aria-label="Interactive yearly graph of monsoon rain, heat risk, cold risk and typical IOD. Drag across it to set the month for every layer.">
-<g id="graphLines"></g>
-<text x="20" y="30" font-size="11" fill="#6B7280" font-family="monospace">engraved · drag the score to conduct map, wheel, zones, currents</text>
-</svg>
-</div>
-<div class="card-foot"><span>Hint: drag across the graph — map, wheel, zones, currents follow</span><span class="readout" id="graphReadout">—</span></div>
-</div>
-<p class="cap"><b>Truth:</b> Andaman 13 May (−9 d) → Kerala 24 May (−8 d) → hiatus 29 May–16 Jun → full cover 27 Jun (−11 d). <span style="font-family:var(--mono)">monsoon_report_2025_2.pdf p38</span>; branch dates <span style="font-family:var(--mono)">swmonsoon_yprao.pdf p39; PMF IAS/IMD web</span>.</p>
-</section>
+  <div class="mjoCols">
+    <div class="mjoDiagram">
+      <div class="card-head"><span>Fig 1</span><strong>MJO PHASE SPACE &mdash; THE EIGHT SECTORS</strong></div>
+      <svg id="mjoPhaseSvg" viewBox="0 0 360 300" role="img"
+           aria-label="Schematic MJO phase-space diagram with eight labelled sectors. Tap a sector for its explanation.">
+        <circle cx="180" cy="150" r="118" fill="none" stroke="#2a3a34" stroke-width="1"/>
+        <circle cx="180" cy="150" r="59" fill="none" stroke="#2a3a34" stroke-width="1"/>
+        <line x1="62" y1="150" x2="298" y2="150" stroke="#1f2d28"/>
+        <line x1="180" y1="32" x2="180" y2="268" stroke="#1f2d28"/>
+        <text x="180" y="26" text-anchor="middle" font-size="9" fill="#7f928c" font-family="monospace">3: E Indian Ocean / Sumatra</text>
+        <text x="180" y="280" text-anchor="middle" font-size="9" fill="#7f928c" font-family="monospace">7: E Pacific / Atlantic</text>
+        <text x="66" y="154" font-size="9" fill="#7f928c" font-family="monospace">1: Africa</text>
+        <text x="292" y="154" font-size="9" fill="#7f928c" font-family="monospace">5: W Pacific</text>
+        <text x="180" y="145" text-anchor="middle" font-size="8" fill="#6b8a84" font-family="monospace">RMM2 +</text>
+        <text x="184" y="160" font-size="8" fill="#6b8a84" font-family="monospace">RMM1 + &rarr;</text>
+        <g id="mjoSectors"></g>
+        <circle id="mjoCursor" cx="180" cy="150" r="4" fill="#5EEAD4" opacity="0"/>
+      </svg>
+      <div class="mjoAmp">
+        <label for="mjoAmpRange">Amplitude
+          <input id="mjoAmpRange" type="range" min="0" max="30" step="1" value="12"
+                 aria-label="MJO amplitude, 0 to 3">
+          <span class="dim" id="mjoAmpVal">1.2</span>
+        </label>
+        <div class="mjoAmpNote" id="mjoAmpNote"></div>
+      </div>
+      <p class="dim">Schematic layout of the eight phases &mdash; the sectors are the standard phase-space
+      positions, not a plotted RMM series. The <b>prose</b> is written for this article; the
+      <b>per-phase India effect and its source</b> are read from <code>data/mjo.json</code>, the same file
+      the map layer above uses, so the two screens cannot disagree. This deck ships no RMM time series,
+      so no observed trajectory is drawn here.
+      not a plotted RMM series, and this deck does not ship one &mdash; the numbers here are definitions,
+      not observations.</p>
+    </div>
 
+    <div class="mjoRead">
+      <div class="card-head"><span>Fig 2</span><strong>READING THE PHASE</strong></div>
+      <h3 id="mjoName">Tap a sector</h3>
+      <p id="mjoText">Each sector of the diagram above has a different meaning for rainfall over
+      India. Tap one.</p>
+      <p class="mjoIndia" id="mjoIndia"></p>
+      <p id="mjoWhy"></p>
+      <table class="mjoFacts"><tbody id="mjoFactsBody"></tbody></table>
+      <p class="mjoConv" id="mjoConv"></p>
+      <p class="dim" id="mjoDataNote"></p>
+      <details class="mjoSrc"><summary>Sources</summary><ul id="mjoSrcList"></ul></details>
+    </div>
+  </div>
+</div>
 <!-- 3 IOD -->
 <section class="block" id="iod" aria-labelledby="h-iod">
 <h2 id="h-iod">3 · IOD seesaw rig + ocean boxes</h2>
@@ -311,7 +301,8 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
-<script src="app.js?v=7.22v" defer></script>
+<script src="data/_mjo-article.mjs?v=7.22z" type="module"></script>
+<script src="app.js?v=7.22z" defer></script>
 <script type="module" src="map3d.js?v=7.22s"></script>
 </body>
 </html>

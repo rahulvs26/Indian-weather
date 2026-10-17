@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.21">
+<link rel="stylesheet" href="styles.css?v=7.22">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.21</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.22</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -55,6 +55,18 @@
 <div class="damSlopeOut" id="damSlopeOut">Reservoir level is needed — pick a dam whose level is published, or type it above.</div>
 <div class="damSlopeBtns"><button type="button" id="damUseSpeed">use this speed</button><label class="damChk"><input type="checkbox" id="damProfMode"> travel by slope</label></div>
 <div class="damConvFoot">Slope and speed from Manning v = R<sup>2/3</sup>·√S ⁄ n with the relief between the two anchors read from the terrain DEM (land surface, so a proxy for the water surface) — illustrative, not a survey.</div>
+</details>
+<details class="damStorm" id="stormBlk">
+<summary>Rainfall &#8594; runoff <span class="dim">(catchment storm &#8212; off until you switch it on)</span></summary>
+<div class="damStormGrid">
+<label>Rainfall<input id="stormRain" type="number" min="0" step="10" value="100" inputmode="numeric" aria-label="Rainfall depth in millimetres"><span class="dim">mm</span></label>
+<label>Over<input id="stormDur" type="number" min="0.5" step="1" value="6" inputmode="decimal" aria-label="Duration in hours"><span class="dim">h</span></label>
+<label>Land cover<select id="stormCover" aria-label="Land cover, sets the curve number and runoff coefficient"></select></label>
+<label>Mountain above<input id="stormMt" type="number" min="0" step="50" value="500" inputmode="numeric" aria-label="Elevation above which terrain counts as mountain"><span class="dim">m</span></label>
+</div>
+<label class="damChk"><input type="checkbox" id="stormShow"> show it in 3D &#8212; cloud over the catchment, rain falling</label>
+<div class="damStormOut" id="stormOut">Open this after choosing a dam. The catchment area is measured from the sub-basin polygon the dam sits in.</div>
+<div class="damStormFoot">Runoff depth from the NRCS Curve Number method (National Engineering Handbook Part 630 Ch.&nbsp;2), peak flow from the rational method Q&nbsp;=&nbsp;C&#183;i&#183;A; area is the geodesic area of the sub-basin polygon, which is larger than the dam&#8217;s true catchment. These are teaching figures, not a hydraulic model.</div>
 </details>
 <div class="damLim" id="damLim"></div>
 <div class="damRead" id="damRead"></div>
@@ -298,6 +310,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.21b" defer></script>
-<script type="module" src="map3d.js?v=7.21"></script>
+<script type="module" src="map3d.js?v=7.22i"></script>
 </body>
 </html>

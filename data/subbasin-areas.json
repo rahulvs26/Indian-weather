@@ -1,0 +1,656 @@
+{
+ "note": "Areas computed geodesically from the polygon geometry in subbasins.geo.json / basins.geo.json (sphere R=6371.0088 km). Basin rows also carry the published area_sqkm where the shapefile stated one.",
+ "subbasins": [
+  {
+   "name": "Area of Inland drainage in Rajasthan Basin / Area of Inland drainage in Rajasthan",
+   "basin": "Area of Inland drainage in Rajasthan Basin",
+   "km2": 144909
+  },
+  {
+   "name": "Ganga Basin / Yamuna Lower",
+   "basin": "Ganga Basin",
+   "km2": 129986
+  },
+  {
+   "name": "Brahamaputra Basin / Brahmaputra Upper",
+   "basin": "Brahamaputra Basin",
+   "km2": 102581
+  },
+  {
+   "name": "Brahamaputra Basin / Brahmaputra Lower",
+   "basin": "Brahamaputra Basin",
+   "km2": 90899
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni Basin / Luni Upper",
+   "basin": "West flowing rivers of Kutch and Saurashtra including Luni Basin",
+   "km2": 73083
+  },
+  {
+   "name": "Ganga Basin / Sone",
+   "basin": "Ganga Basin",
+   "km2": 67855
+  },
+  {
+   "name": "Ganga Basin / Bhagirathi and others (Ganga Lower)",
+   "basin": "Ganga Basin",
+   "km2": 66747
+  },
+  {
+   "name": "Ganga Basin / Ghaghara",
+   "basin": "Ganga Basin",
+   "km2": 60827
+  },
+  {
+   "name": "Mahanadi Basin / Mahanadi Lower",
+   "basin": "Mahanadi Basin",
+   "km2": 60216
+  },
+  {
+   "name": "Ganga Basin / Gandak and others",
+   "basin": "Ganga Basin",
+   "km2": 58642
+  },
+  {
+   "name": "Cauvery Basin / Cauvery Middle",
+   "basin": "Cauvery Basin",
+   "km2": 57239
+  },
+  {
+   "name": "Krishna Basin / Krishna Upper",
+   "basin": "Krishna Basin",
+   "km2": 55935
+  },
+  {
+   "name": "Mahanadi Basin / Mahanadi Middle",
+   "basin": "Mahanadi Basin",
+   "km2": 54008
+  },
+  {
+   "name": "Ganga Basin / Banas",
+   "basin": "Ganga Basin",
+   "km2": 53766
+  },
+  {
+   "name": "Godavari Basin / Weinganga",
+   "basin": "Godavari Basin",
+   "km2": 51703
+  },
+  {
+   "name": "Ganga Basin / Kali Sindh and others up to Confluence with Parbati",
+   "basin": "Ganga Basin",
+   "km2": 50534
+  },
+  {
+   "name": "Godavari Basin / Wardha",
+   "basin": "Godavari Basin",
+   "km2": 48047
+  },
+  {
+   "name": "Indus (Up to border) Basin / Upper Indus",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 46887
+  },
+  {
+   "name": "Krishna Basin / Bhima Upper",
+   "basin": "Krishna Basin",
+   "km2": 46254
+  },
+  {
+   "name": "Godavari Basin / Godavari Lower",
+   "basin": "Godavari Basin",
+   "km2": 45916
+  },
+  {
+   "name": "Narmada Basin / Narmada Upper",
+   "basin": "Narmada Basin",
+   "km2": 45022
+  },
+  {
+   "name": "Ganga Basin / Damodar",
+   "basin": "Ganga Basin",
+   "km2": 43713
+  },
+  {
+   "name": "Krishna Basin / Tungabhadra Lower",
+   "basin": "Krishna Basin",
+   "km2": 42306
+  },
+  {
+   "name": "Narmada Basin / Narmada Middle",
+   "basin": "Narmada Basin",
+   "km2": 42270
+  },
+  {
+   "name": "Krishna Basin / Krishna Lower",
+   "basin": "Krishna Basin",
+   "km2": 40624
+  },
+  {
+   "name": "Ganga Basin / Above Ramganga Confluence",
+   "basin": "Ganga Basin",
+   "km2": 40286
+  },
+  {
+   "name": "Godavari Basin / Indravati",
+   "basin": "Godavari Basin",
+   "km2": 39714
+  },
+  {
+   "name": "Indus (Up to border) Basin / Sutlaj Lower",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 39474
+  },
+  {
+   "name": "Brahmani and Baitarni Basin / Brahmani",
+   "basin": "Brahmani and Baitarni Basin",
+   "km2": 39077
+  },
+  {
+   "name": "Indus (Up to border) Basin / Shyok",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 38653
+  },
+  {
+   "name": "Godavari Basin / Godavari Middle",
+   "basin": "Godavari Basin",
+   "km2": 37620
+  },
+  {
+   "name": "Godavari Basin / Pranhita and others",
+   "basin": "Godavari Basin",
+   "km2": 37363
+  },
+  {
+   "name": "Ganga Basin / Yamuna Upper",
+   "basin": "Ganga Basin",
+   "km2": 36904
+  },
+  {
+   "name": "Pennar Basin / Pennar Upper",
+   "basin": "Pennar Basin",
+   "km2": 36845
+  },
+  {
+   "name": "Ganga Basin / Yamuna Middle",
+   "basin": "Ganga Basin",
+   "km2": 35920
+  },
+  {
+   "name": "East flowing rivers between Pennar and Kanyakumari Basin / Palar and other",
+   "basin": "East flowing rivers between Pennar and Kanyakumari Basin",
+   "km2": 35690
+  },
+  {
+   "name": "Tapi Basin / Tapi Middle",
+   "basin": "Tapi Basin",
+   "km2": 33035
+  },
+  {
+   "name": "Ganga Basin / Ramganga",
+   "basin": "Ganga Basin",
+   "km2": 31879
+  },
+  {
+   "name": "Ganga Basin / Gomti",
+   "basin": "Ganga Basin",
+   "km2": 31059
+  },
+  {
+   "name": "Mahanadi Basin / Mahanadi Upper",
+   "basin": "Mahanadi Basin",
+   "km2": 31011
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni Basin / Luni Lower",
+   "basin": "West flowing rivers of Kutch and Saurashtra including Luni Basin",
+   "km2": 30605
+  },
+  {
+   "name": "Godavari Basin / Manjra",
+   "basin": "Godavari Basin",
+   "km2": 30441
+  },
+  {
+   "name": "West flowing rivers from Tapi to Tadri Basin / Bhatsol and others",
+   "basin": "West flowing rivers from Tapi to Tadri Basin",
+   "km2": 30426
+  },
+  {
+   "name": "Indus (Up to border) Basin / Chenab",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 30402
+  },
+  {
+   "name": "Ganga Basin / Upstream of Gomti confluece to Muzaffarnagar",
+   "basin": "Ganga Basin",
+   "km2": 30213
+  },
+  {
+   "name": "Indus (Up to border) Basin / Jhelum",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 29427
+  },
+  {
+   "name": "Tapi Basin / Tapi Upper",
+   "basin": "Tapi Basin",
+   "km2": 29169
+  },
+  {
+   "name": "Krishna Basin / Tungabhadra Upper",
+   "basin": "Krishna Basin",
+   "km2": 28951
+  },
+  {
+   "name": "Barak and Others Basin / Barak",
+   "basin": "Barak and Others Basin",
+   "km2": 28788
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni Basin / Saraswati",
+   "basin": "West flowing rivers of Kutch and Saurashtra including Luni Basin",
+   "km2": 28435
+  },
+  {
+   "name": "East flowing rivers between Pennar and Kanyakumari Basin / Ponnaiyar and other",
+   "basin": "East flowing rivers between Pennar and Kanyakumari Basin",
+   "km2": 28275
+  },
+  {
+   "name": "West flowing rivers from Tapi to Tadri Basin / Vasishti and others",
+   "basin": "West flowing rivers from Tapi to Tadri Basin",
+   "km2": 28099
+  },
+  {
+   "name": "Ganga Basin / Ghaghara Confluence to Gomti confluence",
+   "basin": "Ganga Basin",
+   "km2": 27306
+  },
+  {
+   "name": "Indus (Up to border) Basin / Ghaghar and others",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 27063
+  },
+  {
+   "name": "Subernarekha Basin / Subernarekha",
+   "basin": "Subernarekha Basin",
+   "km2": 26893
+  },
+  {
+   "name": "Indus (Up to border) Basin / Gilgit",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 26821
+  },
+  {
+   "name": "Ganga Basin / Chambal Upper",
+   "basin": "Ganga Basin",
+   "km2": 26623
+  },
+  {
+   "name": "Mahi Basin / Mahi Upper",
+   "basin": "Mahi Basin",
+   "km2": 26020
+  },
+  {
+   "name": "East flowing rivers between Mahanadi and Pennar Basin / Nagvati and other",
+   "basin": "East flowing rivers between Mahanadi and Pennar Basin",
+   "km2": 25148
+  },
+  {
+   "name": "Krishna Basin / Bhima Lower",
+   "basin": "Krishna Basin",
+   "km2": 24339
+  },
+  {
+   "name": "East flowing rivers between Mahanadi and Pennar Basin / East flowing rivers between krishna and Pennar",
+   "basin": "East flowing rivers between Mahanadi and Pennar Basin",
+   "km2": 23844
+  },
+  {
+   "name": "Indus (Up to border) Basin / Lower Indus",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 23806
+  },
+  {
+   "name": "Krishna Basin / Krishna Middle",
+   "basin": "Krishna Basin",
+   "km2": 22802
+  },
+  {
+   "name": "Area of North Ladakh not draining into Indus Basin / Area of North Ladakh not draining into Indus Basin",
+   "basin": "Area of North Ladakh not draining into Indus Basin",
+   "km2": 22696
+  },
+  {
+   "name": "East flowing rivers between Mahanadi and Pennar Basin / Vamsadhara and other",
+   "basin": "East flowing rivers between Mahanadi and Pennar Basin",
+   "km2": 22661
+  },
+  {
+   "name": "Godavari Basin / Godavari Upper",
+   "basin": "Godavari Basin",
+   "km2": 22257
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni Basin / Drainage of Rann",
+   "basin": "West flowing rivers of Kutch and Saurashtra including Luni Basin",
+   "km2": 22107
+  },
+  {
+   "name": "Indus (Up to border) Basin / Sutlaj Upper",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 21865
+  },
+  {
+   "name": "West flowing rivers from Tadri to Kanyakumari Basin / Periyar and others",
+   "basin": "West flowing rivers from Tadri to Kanyakumari Basin",
+   "km2": 21484
+  },
+  {
+   "name": "Sabarmati Basin / Sabarmati Upper",
+   "basin": "Sabarmati Basin",
+   "km2": 20652
+  },
+  {
+   "name": "East flowing rivers between Pennar and Kanyakumari Basin / Vaippar and others",
+   "basin": "East flowing rivers between Pennar and Kanyakumari Basin",
+   "km2": 19937
+  },
+  {
+   "name": "Indus (Up to border) Basin / Beas",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 19419
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni Basin / Bhadar and other west flowing rivers",
+   "basin": "West flowing rivers of Kutch and Saurashtra including Luni Basin",
+   "km2": 19250
+  },
+  {
+   "name": "Ganga Basin / Kosi",
+   "basin": "Ganga Basin",
+   "km2": 19114
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni Basin / Shetranjuli and other east flowing rivers",
+   "basin": "West flowing rivers of Kutch and Saurashtra including Luni Basin",
+   "km2": 18959
+  },
+  {
+   "name": "West flowing rivers from Tadri to Kanyakumari Basin / Netravati and others",
+   "basin": "West flowing rivers from Tadri to Kanyakumari Basin",
+   "km2": 18892
+  },
+  {
+   "name": "Pennar Basin / Pennar Lower",
+   "basin": "Pennar Basin",
+   "km2": 18258
+  },
+  {
+   "name": "East flowing rivers between Pennar and Kanyakumari Basin / Pamba and others",
+   "basin": "East flowing rivers between Pennar and Kanyakumari Basin",
+   "km2": 18026
+  },
+  {
+   "name": "Ganga Basin / Tons",
+   "basin": "Ganga Basin",
+   "km2": 17618
+  },
+  {
+   "name": "Minor rivers draining into Myanmar and Bangladesh Basin / Imphal and others",
+   "basin": "Minor rivers draining into Myanmar and Bangladesh Basin",
+   "km2": 17437
+  },
+  {
+   "name": "Cauvery Basin / Cauvery Lower",
+   "basin": "Cauvery Basin",
+   "km2": 17247
+  },
+  {
+   "name": "Brahmani and Baitarni Basin / Baitarni",
+   "basin": "Brahmani and Baitarni Basin",
+   "km2": 14953
+  },
+  {
+   "name": "West flowing rivers from Tadri to Kanyakumari Basin / Varrar and others",
+   "basin": "West flowing rivers from Tadri to Kanyakumari Basin",
+   "km2": 14071
+  },
+  {
+   "name": "Indus (Up to border) Basin / Ravi",
+   "basin": "Indus (Up to border) Basin",
+   "km2": 13963
+  },
+  {
+   "name": "Mahi Basin / Mahi Lower",
+   "basin": "Mahi Basin",
+   "km2": 13635
+  },
+  {
+   "name": "Ganga Basin / Chambal Lower",
+   "basin": "Ganga Basin",
+   "km2": 11386
+  },
+  {
+   "name": "Sabarmati Basin / Sabarmati Lower",
+   "basin": "Sabarmati Basin",
+   "km2": 11325
+  },
+  {
+   "name": "Cauvery Basin / Cauvery Upper",
+   "basin": "Cauvery Basin",
+   "km2": 11024
+  },
+  {
+   "name": "Barak and Others Basin / Kynchiang and other south flowing rivers",
+   "basin": "Barak and Others Basin",
+   "km2": 10669
+  },
+  {
+   "name": "East flowing rivers between Mahanadi and Pennar Basin / East flowing rivers between Godavari and krishna",
+   "basin": "East flowing rivers between Mahanadi and Pennar Basin",
+   "km2": 10619
+  },
+  {
+   "name": "Narmada Basin / Narmada Lower",
+   "basin": "Narmada Basin",
+   "km2": 10125
+  },
+  {
+   "name": "Minor rivers draining into Myanmar and Bangladesh Basin / Chhimtuipui & Others",
+   "basin": "Minor rivers draining into Myanmar and Bangladesh Basin",
+   "km2": 8291
+  },
+  {
+   "name": "Barak and Others Basin / Naoch chara and others",
+   "basin": "Barak and Others Basin",
+   "km2": 8046
+  },
+  {
+   "name": "Drainage area of Andaman & Nicobar Islands / Drainage area of Andaman & Nicobar Islands",
+   "basin": "Drainage area of Andaman & Nicobar Islands",
+   "km2": 7528
+  },
+  {
+   "name": "Minor rivers draining into Myanmar and Bangladesh Basin / Khawthlangtuipui & Others",
+   "basin": "Minor rivers draining into Myanmar and Bangladesh Basin",
+   "km2": 3966
+  },
+  {
+   "name": "Tapi Basin / Tapi Lower",
+   "basin": "Tapi Basin",
+   "km2": 3763
+  },
+  {
+   "name": "Minor rivers draining into Myanmar and Bangladesh Basin / Muhury and Others",
+   "basin": "Minor rivers draining into Myanmar and Bangladesh Basin",
+   "km2": 1751
+  },
+  {
+   "name": "Drainage area of Lakshadweep Islands / Drainage area of Lakshadweep Islands",
+   "basin": "Drainage area of Lakshadweep Islands",
+   "km2": 675
+  }
+ ],
+ "basins": [
+  {
+   "name": "Ganga",
+   "km2": 840402,
+   "publishedKm2": 861452,
+   "state": "Uttaranchal, Uttar Pradesh, Madhya Pradesh, Chhattisgarh, Bihar, Jharkhand, Rajasthan, West Bengal, Haryana, Himachal Pr"
+  },
+  {
+   "name": "Indus (Up to border)",
+   "km2": 317826,
+   "publishedKm2": 321289,
+   "state": "Jammu and Kashmir, Himachal Pradesh, Punjab, Rajasthan, Haryana,Union Territory of Chandigarh"
+  },
+  {
+   "name": "Godavari",
+   "km2": 313138,
+   "publishedKm2": 312812,
+   "state": "Maharashtra, Telangana, Andhra Pradesh, Madhya Pradesh, Odisha, Karnataka, Puducherry and Chhattisgarh"
+  },
+  {
+   "name": "Krishna",
+   "km2": 261272,
+   "publishedKm2": 258948,
+   "state": "Karnataka, Telangana, Andhra Pradesh and Maharashtra"
+  },
+  {
+   "name": "Brahamaputra",
+   "km2": 193593,
+   "publishedKm2": 194413,
+   "state": "Arunachal Pradesh, Assam, Nagaland, Meghalaya, West Bengal and Sikkim"
+  },
+  {
+   "name": "West flowing rivers of Kutch and Saurashtra including Luni",
+   "km2": 192586,
+   "publishedKm2": 321851,
+   "state": "Rajasthan, Gujarat and Diu"
+  },
+  {
+   "name": "Mahanadi",
+   "km2": 145239,
+   "publishedKm2": 141589,
+   "state": "Madhya Pradesh, Chhattisgarh, Odisha, Jharkhand and Maharashtra"
+  },
+  {
+   "name": "Area of Inland drainage in Rajasthan",
+   "km2": 145104,
+   "publishedKm2": 0,
+   "state": "Rajasthan"
+  },
+  {
+   "name": "East flowing rivers between Pennar and Kanyakumari",
+   "km2": 102067,
+   "publishedKm2": 100139,
+   "state": "Andhra Pradesh, Karnataka, Tamil Nadu and Puducherry"
+  },
+  {
+   "name": "Narmada",
+   "km2": 97401,
+   "publishedKm2": 98796,
+   "state": "Madhya Pradesh, Chhattisgarh, Gujarat and Maharashtra"
+  },
+  {
+   "name": "Cauvery",
+   "km2": 85492,
+   "publishedKm2": 81155,
+   "state": "Tamil Nadu, Puducherry, Karnataka and Kerala"
+  },
+  {
+   "name": "East flowing rivers between Mahanadi and Pennar",
+   "km2": 82277,
+   "publishedKm2": 86643,
+   "state": "Andhra Pradesh and Odisha"
+  },
+  {
+   "name": "Tapi",
+   "km2": 66011,
+   "publishedKm2": 65145,
+   "state": "Maharashtra, Madhya Pradesh and Gujarat"
+  },
+  {
+   "name": "West flowing rivers from Tapi to Tadri",
+   "km2": 58500,
+   "publishedKm2": 55940,
+   "state": "Gujarat, Maharashtra, Dadara & Nagar Haveli, Goa, Daman & Diu and Karnataka"
+  },
+  {
+   "name": "Pennar",
+   "km2": 55133,
+   "publishedKm2": 55213,
+   "state": "Andhra Pradesh and Karnataka"
+  },
+  {
+   "name": "West flowing rivers from Tadri to Kanyakumari",
+   "km2": 54416,
+   "publishedKm2": 56177,
+   "state": "Karnataka. Kerala, Tamil Nadu and Puducherry"
+  },
+  {
+   "name": "Brahmani and Baitarni",
+   "km2": 54032,
+   "publishedKm2": 51822,
+   "state": "Odisha, Jharkhand and Chhattisgarh"
+  },
+  {
+   "name": "Barak and Others",
+   "km2": 47534,
+   "publishedKm2": 41723,
+   "state": "Meghalaya, Manipur, Mizoram, Assam, Tripura and Nagaland"
+  },
+  {
+   "name": "Mahi",
+   "km2": 39662,
+   "publishedKm2": 34842,
+   "state": "Rajasthan, Gujarat and Madhya Pradesh"
+  },
+  {
+   "name": "Sabarmati",
+   "km2": 31987,
+   "publishedKm2": 21674,
+   "state": "Gujarat and Rajasthan"
+  },
+  {
+   "name": "Minor rivers draining into Myanmar and Bangladesh",
+   "km2": 31485,
+   "publishedKm2": 36202,
+   "state": "Manipur, Mizoram, Tripura and Nagaland"
+  },
+  {
+   "name": "",
+   "km2": 29190,
+   "publishedKm2": 0,
+   "state": ""
+  },
+  {
+   "name": "Subernarekha",
+   "km2": 26906,
+   "publishedKm2": 29196,
+   "state": "Odisha, Jharkhand and West Bengal"
+  },
+  {
+   "name": "",
+   "km2": 6748,
+   "publishedKm2": 0,
+   "state": ""
+  },
+  {
+   "name": "",
+   "km2": 458,
+   "publishedKm2": 0,
+   "state": ""
+  }
+ ],
+ "meta": {
+  "subbasins": 98,
+  "basins": 25,
+  "subbasinSumKm2": 3272064,
+  "basinSumKm2": 3278459,
+  "publishedSumKm2": 3227021,
+  "indiaKm2": 3287263,
+  "note": "The sub-basins tile India, so their areas should sum to the country; the basins tile it too."
+ }
+}

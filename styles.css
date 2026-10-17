@@ -60,6 +60,21 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 .m3b{font:600 11px ui-monospace,monospace;color:#E7E5E4;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:6px;padding:4px 9px;cursor:pointer}
 .m3b:hover{background:rgba(15,118,110,.55);border-color:#2DD4BF}
 .m3b:focus-visible{outline:2px solid #5EEAD4;outline-offset:2px}
+/* v7.22 second layer: the catchment storm. Asleep (a <details>) until the user opens it, and the 3D
+   render only starts when the checkbox is ticked, so it costs nothing until asked for. */
+.damStorm{margin:7px 0 0;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:rgba(15,118,110,.06)}
+.damStorm>summary{cursor:pointer;font:600 11.5px ui-monospace,monospace;color:var(--ink);outline:none}
+.damStormGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 8px;margin:7px 0 5px}
+.damStormGrid label{display:flex;flex-direction:column;gap:2px;font:500 10.5px ui-monospace,monospace;color:var(--ink2)}
+.damStormGrid input,.damStormGrid select{width:100%;min-width:0;font:600 11.5px ui-monospace,monospace;padding:3px 5px;border-radius:5px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.damStormGrid .dim{font-size:9.5px}
+.damStormOut{margin-top:6px;padding:6px 7px;border-radius:6px;background:rgba(0,0,0,.04);font:500 10.5px/1.5 ui-monospace,monospace;color:var(--ink2)}
+.damStormOut b{color:var(--ink)}
+.damStormOut .k{color:var(--ink2)}
+.damStormOut .warn{color:#B45309}
+.damStormOut .big{font-size:12.5px;color:var(--ink)}
+.damStormFoot{margin-top:5px;font:400 9.5px/1.45 ui-monospace,monospace;color:var(--ink3)}
+.damStormFoot:empty{display:none}
 .stage:fullscreen,.stage:-webkit-full-screen{height:100vh!important;width:100vw;background:#0e1513}
 .stage:fullscreen #map3d,.stage:-webkit-full-screen #map3d{height:100%!important}
 .stage:fullscreen .damUI,.stage:-webkit-full-screen .damUI{max-height:calc(100vh - 24px);overflow:auto}

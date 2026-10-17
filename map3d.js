@@ -1117,6 +1117,7 @@ try{
   DAM_SPEED_AUTO=true;
   damSlopeRefresh();
   damOsmMaybe();
+  stormMaybe();
   damReadout();
   if(map&&mapStyleReady){
     if(!map.getSource("dam-route")){if(addDamLayers()){} }
@@ -1148,8 +1149,12 @@ return route;
 /* ---- name search ---- */
 function damSearchRender(q){
 const box=dEl("damResults");
-if(!box||!damList)return;
+if(!box)return;
 const s=(q||"").trim().toLowerCase();
+/* v7.22: typing in the search box used to do nothing until "Find a dam" was ticked, because the
+   dam list only loaded from that checkbox - a dead control. Start the load from the typing too. */
+if(s&&!damList){damDams().then(()=>damSearchRender(q)).catch(()=>{});return;}
+if(!damList)return;
 let out=[];
 if(s){
   const scored=[];
@@ -1592,7 +1597,7 @@ return map;
 
 window.__map3d={
 async setActive(on){
-if(!on)return true;
+if(!on){try{window.__storm&&window.__storm.layer.dispose();}catch(_){}return true;}
 try{
 await ensure();
 map.resize();
@@ -1613,3 +1618,34 @@ style:()=>STYLE_URL,
 layers:()=>map?map.getStyle().layers.map(l=>l.id+":"+l.type):null,
 terrain:()=>!!(map&&map.getTerrain&&map.getTerrain())
 };
+
+/* ================= v7.22 SECOND LAYER: the catchment storm =================
+A separate, opt-in layer. It is asleep until the user opens the "Rainfall to runoff" block in the
+dam card: no fetch, no layers, no animation frame runs before that. The arithmetic lives in
+data/_hydrology.mjs (NRCS Curve Number for depth, rational method for peak, tested against
+hand-worked values), the drawing and the fast rain animation live in data/_storm-layer.mjs. */
+import { createStormLayer, fillCoverSelect } from "./data/_storm-layer.mjs";
+
+const storm = createStormLayer({ getMap: () => map, getDam: () => damSel, el: dEl, ready: () => !!(map && mapStyleReady) });
+
+/* recompute only when the block is open, so a closed panel costs nothing */
+function stormMaybe() {
+  const blk = dEl("stormBlk");
+  if (!blk || !blk.open) return;
+  storm.refresh();
+}
+fillCoverSelect(dEl("stormCover"));
+for (const id of ["stormRain", "stormDur", "stormCover", "stormMt"]) {
+  const e = dEl(id);
+  if (e) e.addEventListener("input", stormMaybe);
+}
+const stormChk = dEl("stormShow");
+if (stormChk) stormChk.addEventListener("change", () => {
+  const on = stormChk.checked;
+  const blk = dEl("stormBlk");
+  if (on && blk && !blk.open) blk.open = true;      /* asking for 3D opens the block */
+  storm.setShown(on).catch(() => {});
+});
+const stormBlk = dEl("stormBlk");
+if (stormBlk) stormBlk.addEventListener("toggle", stormMaybe);
+window.__storm = { layer: storm, refresh: stormMaybe };

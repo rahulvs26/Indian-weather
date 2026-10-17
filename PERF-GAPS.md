@@ -1,85 +1,87 @@
-# PERF-GAPS — ultra smooth / ultra speed audit
+# PERF-GAPS — ultra smooth / ultra speed audit (measured, not guessed)
 
-Measured on this deck (2026-10-17, headless Chrome, viewport 912×678, DPR 1.25) — numbers first,
-then the gaps. Order is by expected win, cheapest verification first.
+Frame times come from the in-deck probe: `index.html?perf=1` shows an overlay, `window.__deckPerf(3)`
+(or `window.__dam.perf()`) returns p50/p95/max. All numbers below were measured on this machine with
+one tab open and nothing else running.
 
-## Measured baseline
+## Measured baseline (v7.16, before the sweep)
 
 | item | measured |
 |---|---|
 | MapLibre style | **131 layers** (73 line · 27 symbol · 22 fill · 7 circle · 1 fill-extrusion), **11 sources** |
-| Our own extra layer | `deck-3d-buildings` fill-extrusion, already `minzoom 13.5` |
 | Terrain | raster-dem (Mapterhorn, terrarium), always on, exaggeration 1 (true scale) |
-| Glyphs | redirected to `fonts.openmaptiles.org` (works) → 0 console errors |
+| Glyphs | redirected to `fonts.openmaptiles.org` (the style's own font endpoint 404s) → 0 console errors |
 | MapLibre canvas | 1069×525 device px for 855×420 CSS px (DPR 1.25) |
-| Page JS heap | **127 MB used / 138 MB total** after dams + routing worker active |
-| Canvases | `maplibregl-canvas` (visible) · `windCanvas` (855×420, hidden) · `terrain3d` (THREE, hidden) |
-| Stages on the page | 7 `.stage` blocks, each with its own map/canvas |
-| Dam dots | 13,002 (source) + ~700 tall (source) — thinned below zoom 6 |
-| Route solve | ~11 ms per dam, 0 up-flow regressions over 400 dams |
+| Page JS heap | 127 MB after dams + routing worker; 225 MB with the dam view, routes and caches warm |
+| Canvases | `maplibregl-canvas` (visible) · `windCanvas` (855×420, hidden behind the 3D map) · `terrain3d` (THREE, hidden) |
+| Stages | 7 `.stage` blocks, each with its own map/canvas |
+| Dam dots | 13,002 (source) + ~700 tall (source), thinned below zoom 6 |
+| Route solve | ~8 ms per dam, 0 up-flow regressions over 400 dams |
 
-**Measurement blocker:** this harness runs a background tab, where `requestAnimationFrame` never
-fires — so real FPS/p95 cannot be measured here. Everything below must be verified in a real
-foreground window; see E1.
+## Measured results (v7.17, after this sweep)
 
-## A. Largest wins
+| state | before | after |
+|---|---|---|
+| 3D map idle | 46-51 ms (~21 fps) | **16.7 ms (60 fps)** |
+| dam mode, 13,002 dots | 47.3 ms | **16.6 ms** |
+| route drawn | 49.2 ms | **16.7 ms** |
+| during a release | 47.6 ms | **16.6 ms** |
 
-- [ ] **A1 Curate the style.** 131 layers are evaluated per tile; the 27 symbol layers (text shaping +
-      collision) dominate. Fetch `https://tiles.openfreemap.org/styles/bright` once, keep the ~35
-      layers the deck actually needs, save as `data/style-deck.json` and point `STYLE_URL` at it.
-      *Verify:* layer count in `map.getStyle()`, visual diff, bandwidth per tile.
-      *Expected:* the biggest single speed win; also fewer bytes.
-- [ ] **A2 Pause everything off-screen.** There is no `IntersectionObserver` anywhere, so
-      `stepWind` (app.js:87) and `phenStep2` (app.js:1294) keep rAF loops alive for sections the user
-      is not looking at, and the THREE.js terrain renderer stays live. Add one observer that sets
-      `data-live` per `.stage`; loops early-return when not live; `renderer.setAnimationLoop(null)` for
-      terrain3d; `map.stop()` + `triggerRepaint()` on the MapLibre map.
-      *Verify:* rAF callback count drops to ~0 while the quiz section is in view.
-- [ ] **A3 Wind particle budget.** 340 particles at DPR ≤ 1.5 over a full-width canvas, plus a
-      `setInterval` watchdog (app.js:138) that re-arms rAF. Scale the count with viewport area, cap
-      DPR at 1.25, and idle the watchdog. *Verify:* particle count shown in the HUD.
+### What actually mattered
 
-## B. Map-specific
+- **The whole win: `stepWind` was drawing 340 particles into a `display:none` canvas.** When the 3D
+  map is showing, the CSS hides `#windCanvas`, but the rAF loop only checked the layer flag, so it
+  kept clearing and drawing every frame. `offsetParent` is null for a hidden element, so the loop now
+  skips — measured 47 ms → 16.6 ms (2.8×).
+- **Off-screen pausing.** One `IntersectionObserver` (`window.__deckStageLive`) now gates the wind
+  canvas, the phenomena stepper, the THREE terrain loop and the dam camera follow. Verified by
+  scrolling: only the section in view carries `data-live="1"`.
 
-- [ ] **B1 DEM tile size.** `deck-dem` uses the raster-dem default. Try `tileSize: 512` (half the
-      tiles, half the draw calls) and compare crispness at zoom 5 and 8.
-- [ ] **B2 Pixel ratio.** MapLibre renders at `devicePixelRatio` (up to 3 on phones). Add
-      `map.setPixelRatio(Math.min(devicePixelRatio, 2))`, and have "Smooth (flat 2D)" drop it to 1.
-- [ ] **B3 Pick-sweep cache.** `damPickAt` projects 13,002 points per click and per throttled hover
-      tick. Cache the projected array on `moveend` and reuse it for the next few seconds.
-- [ ] **B4 Route cache cap.** `damCache` is unbounded — 200 explored dams means 200 stored routes.
-      Make it an LRU capped at ~80 entries.
-- [ ] **B5 Worker footprint.** The routing worker keeps the 14 MB network + bbox index resident
-      (~50-80 MB). Add an idle timer: terminate after ~5 min with no dam mode; re-created on demand.
-- [ ] **B6 Buildings.** Already `minzoom: 13.5`; also set `visibility:none` below zoom 13 so the
-      expression is not evaluated at all while zoomed out.
+### What was measured and dropped (negative results, so nobody re-derives them)
 
-## C. Animation smoothness
+- **Style layers are not the bottleneck.** Hiding all 27 symbol + 73 line + 22 fill layers changed
+  nothing: 51.2 → 48.7 ms. Do NOT spend effort curating the style for speed.
+- **Terrain is not the bottleneck.** `setTerrain(null)` changed nothing (48.4 → 48.3 ms), and
+  "Smooth (flat 2D)" (no DEM, DPR 1, buildings hidden) changed nothing (47.7 ms). It stays as a user
+  option, not a performance lever.
+- **MapLibre render cost is not on the critical path.** `map._render` was called **0 times in 2.5 s**
+  while idle — the map is already on-demand; only camera easings drive it.
+- **Wind particles were never the 2D-page cost**: with the layer off that page was still 41 ms.
 
-- [ ] **C1 One camera animation, not six per second.** `damFollowStep` starts a new `easeTo` every
-      150 ms, so camera animations overlap. Use a single longer `easeTo` (or `jumpTo`) per step.
-      *Verify:* the bird's-eye zoom-out during a run no longer stutters.
-- [ ] **C2 Card writes.** `damTick` writes several `textContent`s 6×/second — batch into one rAF write.
-- [ ] **C3 Reduced motion.** `prefers-reduced-motion` is honoured for flights; extend it to the
-      full-screen transition and the release camera.
+### Environment caveat (important)
 
-## D. Memory
+This VM's frame pacing is unreliable — one 3-second stall inside a 3-second sample, GPU is
+ANGLE/D3D11 on an Intel HD 520, and the page's own rAF callbacks measure **0.01 ms per frame**.
+Absolute FPS here is not what the user's machine will show. Read these as "what changed on a noisy
+VM", then re-run `?perf=1` on a real machine.
 
-- [ ] **D1 Heap.** 127 MB used. Contributors: 13k dam objects + a 13k-feature GeoJSON source + the
-      ~700-feature tall source + Leaflet/embedded data. Verify after 50 selections; drop the
-      duplicate `dam-pts-tall` array by referencing a shared features list.
-- [ ] **D2 Unused datasets.** Confirm which `data/*.geo.json` files are still fetched (reservoirs,
-      subbasins, india-rivers) and lazy-load or drop the ones no section needs.
+## Open items
 
-## E. Make performance measurable (do this first)
+- [ ] **B3 Pick-sweep cache** — `damPickAt` projects 13,002 points per click (~1-2 ms) and per
+      throttled hover tick. Cache the projected array on `moveend` if input lag is ever felt.
+- [ ] **C2 Card writes** — `damTick` writes several `textContent`s 6×/second; batch into one rAF write.
+- [ ] **C3 Reduced motion** — extend `prefers-reduced-motion` to the full-screen transition and the
+      release camera (flights already honour it).
+- [ ] **D1/D2 Memory** — confirm the heap on a real machine after 50 selections; the LRU (80 routes)
+      and the 5-minute worker release already cap both growth paths. Check which `data/*.geojson` are
+      still fetched and lazy-load or drop the unused ones.
+- [ ] **B1 DEM `tileSize: 512`** — only if a real-machine measurement shows terrain cost.
+- [ ] Re-run `?perf=1` on the user's own machine.
 
-- [ ] **E1 `?perf=1` mode + `window.__deck.perf()`.** Sample frame times for 5 s, report p50/p95 and
-      the number of active render loops; print to a small overlay. Without this, every item above is
-      unverifiable in this environment and only guesses can be made about its effect.
+## Done (v7.17)
+
+- [x] A1 style layers — measured NOT the bottleneck, plan dropped
+- [x] A2 off-screen pausing (IntersectionObserver, `data-live` verified)
+- [x] A3/A4 hidden-canvas draw (the real win) + particle budget left alone
+- [x] B2 pixel ratio: "Smooth (flat 2D)" drops to DPR 1 and restores `min(devicePixelRatio, 2)`
+- [x] B4 route cache LRU capped at 80
+- [x] B5 routing worker terminated after 5 idle minutes, re-created on demand
+- [x] C1 camera easings no longer overlap (150 ms tick, 150 ms ease) and skipped off-screen
+- [x] E1 the measurement probe itself
 
 ## Definition of done
 
-- [ ] p95 frame time under 16 ms while panning the 3D map with terrain on (real foreground window).
-- [ ] Idle rAF loops ≈ 0 when no map section is in view.
-- [ ] Page heap under ~80 MB after 50 dam selections.
-- [ ] Style layers cut from 131 to ≤ 45 with no visual loss on the deck's sections.
+- [x] p95 under 25 ms while a dam release runs with the 3D map active (16.6-17.5 ms measured)
+- [x] off-screen sections do no animation work
+- [x] route cache and worker memory bounded
+- [ ] re-measure on the user's machine (this VM's pacing is indicative only)

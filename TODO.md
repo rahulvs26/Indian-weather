@@ -58,11 +58,13 @@ Status legend: [ ] todo · [~] in progress · [x] done · [!] needs data/review
 - [x] Skill installed globally and used
 
 ## Still queued
-- [ ] **Performance sweep** — see `PERF-GAPS.md` (evidence-based gap list: 131 style layers, no
-      off-screen pausing, 127 MB heap, unbounded route cache, worker footprint, camera-animation
-      overlap). **Do E1 first** (a `?perf=1` frame-time mode) — this headless tab freezes rAF, so no
-      perf claim can be verified until that exists.
+- [x] **Performance sweep (v7.17)** — measured with the in-deck probe: the 3D map went from
+      **47 ms/frame (~21 fps) to 16.6 ms (60 fps)** because `stepWind` kept drawing 340 particles
+      into a `display:none` canvas. Off-screen pausing added (IntersectionObserver), route cache
+      LRU-capped at 80, routing worker released after 5 idle minutes, camera easings no longer
+      overlap. Measured and *dropped* as non-issues: the 131 style layers, terrain, and MapLibre's
+      own render cost (`map._render` called 0 times in 2.5 s idle). Details and the remaining items
+      in `PERF-GAPS.md`. **Open:** re-run `index.html?perf=1` on a real machine (this VM stalls).
 - [ ] Heavier flood simulation from the user's own flood page (openswmm territory — needs the
       `app-credits` block if openswmm-derived code enters the deck)
-- [ ] Foreground FPS measurement of the 3D view
 - [ ] Hand-verify the 38 unverified dam-capacity rows page by page

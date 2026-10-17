@@ -82,11 +82,71 @@ wctx.lineTo(hx-Math.cos(a-0.42)*6,hy-Math.sin(a-0.42)*6);
 wctx.lineTo(hx-Math.cos(a+0.42)*6,hy-Math.sin(a+0.42)*6);
 wctx.closePath();wctx.fill();wctx.globalAlpha=1;
 }
+/* ===== v7.16 PERFORMANCE: nothing animates while its section is off-screen =====
+   Measured gap (PERF-GAPS.md A2): there was no IntersectionObserver anywhere, so the wind canvas,
+   the phenomena layer and the 3D-mountain renderer kept running for sections the reader cannot see.
+   One observer drives a live-set that every loop checks. */
+const DECK_VIS={stages:new WeakSet(),any:true};
+(function(){
+  if(!("IntersectionObserver" in window))return;
+  const io=new IntersectionObserver(es=>{
+    for(const e of es){
+      if(e.isIntersecting)DECK_VIS.stages.add(e.target);else DECK_VIS.stages.delete(e.target);
+      e.target.dataset.live=e.isIntersecting?"1":"0";
+    }
+    let any=false;
+    for(const s of document.querySelectorAll(".stage"))if(DECK_VIS.stages.has(s)){any=true;break;}
+    DECK_VIS.any=any;
+  },{threshold:0.01});
+  const watch=()=>document.querySelectorAll(".stage").forEach(s=>io.observe(s));
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch);else watch();
+})();
+window.__deckVis=DECK_VIS;
+window.__deckStageLive=el=>!el||!DECK_VIS||DECK_VIS.stages.has(el);
+
+/* ===== v7.16 E1: a frame-time probe, because perf claims need numbers =====
+   A backgrounded tab freezes requestAnimationFrame, so this reports that plainly instead of
+   pretending. Run it in a real window: index.html?perf=1  (or window.__deckPerf(3)). */
+window.__deckPerf=function(sec){
+  const s=sec||3;
+  return new Promise(res=>{
+    const gaps=[];let last=performance.now();const t0=last;let done=false;
+    const finish=()=>{
+      if(done)return;done=true;
+      if(gaps.length<5){res({frames:0,note:"rAF is frozen — this tab is backgrounded; run ?perf=1 in a visible window"});return;}
+      const a=gaps.slice().sort((x,y)=>x-y);
+      res({frames:a.length,
+        p50:+a[Math.floor(a.length*0.5)].toFixed(1),
+        p95:+a[Math.floor(a.length*0.95)].toFixed(1),
+        max:+a[a.length-1].toFixed(1),
+        mean:+(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1)});
+    };
+    (function f(){
+      const n=performance.now();gaps.push(n-last);last=n;
+      if(n-t0<s*1000)requestAnimationFrame(f);else finish();
+    })();
+    setTimeout(()=>{if(!done&&gaps.length<5)finish();},s*1000+400);   /* frozen-rAF fallback */
+    setTimeout(finish,s*1000+600);
+  });
+};
+if(/[?&]perf=1/.test(location.search)){
+  addEventListener("load",()=>setTimeout(()=>{
+    const d=document.createElement("div");
+    d.id="perfBox";
+    d.style.cssText="position:fixed;right:8px;bottom:8px;z-index:999;background:rgba(10,15,13,.88);color:#5EEAD4;font:11px ui-monospace,monospace;padding:6px 9px;border-radius:6px;border:1px solid #14524F;white-space:pre";
+    document.body.appendChild(d);
+    window.__deckPerf(3).then(r=>{d.textContent="frames "+r.frames+(r.p50?"\np50 "+r.p50+" ms  p95 "+r.p95+" ms":"\n"+r.note);});
+  },1200));
+}
 function stepWind(){
 stepWind._t=true;
 if(!wctx){requestAnimationFrame(stepWind);return;}
 const c=$("windCanvas");
-if(!layers.winds){wctx.clearRect(0,0,c.width,c.height);requestAnimationFrame(stepWind);return;}
+/* v7.16 perf: when the 3D map or the 3D-mountains view is showing, this canvas is display:none —
+   but the loop was still clearing and drawing 340 particles into it, which measured at ~30 ms per
+   frame (47 ms on the 3D page vs 16.7 ms with the stage hidden). offsetParent is null for a
+   display:none element, so this is the cheapest honest visibility test. */
+if(!layers.winds||!window.__deckStageLive(c)||!c.offsetParent){requestAnimationFrame(stepWind);return;}
 wctx.clearRect(0,0,c.width,c.height);
 for(const p of windParts){
 const wob=Math.sin((p.x+p.y)*0.02+Date.now()*0.0004)*0.3;
@@ -1030,6 +1090,7 @@ const proj=new THREE.Vector3();let tmLast=performance.now()/1000;
 (function loop(){
 requestAnimationFrame(loop);
 if(!terrainOn||document.hidden)return;
+if(!window.__deckStageLive(document.getElementById("terrainWrap")))return;   /* v7.16 perf */
 if(spin&&!drag&&!RM&&!fly)th+=0.0012*Math.min(1,R/2.6);   /* v7.0: auto-rotation OFF by default — the ⟳ chip turns it on */
 if(fly){const k=Math.min(1,(performance.now()-fly.t0)/600),e=k*k*(3-2*k);tgt.lerpVectors(fly.ft,fly.tt,e);R=fly.fr+(fly.tr-fly.fr)*e;if(k>=1)fly=null;}
 const nNear=Math.max(2e-5,R*0.02);if(Math.abs(cam.near-nNear)>nNear*0.05){cam.near=nNear;cam.updateProjectionMatrix();}   /* v7.4: floor 2e-5 (was 0.002) — the old floor sat AT/above the orbit target once R<0.1, clipping crest-level detail (piers/glint) in front of it */
@@ -1293,6 +1354,8 @@ window.__phenMonthSync=m=>{PHEN.env.m=m;try{phenSync(m);}catch(_){}};
 function phenStep2(ts){
 requestAnimationFrame(phenStep2);
 if(!PHEN.on.size||PHEN.env.rm||document.hidden)return;
+if(!window.__deckStageLive(document.getElementById("osmMap")))return;   /* v7.16 perf: only when visible */
+if(!document.getElementById("osmMap").offsetParent)return;               /* ...and not display:none behind the 3D map */
 const t=ts||performance.now();
 for(const it of PHEN.items){
  if(!PHEN.on.has(it.id))continue;

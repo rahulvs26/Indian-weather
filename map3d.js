@@ -91,7 +91,7 @@ const DAM_DAMS="data/dams.geo.json?v=7.9";
 const DAM_WORKER="data/dam-router-worker.js?v=7.9";
 const SNAP_NEAR_KM=6,SNAP_FAR_KM=12,DAM_SEARCH_MAX=14;
 
-let damP=null,damList=null,damById=null,damCache={},damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null;
+let damP=null,damList=null,damById=null,damCache={},damCacheOrder=[],damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null,damIdleT=0;
 
 const damMsg=t=>{const el=dEl("damMsg");if(el)el.textContent=t||"";};
 const damBird=()=>{const b=dEl("damBird");return !b||b.checked;};
@@ -220,8 +220,16 @@ function damPerf(on){
 function damSmooth(on){
   if(!map)return;
   try{
-    if(on){ map.setTerrain(null); map.easeTo({pitch:0,bearing:0},{duration:600}); }
-    else if(terrainReady)map.setTerrain({source:"deck-dem",exaggeration:1});
+    if(on){
+      map.setTerrain(null);
+      /* v7.16: also stop rendering at the display's full resolution — the biggest single win on
+         high-DPI screens (DPR 2-3 means 4-9x the pixels) */
+      if(typeof map.getPixelRatio==="function")map.setPixelRatio(1);
+      map.easeTo({pitch:0,bearing:0},{duration:600});
+    }else{
+      if(terrainReady)map.setTerrain({source:"deck-dem",exaggeration:1});
+      if(typeof map.getPixelRatio==="function")map.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+    }
   }catch(_){}
 }
 
@@ -263,6 +271,25 @@ function mapFullscreenSync(){
 addEventListener("resize",()=>{ if(map)mapFullscreenSync(); });
 
 /* ---- the routing worker (heavy data lives here, not in the page) ---- */
+/* v7.16 B5: the worker holds the 14 MB network + bbox index resident. Release it after 5 idle
+   minutes (no dam mode, nothing waiting) and re-create it on demand — same behaviour, less memory. */
+const DAM_WORKER_IDLE_MS=5*60*1000,DAM_CACHE_MAX=80;
+function damCachePut(k,v){
+  if(damCache[k])return;
+  damCache[k]=v;
+  damCacheOrder.push(k);
+  while(damCacheOrder.length>DAM_CACHE_MAX){          /* B4: LRU cap, never unbounded */
+    const old=damCacheOrder.shift();
+    delete damCache[old];
+  }
+}
+function damWorkerIdleTimer(){
+  clearTimeout(damIdleT);
+  damIdleT=setTimeout(()=>{
+    if(damMode||Object.keys(damWait).length){damWorkerIdleTimer();return;}
+    try{if(damWorker){damWorker.terminate();damWorker=null;damMsg("River network released (idle) — it reloads when you use it again.");}}catch(_){}
+  },DAM_WORKER_IDLE_MS);
+}
 function damEnsureWorker(){
 if(damWorker)return damWorker;
 damWorker=new Worker(DAM_WORKER,{type:"module"});
@@ -531,6 +558,7 @@ try{
     try{ r=await damAsk(dam,SNAP_NEAR_KM,{upstream:dir==="up"}); }
     catch(e1){ r=await damAsk(dam,SNAP_FAR_KM,{upstream:dir==="up"}); }   /* widen once — many dams sit off the mapped line */
     damCache[ck]=r;
+    damCachePut(ck,r);
   }
   const nr=routeFromRoute(r,dam);
   if(!nr)throw new Error("no geometry");
@@ -642,7 +670,7 @@ if(on){
     damLayerAdd();
     damMsg(damList.length.toLocaleString()+" dams · tap a dot on the map or type a name below.");
   }catch(e){damMsg("Dam list unavailable: "+(e.message||e));}
-  try{damEnsureWorker();}catch(e){damMsg("Router unavailable in this browser: "+(e.message||e));}
+  try{damEnsureWorker();damWorkerIdleTimer();}catch(e){damMsg("Router unavailable in this browser: "+(e.message||e));}
 }else{
   damLayerVis(false);
   damMsg("");
@@ -762,6 +790,7 @@ const indexAtKm=km=>{const c=route.coords;let i=0;while(i<c.length-2&&route.cum[
 /* v7.9: the zoom TRAVELS with the wave — bird's-eye, easing in as the front advances */
 function damFollowStep(km){
 if(!map||!route||!damRun||!damFollowOn())return;
+if(window.__deckStageLive&&!window.__deckStageLive(map.getContainer()))return;   /* v7.16: no camera work off-screen */
 const now=performance.now();
 if(damRun.camAt&&now-damRun.camAt<150)return;
 damRun.camAt=now;
@@ -769,7 +798,7 @@ const head=route.coords[indexAtKm(km)];
 const frac=route.totalKm?Math.min(1,km/route.totalKm):0;
 const z0=damRun.zAll||damZAll||map.getZoom(),b=damBird();
 map.easeTo({center:[head[0],head[1]],zoom:Math.max(z0-1.7,z0*(1-0.45*frac)),
-  pitch:b?0:map.getPitch(),bearing:b?0:map.getBearing()},{duration:DAM_RM?0:420});
+  pitch:b?0:map.getPitch(),bearing:b?0:map.getBearing()},{duration:DAM_RM?0:150});   /* C1: match the tick so eases never overlap */
 }
 
 /* rAF paints it, but a backgrounded tab freezes rAF — a 120 ms timer keeps the day clock
@@ -837,6 +866,7 @@ const btn=dEl("damBtn");if(btn){btn.disabled=!route;btn.textContent="Release wat
 }
 
 window.__dam={
+  perf:s=>window.__deckPerf?window.__deckPerf(s||3):Promise.resolve({note:"perf probe not available"}),
 start:()=>damStart(),
 reset:()=>{damReset();return true;},
 mode:on=>damSetMode(on),

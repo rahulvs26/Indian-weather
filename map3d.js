@@ -33,7 +33,7 @@ const VIEW={center:[78.9,22.6],zoom:4.3,pitch:52,bearing:-8};  /* opens tilted s
 const DAM_SECONDS=24;                                          /* v7.6: whole journey plays in this many real seconds */
 const DAM_RM=matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-let libP=null,map=null,mlRef=null,rsWired=false,mapStyleReady=false;
+let libP=null,map=null,mlRef=null,rsWired=false,mapStyleReady=false,terrainReady=false,damPickWired=false;
 let route=null,damZAll=4.4,damLoaded=false,damRun=null;
 
 const dEl=id=>document.getElementById(id);
@@ -56,7 +56,7 @@ try{map.setSky({   /* MapLibre v6: sky is a root-level style property (map.setSk
 "horizon-color":"#e9eff4","horizon-fog-blend":0.55,
 "fog-color":"#e8eef4","fog-ground-blend":0.45});}catch(e){console.warn("[map3d] sky skipped:",e.message||e);}
 map.addSource("deck-dem",{type:"raster-dem",url:DEM_URL,encoding:"terrarium"});
-map.setTerrain({source:"deck-dem",exaggeration:1});   /* ×1 = true scale; this deck never exaggerates relief */
+map.setTerrain({source:"deck-dem",exaggeration:1});terrainReady=true;   /* ×1 = true scale; this deck never exaggerates relief */
 const st=map.getStyle()||{};
 if(!(st.layers||[]).some(l=>l.type==="fill-extrusion")){   /* add OSM building extrusions if the style ships none */
 const src=Object.keys(st.sources||{}).find(k=>st.sources[k].type==="vector");
@@ -128,16 +128,84 @@ if(!map.getSource("dam-pts")){
   map.addLayer({id:"dam-pts",type:"circle",source:"dam-pts",
     paint:{"circle-radius":["interpolate",["linear"],["get","h"],0,1.7,60,3,150,5,300,7.5],
       "circle-color":"#B45309","circle-opacity":0.72,"circle-stroke-color":"#FAF9F6","circle-stroke-width":0.8}});
-  map.on("click","dam-pts",e=>{
-    const f=e.features&&e.features[0];
-    if(!f)return;
-    const d=damById&&damById[f.properties.id];
-    if(d)damSelect(d);
-  });
+  /* v7.11: the layer click was removed — see damPickAt() below. At pitch 52 the terrain draws
+     over these 1.7-7.5 px dots (measured: 0 dam features render at pitch 52, 4,525 at pitch 0),
+     so MapLibre never delivered the event. Picking from the data works at every pitch and zoom. */
   map.on("mouseenter","dam-pts",()=>{try{map.getCanvas().style.cursor="pointer";}catch(_){}});
   map.on("mouseleave","dam-pts",()=>{try{map.getCanvas().style.cursor=damMode?"crosshair":"";}catch(_){}});
+damPickWire();
 }
 damLayerVis(damMode);
+}
+
+/* ---- tap a dam in the 3D view (v7.11) -----------------------------------------
+   Sweeps the 13,002 dam points in screen space and takes the nearest within DAM_PICK_PX.
+   ~13k projections cost 1-2 ms and only happen on a click (throttled on hover). */
+const DAM_PICK_PX=22;
+function damPickAt(px,py){
+  if(!map||!damList||!damList.length)return null;
+  const cv=map.getCanvas(),r=cv.getBoundingClientRect();
+  const x=px-r.left,y=py-r.top;
+  if(x<0||y<0||x>r.width||y>r.height)return null;
+  let best=null,bd=DAM_PICK_PX*DAM_PICK_PX;
+  for(const d of damList){
+    const p=map.project([d.lon,d.lat]);
+    if(p.x<0||p.y<0||p.x>r.width||p.y>r.height)continue;
+    const dx=p.x-x,dy=p.y-y,dd=dx*dx+dy*dy;
+    if(dd<bd){bd=dd;best=d;}
+  }
+  return best;
+}
+function damPickWire(){
+  if(!map||damPickWired)return;
+  damPickWired=true;
+  map.on("click",e=>{
+    if(!damMode||!damList)return;
+    /* a real hit on our own overlay (route, city, endpoint) wins over the dam sweep */
+    if(e.features&&e.features.length){
+      const l=e.features[0].layer||"";
+      if(l.indexOf("dam-")===0&&l!=="dam-pts")return;
+    }
+    const d=damPickAt(e.point.x,e.point.y);
+    if(d)damSelect(d);
+    else damMsg("No dam within ~"+DAM_PICK_PX+" px of that point — zoom in, or type the name above.");
+  });
+  let last=0,lp={x:-99,y:-99};
+  map.on("mousemove",e=>{
+    if(!damMode||!damList)return;
+    const t=e.timeStamp||0;
+    if(Math.abs(e.point.x-lp.x)<5&&Math.abs(e.point.y-lp.y)<5)return;
+    if(t-last<140)return;
+    last=t;lp=e.point;
+    try{map.getCanvas().style.cursor=damPickAt(e.point.x,e.point.y)?"pointer":"crosshair";}catch(_){}
+  });
+}
+
+/* ---- dam names: ONLY while a release is running (v7.11 request) ---- */
+function damNameData(list){
+  if(!map)return;
+  const s=map.getSource("dam-names");if(!s)return;
+  s.setData({type:"FeatureCollection",features:(list||[]).filter(d=>d&&d.lon!=null).map(d=>({
+    type:"Feature",geometry:{type:"Point",coordinates:[d.lon,d.lat]},properties:{name:d.name}}))});
+}
+function damNamesShow(on){
+  if(!map)return;
+  try{if(map.getLayer("dam-name"))map.setLayoutProperty("dam-name","visibility",on?"visible":"none");}catch(_){}
+}
+/* ---- performance: a run only needs the course; drop the heavy per-frame work ---- */
+function damPerf(on){
+  if(!map)return;
+  try{if(map.getLayer("deck-3d-buildings"))map.setLayoutProperty("deck-3d-buildings","visibility",on?"none":"visible");}catch(_){}
+  try{if(map.getLayer("dam-pts"))map.setLayoutProperty("dam-pts","visibility",on?"none":(damMode?"visible":"none"));}catch(_){}
+  damNamesShow(on);
+}
+/* "Smooth (2D)" — drop the DEM entirely and flatten the camera for weak GPUs */
+function damSmooth(on){
+  if(!map)return;
+  try{
+    if(on){ map.setTerrain(null); map.easeTo({pitch:0,bearing:0},{duration:600}); }
+    else if(terrainReady)map.setTerrain({source:"deck-dem",exaggeration:1});
+  }catch(_){}
 }
 
 /* ---- the routing worker (heavy data lives here, not in the page) ---- */
@@ -212,11 +280,6 @@ try{
     ?"Crosses: "+nr.cities.map(c=>c.name+" ("+c.km.toFixed(0)+" km)").join(" · ")
     :"No city marker within 8 km of this course.";
   if(map&&mapStyleReady){
-    const csrc=map.getSource("dam-cities");
-    if(csrc)csrc.setData({type:"FeatureCollection",features:(nr.cities||[]).map(c=>({
-      type:"Feature",geometry:{type:"Point",coordinates:[c.lon,c.lat]},properties:{name:c.name,km:c.km}}))});
-  }
-  if(map&&map.isStyleLoaded()){
     if(!map.getSource("dam-route")){if(addDamLayers()){} }
     else{
       const s=map.getSource("dam-route");
@@ -225,6 +288,9 @@ try{
       if(e2)e2.setData({type:"FeatureCollection",features:[
         {type:"Feature",geometry:{type:"Point",coordinates:[nr.dam.lon,nr.dam.lat]},properties:{kind:"dam"}},
         {type:"Feature",geometry:{type:"Point",coordinates:[nr.sea.lon,nr.sea.lat]},properties:{kind:"sea"}}]});
+      const c2=map.getSource("dam-cities");
+      if(c2)c2.setData({type:"FeatureCollection",features:(nr.cities||[]).map(c=>({
+        type:"Feature",geometry:{type:"Point",coordinates:[c.lon,c.lat]},properties:{name:c.name,km:c.km}}))});
       damLoaded=true;damSet(0,false);damFrameAll();
     }
   }
@@ -359,6 +425,11 @@ if(!map.getSource("dam-route")){
     layout:{"text-field":["get","name"],"text-size":11,"text-offset":[0,1.2],"text-anchor":"top","text-max-width":9,
       "text-allow-overlap":false},
     paint:{"text-color":"#14181A","text-halo-color":"#FAF9F6","text-halo-width":1.5}});}catch(e){}   /* needs style glyphs — circles still show */
+  map.addSource("dam-names",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
+  try{map.addLayer({id:"dam-name",type:"symbol",source:"dam-names",
+    layout:{"text-field":["get","name"],"text-size":11.5,"text-offset":[0,1.4],"text-anchor":"top","text-max-width":11},
+    paint:{"text-color":"#0B3B36","text-halo-color":"#FAF9F6","text-halo-width":1.7}});}catch(e){}
+  try{map.setLayoutProperty("dam-name","visibility","none");}catch(_){}   /* names only while releasing */
 }
 damLoaded=true;
 /* v7.10: the city markers are filled here as well — damSelect may have run before the layers existed */
@@ -443,6 +514,8 @@ if(btn)btn.disabled=false;
 try{ damFrameAll(); }catch(_){}   /* bird's-eye frame of the whole course, card padding on the left */
 damRun={on:true,reached:false,km:0,t0:performance.now(),raf:0,iv:0,camAt:0,zAll:damZAll};
 if(btn)btn.textContent="⟲ Reset";
+damPerf(true);                                   /* drop buildings + 13k dots while the wave runs */
+damNameData([{name:route.dam.name,lon:route.dam.lon,lat:route.dam.lat}]);
 damSet(0,false);
 damKick(damTick);
 return true;
@@ -451,6 +524,8 @@ return true;
 function damReset(){
 if(damRun){damRun.on=false;if(damRun.raf)cancelAnimationFrame(damRun.raf);if(damRun.iv)clearInterval(damRun.iv);}
 damRun=null;
+damPerf(false);
+damNameData([]);
 damSet(0,false);
 const dayEl=dEl("damDay");if(dayEl)dayEl.textContent="Day 0.0";
 try{ damFrameAll(); }catch(_){}
@@ -462,6 +537,8 @@ window.__dam={
 start:()=>damStart(),
 reset:()=>{damReset();return true;},
 mode:on=>damSetMode(on),
+smooth:on=>{damSmooth(on);return true;},
+pickAt:(x,y)=>{const d=damPickAt(x,y);if(d)damSelect(d);return d?d.name:null;},
 modeOn:()=>damMode,
 search:q=>{damSearchRender(q);return (dEl("damResults")||{}).childElementCount||0;},
 pick:id=>damSelect(damById[id]),
@@ -484,6 +561,8 @@ const damModeBox=dEl("damMode");
 if(damModeBox)damModeBox.addEventListener("change",()=>damSetMode(damModeBox.checked));
 const damSearchBox=dEl("damSearch");
 if(damSearchBox)damSearchBox.addEventListener("input",()=>damSearchRender(damSearchBox.value));
+const damSmoothBox=dEl("damSmooth");
+if(damSmoothBox)damSmoothBox.addEventListener("change",()=>damSmooth(damSmoothBox.checked));
 
 /* ---------- end v7.6 dam release ---------- */
 

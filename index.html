@@ -11,7 +11,7 @@
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.10</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.11</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -37,7 +37,7 @@
 <div class="damCities" id="damCities"></div>
 <div class="damStat" id="damStat">—</div>
 <div class="damMsg" id="damMsg"></div>
-<div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Zoom follows wave</label></div>
+<div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Zoom follows wave</label><label class="damChk"><input type="checkbox" id="damSmooth"> Smooth (flat 2D)</label></div>
 <button class="damBtn" id="damBtn" type="button">Release water</button>
 <div class="damNote">Course derived on demand from the real CWC river network (<code>rivers-cwc.geo.json</code>) — nothing downloads until “Find a dam” is switched on. Travel only — no inundation. Days = route km ÷ wave speed; all numbers illustrative.</div>
 </div></div>
@@ -264,6 +264,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.8" defer></script>
-<script type="module" src="map3d.js?v=7.10"></script>
+<script type="module" src="map3d.js?v=7.11"></script>
 </body>
 </html>

@@ -57,6 +57,10 @@ try{map.setSky({   /* MapLibre v6: sky is a root-level style property (map.setSk
 "fog-color":"#e8eef4","fog-ground-blend":0.45});}catch(e){console.warn("[map3d] sky skipped:",e.message||e);}
 map.addSource("deck-dem",{type:"raster-dem",url:DEM_URL,encoding:"terrarium"});
 map.setTerrain({source:"deck-dem",exaggeration:1});terrainReady=true;   /* ×1 = true scale; this deck never exaggerates relief */
+/* the OpenFreeMap style points at tiles.openfreemap.org/fonts/, which 404s and floods the console
+   with "Unable to load glyph range" warnings; the same glyphs are served by fonts.openmaptiles.org,
+   so redirect the style there (v7.13). Labels then render with real glyphs. */
+try{ map.setGlyphs("https://fonts.openmaptiles.org/{fontstack}/{range}.pbf"); }catch(e){}
 const st=map.getStyle()||{};
 if(!(st.layers||[]).some(l=>l.type==="fill-extrusion")){   /* add OSM building extrusions if the style ships none */
 const src=Object.keys(st.sources||{}).find(k=>st.sources[k].type==="vector");
@@ -114,18 +118,29 @@ return damP;
 }
 
 function damLayerVis(on){
-if(!map||!map.getLayer("dam-pts"))return;
-try{map.setLayoutProperty("dam-pts","visibility",on?"visible":"none");}catch(_){}
+if(!map)return;
+for(const id of ["dam-pts","dam-pts-tall"]){
+  if(!map.getLayer(id))continue;
+  try{map.setLayoutProperty(id,"visibility",on?"visible":"none");}catch(_){}
+}
 try{map.getCanvas().style.cursor=on?"crosshair":"";}catch(_){}
 }
 
 function damLayerAdd(){
 if(!map||!damList)return;
 if(!map.getSource("dam-pts")){
-  map.addSource("dam-pts",{type:"geojson",data:{type:"FeatureCollection",features:damList.map(d=>({
+  const feats=damList.map(d=>({
     type:"Feature",geometry:{type:"Point",coordinates:[d.lon,d.lat]},
-    properties:{id:d.id,name:d.name,state:d.state,h:d.h||0}}))}});
-  map.addLayer({id:"dam-pts",type:"circle",source:"dam-pts",
+    properties:{id:d.id,name:d.name,state:d.state,h:d.h||0}}));
+  map.addSource("dam-pts",{type:"geojson",data:{type:"FeatureCollection",features:feats}});
+  /* v7.13 perf: drawing 13,002 dots every frame is the deck's heaviest idle cost, so below zoom 6
+     only the tall dams (height >= 30 m, ~700 of them) are rendered; every dam appears from zoom 6. */
+  map.addSource("dam-pts-tall",{type:"geojson",data:{type:"FeatureCollection",
+    features:feats.filter(f=>(f.properties.h||0)>=30)}});
+  map.addLayer({id:"dam-pts-tall",type:"circle",source:"dam-pts-tall",maxzoom:6,
+    paint:{"circle-radius":["interpolate",["linear"],["get","h"],30,2.4,300,6],
+      "circle-color":"#B45309","circle-opacity":0.75,"circle-stroke-color":"#FAF9F6","circle-stroke-width":0.8}});
+  map.addLayer({id:"dam-pts",type:"circle",source:"dam-pts",minzoom:6,
     paint:{"circle-radius":["interpolate",["linear"],["get","h"],0,1.7,60,3,150,5,300,7.5],
       "circle-color":"#B45309","circle-opacity":0.72,"circle-stroke-color":"#FAF9F6","circle-stroke-width":0.8}});
   /* v7.11: the layer click was removed — see damPickAt() below. At pitch 52 the terrain draws
@@ -196,7 +211,9 @@ function damNamesShow(on){
 function damPerf(on){
   if(!map)return;
   try{if(map.getLayer("deck-3d-buildings"))map.setLayoutProperty("deck-3d-buildings","visibility",on?"none":"visible");}catch(_){}
-  try{if(map.getLayer("dam-pts"))map.setLayoutProperty("dam-pts","visibility",on?"none":(damMode?"visible":"none"));}catch(_){}
+  for(const id of ["dam-pts","dam-pts-tall"]){
+    try{if(map.getLayer(id))map.setLayoutProperty(id,"visibility",on?"none":(damMode?"visible":"none"));}catch(_){}
+  }
   damNamesShow(on);
 }
 /* "Smooth (2D)" — drop the DEM entirely and flatten the camera for weak GPUs */

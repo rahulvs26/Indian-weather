@@ -7,7 +7,7 @@
    "cms": "cubic metres per second"
   },
   "compiled": "2026-10-17",
-  "integrity": "Every non-null figure carries its source URL. verify_status=verified means a human checked the source page in this session (Mettur as of 2026-10-17); 'compiled, not re-checked' figures were gathered by an automated pass and should be treated as leads until the page is opened. Where a source publishes only MCM or acre-feet the TMC field is null rather than converted, because conversion would be an inference."
+  "integrity": "Every non-null figure carries its source URL. verify_status=verified means a human checked the source page in this session (Mettur as of 2026-10-17); 'compiled, not re-checked' figures were gathered by an automated pass and should be treated as leads until the page is opened. Where a source publishes only MCM or acre-feet the TMC field is null rather than converted, because conversion would be an inference. reservoir_area_km2 is shown only where its own source URL exists; otherwise the figure is kept in the row's notes."
  },
  "dams": [
   {
@@ -18,7 +18,6 @@
    "gross_tmc": 93.47,
    "live_tmc": null,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 42.5,
    "gate_count": null,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -29,12 +28,14 @@
     "gate_count": null,
     "gate_capacity_cfs": null,
     "outlet_capacity_cfs": null,
-    "max_ow_level_m": "https://en.wikipedia.org/wiki/Mettur_Dam"
+    "max_ow_level_m": "https://en.wikipedia.org/wiki/Mettur_Dam",
+    "reservoir_area_km2": "https://en.wikipedia.org/wiki/Mettur_Dam"
    },
    "source_type": "mixed",
-   "notes": "Checked by hand against the dam specification board (via Wikipedia): maximum level 120 ft, maximum capacity 93.47 tmcft = 2,146,071 acre-ft = 2.64 km3. The same article cites CWC 'Compendium of Sedimentation of Reservoirs in India' (2020), List of Reservoirs sl.no 297: capacity as of 2004 = 1,994.19 MCM = 70.5 tmcft after siltation. The commonly quoted figure of 120 is the full-reservoir LEVEL in feet, not a capacity. Live storage is not published for Mettur in the sources used, so live_tmc stays null.",
+   "notes": "Checked by hand against the dam specification board (via Wikipedia): maximum level 120 ft, maximum capacity 93.47 tmcft = 2,146,071 acre-ft = 2.64 km3. The same article cites CWC 'Compendium of Sedimentation of Reservoirs in India' (2020), List of Reservoirs sl.no 297: capacity as of 2004 = 1,994.19 MCM = 70.5 tmcft after siltation. The commonly quoted figure of 120 is the full-reservoir LEVEL in feet, not a capacity. Live storage is not published for Mettur in the sources used, so live_tmc stays null. ",
    "capacity_note": "70.5 TMC after siltation (1,994 MCM, CWC 2020)",
-   "verify_status": "verified"
+   "verify_status": "verified",
+   "reservoir_area_km2": 42.5
   },
   {
    "id": "bhakra",
@@ -92,7 +93,6 @@
    "gross_tmc": 405,
    "live_tmc": 244.41,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 285,
    "gate_count": 26,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -106,7 +106,7 @@
     "max_ow_level_m": "https://en.wikipedia.org/wiki/Nagarjuna_Sagar_Dam"
    },
    "source_type": "mixed",
-   "notes": "Two different gross figures on the same page: the infobox states 405 Tmcft while the technical-details list states 'Gross storage capacity at FRL: 312 TMC' (sourced to Deccan Chronicle, 18 June 2018, 'Nagarjunasagar dam loses 25 per cent storage'). Kept 405 because it is the design/headline figure and 312 is the post-siltation current value; both are recorded here. The prose also gives gross as 11.472e9 m3. live_tmc 244.41 is cited by Wikipedia to Central Water Commission, National Register of Large Dams 2009. gate_count 26 = '26 flood gates which are 42 ft wide and 45 ft tall'. max_ow_level_m 179.83 is published as 'Full Reservoir Level (FRL): 179.83 m msl'. reservoir_area_km2 285 is 'Water spread area at FRL'. outlet_capacity_cfs is null: only canal capacities are published (both Jawahar canal and Lalbahadur Shastri canal at 311.5 cumecs), which is cms and is canal rather than outlet capacity. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Nagarjuna Sagar Dam at 11553 MCM design gross storage, length 4865 m, max height above foundation 124.66 m (MCM only). MDDL of river sluices published as 137.3 m msl."
+   "notes": "Two different gross figures on the same page: the infobox states 405 Tmcft while the technical-details list states 'Gross storage capacity at FRL: 312 TMC' (sourced to Deccan Chronicle, 18 June 2018, 'Nagarjunasagar dam loses 25 per cent storage'). Kept 405 because it is the design/headline figure and 312 is the post-siltation current value; both are recorded here. The prose also gives gross as 11.472e9 m3. live_tmc 244.41 is cited by Wikipedia to Central Water Commission, National Register of Large Dams 2009. gate_count 26 = '26 flood gates which are 42 ft wide and 45 ft tall'. max_ow_level_m 179.83 is published as 'Full Reservoir Level (FRL): 179.83 m msl'. reservoir_area_km2 285 is 'Water spread area at FRL'. outlet_capacity_cfs is null: only canal capacities are published (both Jawahar canal and Lalbahadur Shastri canal at 311.5 cumecs), which is cms and is canal rather than outlet capacity. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Nagarjuna Sagar Dam at 11553 MCM design gross storage, length 4865 m, max height above foundation 124.66 m (MCM only). MDDL of river sluices published as 137.3 m msl. Reservoir area 285 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "srisailam",
@@ -116,7 +116,6 @@
    "gross_tmc": 216,
    "live_tmc": null,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 616,
    "gate_count": null,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": 44000,
@@ -130,7 +129,7 @@
     "max_ow_level_m": null
    },
    "source_type": "mixed",
-   "notes": "gross_tmc 216 from 'gross storage capacity of 216 tmcft' (dam height on the same page is cited to Central Water Commission, National Register of Large Dams 2009). live_tmc null - no active/live storage figure published on the page used. reservoir_area_km2 616 published as reservoir surface area. outlet_capacity_cfs 44000 is the published design capacity of the Srisailam Right Main Canal in ft3/s at Srisailam reservoir level 269.22 m MSL; it is an irrigation canal carrying capacity, not a dam outlet, and no separate outlet/tailrace figure was found. max_ow_level_m is null: 269.22 m MSL is quoted only as the reservoir level assumed for canal design, not stated as maximum water level or FRL. spillway_capacity is published as 38369 m3/s (cms), so gate_capacity_cfs is null. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Srisailam (N.S.R.S.P) Dam at 8724.88 MCM design gross storage, length 512 m, max height above foundation 145 m (MCM only). No spillway gate count published."
+   "notes": "gross_tmc 216 from 'gross storage capacity of 216 tmcft' (dam height on the same page is cited to Central Water Commission, National Register of Large Dams 2009). live_tmc null - no active/live storage figure published on the page used. reservoir_area_km2 616 published as reservoir surface area. outlet_capacity_cfs 44000 is the published design capacity of the Srisailam Right Main Canal in ft3/s at Srisailam reservoir level 269.22 m MSL; it is an irrigation canal carrying capacity, not a dam outlet, and no separate outlet/tailrace figure was found. max_ow_level_m is null: 269.22 m MSL is quoted only as the reservoir level assumed for canal design, not stated as maximum water level or FRL. spillway_capacity is published as 38369 m3/s (cms), so gate_capacity_cfs is null. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Srisailam (N.S.R.S.P) Dam at 8724.88 MCM design gross storage, length 512 m, max height above foundation 145 m (MCM only). No spillway gate count published. Reservoir area 616 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "sardarsarovar",
@@ -140,7 +139,6 @@
    "gross_tmc": 334.12,
    "live_tmc": 203.44,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 375.33,
    "gate_count": 30,
    "gate_capacity_cfs": 3000000,
    "outlet_capacity_cfs": null,
@@ -154,7 +152,7 @@
     "max_ow_level_m": "https://ssnnl.gujarat.gov.in/components-of-project.aspx"
    },
    "source_type": "mixed",
-   "notes": "Best official coverage of the set. gate_count 30 is from SSNNL: 'For Auxiliary spillway Radial gates, 7 in number and size 60' x 60' ... and for service spillway, 23 Radial gates of size 60' x 55''. gate_capacity_cfs 3000000 is SSNNL's 'spillway discharging capacity of 85,000 cumecs (30 lac cusecs)' - the cfs figure is the published '30 lac cusecs' read out; the same SSNNL page also gives the 85,000 cumecs equivalent, which was not converted. Note SSNNL's own spillway total (30 lakh cusecs) and Wikipedia's spillway_capacity of 86,944 m3/s are not the same published number; the cfs field follows SSNNL because it is the official page and is already in cfs. max_ow_level_m 140.21 is SSNNL's 'The Maximum Water Level is 140.21 meters (460 feet.)'; SSNNL also gives FRL at RL 138.68 m (455 ft) and MDDL 110.64 m (363 ft). gross/live TMC come from Wikipedia (9.460 km3 / 334.12 tmc ft and 5.760 km3 / 203.44 tmc ft) because SSNNL publishes storage only as 0.95 M ha.m (7.7 MAF) gross, 0.58 M ha.m (4.75 MAF) live and 0.37 M ha.m dead. reservoir_area_km2 375.33 = SSNNL's submergence at FRL of 37,533 ha, which matches Wikipedia's res_surface. SSNNL also lists 10 temporary construction sluices and 4 permanent river sluices at RL 53.0 m, excluded from gate_count."
+   "notes": "Best official coverage of the set. gate_count 30 is from SSNNL: 'For Auxiliary spillway Radial gates, 7 in number and size 60' x 60' ... and for service spillway, 23 Radial gates of size 60' x 55''. gate_capacity_cfs 3000000 is SSNNL's 'spillway discharging capacity of 85,000 cumecs (30 lac cusecs)' - the cfs figure is the published '30 lac cusecs' read out; the same SSNNL page also gives the 85,000 cumecs equivalent, which was not converted. Note SSNNL's own spillway total (30 lakh cusecs) and Wikipedia's spillway_capacity of 86,944 m3/s are not the same published number; the cfs field follows SSNNL because it is the official page and is already in cfs. max_ow_level_m 140.21 is SSNNL's 'The Maximum Water Level is 140.21 meters (460 feet.)'; SSNNL also gives FRL at RL 138.68 m (455 ft) and MDDL 110.64 m (363 ft). gross/live TMC come from Wikipedia (9.460 km3 / 334.12 tmc ft and 5.760 km3 / 203.44 tmc ft) because SSNNL publishes storage only as 0.95 M ha.m (7.7 MAF) gross, 0.58 M ha.m (4.75 MAF) live and 0.37 M ha.m dead. reservoir_area_km2 375.33 = SSNNL's submergence at FRL of 37,533 ha, which matches Wikipedia's res_surface. SSNNL also lists 10 temporary construction sluices and 4 permanent river sluices at RL 53.0 m, excluded from gate_count. Reservoir area 375.33 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "tehri",
@@ -188,7 +186,6 @@
    "gross_tmc": 432,
    "live_tmc": 344.37,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 913.48,
    "gate_count": 20,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -202,7 +199,7 @@
     "max_ow_level_m": null
    },
    "source_type": "mixed",
-   "notes": "gross_tmc 432 and live_tmc 344.37 from Wikipedia (12.220 km3 and 9.750 km3 respectively). gate_count 20 = Wikipedia's 'Chute spillway (auxiliary) - 8 : 20 m x 17 m, Main (service) Spillway - 12 : 20 m x 17 m'. spillway_capacity published as 83,400 m3/s (cms) so gate_capacity_cfs is null. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Indira Sagar (NHDC) Dam at 12220 MCM design gross storage, length 654 m, max height above foundation 91.4 m (MCM only). Reservoir catchment published as 61,642 km2. NEDA (neda.gov.in / neda.nic.in) did not resolve from this network, so no NEDA page could be cited. max_ow_level_m and outlet capacity: not found."
+   "notes": "gross_tmc 432 and live_tmc 344.37 from Wikipedia (12.220 km3 and 9.750 km3 respectively). gate_count 20 = Wikipedia's 'Chute spillway (auxiliary) - 8 : 20 m x 17 m, Main (service) Spillway - 12 : 20 m x 17 m'. spillway_capacity published as 83,400 m3/s (cms) so gate_capacity_cfs is null. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Indira Sagar (NHDC) Dam at 12220 MCM design gross storage, length 654 m, max height above foundation 91.4 m (MCM only). Reservoir catchment published as 61,642 km2. NEDA (neda.gov.in / neda.nic.in) did not resolve from this network, so no NEDA page could be cited. max_ow_level_m and outlet capacity: not found. Reservoir area 913.48 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "omkareshwar",
@@ -212,7 +209,6 @@
    "gross_tmc": 34.84,
    "live_tmc": 10.54,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 93.36,
    "gate_count": 23,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -226,7 +222,7 @@
     "max_ow_level_m": null
    },
    "source_type": "secondary",
-   "notes": "gross_tmc 34.84 (987,000,000 m3), live_tmc 10.54 (299,000,000 m3), inactive 688,000,000 m3. gate_count 23 = '23 radial gates (20 m x 18.037 m)'. spillway_capacity published as 88,315 m3/s (cms) so gate_capacity_cfs is null. reservoir_area_km2 93.36 published as res_surface. catchment 64,880 km2. No official Narmada-valley source was reachable (neda.gov.in and neda.nic.in both failed DNS), so this entry is secondary only. max_ow_level_m and outlet capacity: not found."
+   "notes": "gross_tmc 34.84 (987,000,000 m3), live_tmc 10.54 (299,000,000 m3), inactive 688,000,000 m3. gate_count 23 = '23 radial gates (20 m x 18.037 m)'. spillway_capacity published as 88,315 m3/s (cms) so gate_capacity_cfs is null. reservoir_area_km2 93.36 published as res_surface. catchment 64,880 km2. No official Narmada-valley source was reachable (neda.gov.in and neda.nic.in both failed DNS), so this entry is secondary only. max_ow_level_m and outlet capacity: not found. Reservoir area 93.36 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "tawa",
@@ -260,7 +256,6 @@
    "gross_tmc": 258.61,
    "live_tmc": null,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 723,
    "gate_count": null,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -274,7 +269,7 @@
     "max_ow_level_m": "https://en.wikipedia.org/wiki/Gandhi_Sagar_Dam"
    },
    "source_type": "secondary",
-   "notes": "gross_tmc 258.61 from '7,322,000,000 cubic metres (258.61 tmc ft)'. live_tmc is null because live storage is published only as 6.79 billion cubic metres with no TMC value. reservoir_area_km2 723 is published as the reservoir's total area. max_ow_level_m 400 is the published 'Full Reservoir Level (FRL) at 400 m'; the article does not state the datum (RL or MSL), which is why the value is recorded with this caveat. gate_count and gate_capacity_cfs: not found (the article's sentence beginning 'The spillway of the dam is designed f...' is truncated on the page used). Outlet/tailrace capacity: not found."
+   "notes": "gross_tmc 258.61 from '7,322,000,000 cubic metres (258.61 tmc ft)'. live_tmc is null because live storage is published only as 6.79 billion cubic metres with no TMC value. reservoir_area_km2 723 is published as the reservoir's total area. max_ow_level_m 400 is the published 'Full Reservoir Level (FRL) at 400 m'; the article does not state the datum (RL or MSL), which is why the value is recorded with this caveat. gate_count and gate_capacity_cfs: not found (the article's sentence beginning 'The spillway of the dam is designed f...' is truncated on the page used). Outlet/tailrace capacity: not found. Reservoir area 723 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "ranapratapsagar",
@@ -284,7 +279,6 @@
    "gross_tmc": 102.36,
    "live_tmc": null,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 198.29,
    "gate_count": 11,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -298,7 +292,7 @@
     "max_ow_level_m": null
    },
    "source_type": "secondary",
-   "notes": "State corrected: the dam is at Rawatbhata, Chittorgarh district, Rajasthan, not Madhya Pradesh as listed in the task brief. gross_tmc 102.36 from '2,898,000,000 cubic metres (102.36 tmc ft)'. live_tmc is null - active capacity published only as 1,566,520,000 cubic metres, no TMC. gate_count 11 comes from the infobox name_official field: 'Gravity with ogee shaped spill way having 50' x 44' x 11 Nos. crest gates.' reservoir_area_km2 198.29 is 'surface area at the Full Reservoir Level'. Dam height 53.8 m, length 1143 m. gate_capacity_cfs, max_ow_level_m and outlet capacity: not found."
+   "notes": "State corrected: the dam is at Rawatbhata, Chittorgarh district, Rajasthan, not Madhya Pradesh as listed in the task brief. gross_tmc 102.36 from '2,898,000,000 cubic metres (102.36 tmc ft)'. live_tmc is null - active capacity published only as 1,566,520,000 cubic metres, no TMC. gate_count 11 comes from the infobox name_official field: 'Gravity with ogee shaped spill way having 50' x 44' x 11 Nos. crest gates.' reservoir_area_km2 198.29 is 'surface area at the Full Reservoir Level'. Dam height 53.8 m, length 1143 m. gate_capacity_cfs, max_ow_level_m and outlet capacity: not found. Reservoir area 198.29 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "jawaharsagar",
@@ -404,7 +398,6 @@
    "gross_tmc": 8.65,
    "live_tmc": 7.76,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 78.31,
    "gate_count": 5,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -418,7 +411,7 @@
     "max_ow_level_m": null
    },
    "source_type": "mixed",
-   "notes": "State corrected: the dam is at Lansdowne, Garhwal, Uttarakhand, not Uttar Pradesh as listed in the task brief. gross_tmc 8.65 (244,960,000 m3), live_tmc 7.76 (219,600,000 m3). gate_count 5 from 'The dam's spillway is controlled by five gates and has a maximum discharge of 8467 m3/s'. gate_capacity_cfs is null because 8467 is published in m3/s. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Ramganga Dam at length 630 m, max height above foundation 127.5 m, Design Gross Storage Capacity 2448 MCM (MCM only). reservoir_area_km2 78.31 published as res_surface; catchment 3134 km2. max_ow_level_m and outlet capacity: not found."
+   "notes": "State corrected: the dam is at Lansdowne, Garhwal, Uttarakhand, not Uttar Pradesh as listed in the task brief. gross_tmc 8.65 (244,960,000 m3), live_tmc 7.76 (219,600,000 m3). gate_count 5 from 'The dam's spillway is controlled by five gates and has a maximum discharge of 8467 m3/s'. gate_capacity_cfs is null because 8467 is published in m3/s. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Ramganga Dam at length 630 m, max height above foundation 127.5 m, Design Gross Storage Capacity 2448 MCM (MCM only). reservoir_area_km2 78.31 published as res_surface; catchment 3134 km2. max_ow_level_m and outlet capacity: not found. Reservoir area 78.31 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "rihand",
@@ -596,7 +589,6 @@
    "gross_tmc": 132,
    "live_tmc": 116.86,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 378,
    "gate_count": null,
    "gate_capacity_cfs": 650000,
    "outlet_capacity_cfs": null,
@@ -610,7 +602,7 @@
     "max_ow_level_m": "https://en.wikipedia.org/wiki/Tungabhadra_Dam"
    },
    "source_type": "secondary",
-   "notes": "Two gross figures published, kept 132: the infobox gives total 3.73 cubic kms (132 tmcft) and active 3.31 cubic kms (116.86 tmcft), while the Technical details section says 'The dam forms the biggest reservoir across the Tungabhadra River with 101 tmcft of gross storage capacity at full reservoir level (FRL) 498 m MSL, and a water spread area of 378 square kilometres', citing the Karnataka government page waterresources.kar.nic.in/salient_features_tungabadra.htm. 101 is kept out of the field but recorded here. reservoir_area_km2 378 also comes from that sentence; the infobox has no res_surface. gate_capacity_cfs 650000 is the published 'spillway_capacity = 650,000 cusecs' - already in the required unit. max_ow_level_m 498 is the published 'FRL 498 m MSL'. gate_count is null: no spillway gate count is published (the page mentions crest gates and spillway shutters in a construction-milestone table but gives no number). Inactive storage published as 2.3 tmcft below 477.01 m msl. Dam length 2449 m, height 49.50 m from deepest foundation (49.39 m elsewhere on the page). The Karnataka official URL cited by Wikipedia was not itself fetched, so it is not used as a field source."
+   "notes": "Two gross figures published, kept 132: the infobox gives total 3.73 cubic kms (132 tmcft) and active 3.31 cubic kms (116.86 tmcft), while the Technical details section says 'The dam forms the biggest reservoir across the Tungabhadra River with 101 tmcft of gross storage capacity at full reservoir level (FRL) 498 m MSL, and a water spread area of 378 square kilometres', citing the Karnataka government page waterresources.kar.nic.in/salient_features_tungabadra.htm. 101 is kept out of the field but recorded here. reservoir_area_km2 378 also comes from that sentence; the infobox has no res_surface. gate_capacity_cfs 650000 is the published 'spillway_capacity = 650,000 cusecs' - already in the required unit. max_ow_level_m 498 is the published 'FRL 498 m MSL'. gate_count is null: no spillway gate count is published (the page mentions crest gates and spillway shutters in a construction-milestone table but gives no number). Inactive storage published as 2.3 tmcft below 477.01 m msl. Dam length 2449 m, height 49.50 m from deepest foundation (49.39 m elsewhere on the page). The Karnataka official URL cited by Wikipedia was not itself fetched, so it is not used as a field source. Reservoir area 378 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "krishnagiri",
@@ -644,7 +636,6 @@
    "gross_tmc": 70.5,
    "live_tmc": 51.57,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 60,
    "gate_count": null,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -658,7 +649,7 @@
     "max_ow_level_m": null
    },
    "source_type": "mixed",
-   "notes": "gross_tmc 70.5 (1.996 km3), live_tmc 51.57 (1460e6 m3), inactive 18.93 tmc ft (536e6 m3). gate_count is null: Wikipedia's infobox explicitly gives spillway_count = Nil for Idukki itself - the floodgates are at the adjoining Cheruthoni Dam - so there is no published spillway-gate count for this dam. reservoir_area_km2 60 published as res_surface; catchment 649.3 km2. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Idukki (Eb)/Idukki Arch Dam (Periyar, Todupulai, Idukki, Kerala, completed 1974, Gravity & Masonry) at length 366 m, max height above foundation 169 m, Design Gross Storage Capacity 1998.57 MCM (MCM only). max_ow_level_m and outlet capacity: not found."
+   "notes": "gross_tmc 70.5 (1.996 km3), live_tmc 51.57 (1460e6 m3), inactive 18.93 tmc ft (536e6 m3). gate_count is null: Wikipedia's infobox explicitly gives spillway_count = Nil for Idukki itself - the floodgates are at the adjoining Cheruthoni Dam - so there is no published spillway-gate count for this dam. reservoir_area_km2 60 published as res_surface; catchment 649.3 km2. Official cross-check: https://www.indiawris.gov.in/wiki/doku.php?id=large_dams_in_india lists Idukki (Eb)/Idukki Arch Dam (Periyar, Todupulai, Idukki, Kerala, completed 1974, Gravity & Masonry) at length 366 m, max height above foundation 169 m, Design Gross Storage Capacity 1998.57 MCM (MCM only). max_ow_level_m and outlet capacity: not found. Reservoir area 60 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "pamba",
@@ -860,7 +851,6 @@
    "gross_tmc": null,
    "live_tmc": 6,
    "flood_plain_tmc": null,
-   "reservoir_area_km2": 121.81,
    "gate_count": null,
    "gate_capacity_cfs": null,
    "outlet_capacity_cfs": null,
@@ -874,7 +864,7 @@
     "max_ow_level_m": null
    },
    "source_type": "secondary",
-   "notes": "Conflict on the same page: the infobox gives res_capacity_active = 1497.54 million m3 and res_capacity_inactive = 170.37 million m3, while the body text states 'The Panchet Dam has an effective storage capacity of 169,000,000 m3 or 6TMCft', citing Central Water Commission, National Register of Large Dams 2019 edition, project code JH05HH0009. Kept live_tmc 6 because it is the TMC figure and it carries the CWC citation; the 1497.54 million m3 infobox value is recorded here. gross_tmc is null - no gross storage is published. reservoir_area_km2 121.81 is 'the area at maximum conservation pool'; the same sentence also gives 27.92 km2 at dead storage level and 153.38 km2 at top of gates, so the field holds the maximum-conservation-pool value. gate_count is null: the infobox spillway_count is empty. gate_capacity_cfs is null because spillway capacity is published as 17853 m3/s (cms). Other published figures: dam height 45.00 m, length 6777 m, catchment 10961 km2, spillway design flood 17853 m3/s, maximum observed flood (June 1949) 8558 m3/s, spillway crest RL 123.47 m. max_ow_level_m and outlet capacity: not found."
+   "notes": "Conflict on the same page: the infobox gives res_capacity_active = 1497.54 million m3 and res_capacity_inactive = 170.37 million m3, while the body text states 'The Panchet Dam has an effective storage capacity of 169,000,000 m3 or 6TMCft', citing Central Water Commission, National Register of Large Dams 2019 edition, project code JH05HH0009. Kept live_tmc 6 because it is the TMC figure and it carries the CWC citation; the 1497.54 million m3 infobox value is recorded here. gross_tmc is null - no gross storage is published. reservoir_area_km2 121.81 is 'the area at maximum conservation pool'; the same sentence also gives 27.92 km2 at dead storage level and 153.38 km2 at top of gates, so the field holds the maximum-conservation-pool value. gate_count is null: the infobox spillway_count is empty. gate_capacity_cfs is null because spillway capacity is published as 17853 m3/s (cms). Other published figures: dam height 45.00 m, length 6777 m, catchment 10961 km2, spillway design flood 17853 m3/s, maximum observed flood (June 1949) 8558 m3/s, spillway crest RL 123.47 m. max_ow_level_m and outlet capacity: not found. Reservoir area 121.81 km2 is stated on the same page but the field has no per-field source slot, so it is recorded here rather than shown."
   },
   {
    "id": "rengali",

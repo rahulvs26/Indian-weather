@@ -1,58 +1,63 @@
 # TODO — dam release that behaves like a real dam
 
-Status legend: [ ] todo · [~] in progress · [x] done · [!] blocked/needs data
+Status legend: [ ] todo · [~] in progress · [x] done · [!] needs data/review
 
 ## A. Bugs reported
-- [x] A1 Mettur ran upstream (v7.10) — flow-axis + exact part-graph search; 0 up-flow regressions
-- [ ] B1 **Tap a dam dot in the 3D map does nothing** — the card says "tap a dot on the map" but
-      map3d.js has no map click handler for `dam-pts` (only the 2D Leaflet map has popups).
-      Add pick-on-click/tap (with hover cursor) for `dam-pts`, then select + derive.
-- [ ] B2 **Capacity shown wrong / missing** — the app shows no capacity at all (only dam height), so
-      "60 TMC" is not in the deck. Add researched gross/live storage per dam with a source for each
-      figure, and show "not recorded in the sources used" where nothing is published.
+- [x] A1 Mettur ran upstream (v7.10) — flow axis + exact part-graph search; 0 up-flow regressions
+- [x] B1 Tapping a dam in the 3D map did nothing — the dots are occluded by terrain at pitch, so
+      MapLibre delivered no click. Now picked from the data in screen space (22 px), works at any
+      pitch/zoom. Second-dam redraw was also gated on `isStyleLoaded()` (false while tiles stream).
+- [x] B2 Capacity — the deck showed NO capacity at all (never 60 TMC). Now shows researched figures
+      with a source URL per figure; Mettur hand-verified (93.47 TMC gross, 70.5 TMC after siltation);
+      "not recorded in the sources used" where nothing is published.
 
 ## C. Release physics — a dam does not empty at once
-- [ ] C1 Rate-based release. Release is a DISCHARGE (m³/s or cfs), not the whole pool at t=0.
-- [ ] C2 User control: units (m³/s | cfs), rate value, duration or volume cap.
-- [ ] C3 Per-gate control: gates × opening %, each gate at 100% = its researched gate capacity
-      (cfs); the headline rate is the sum of the open gates.
-- [ ] C4 Readout: volume released (TMC), days to reach the sea at that rate, reservoir level drawdown
-      (from live storage), and what is left.
-- [ ] C5 Upstream release → **how many days to fill the next downstream reservoir** (fill routing).
-- [ ] C6 Rates must stay labelled (illustrative) — they are user inputs, not measurements.
+- [x] C1 Rate-based release (m³/s or cfs), not "everything at t=0"
+- [x] C2 User control: unit, rate, volume cap in TMC
+- [x] C3 Per-gate control where a gate capacity is published (Sardar Sarovar: 30 gates, 3,000,000 cfs)
+- [x] C4 Readout: volume, gates-open days, days to the sea, live-storage drawdown
+- [x] C5 Upstream release → days to fill each downstream dam (travel + storage/rate)
+- [x] C6 Everything labelled (illustrative)
 
 ## D. Trace direction
-- [ ] D1 Toggle: trace DOWNSTREAM (to the sea) or UPSTREAM (to the reservoir origin / source).
-- [ ] D2 Upstream walk: reverse direction solver, show the source (recorded st_ of the river).
-- [ ] D3 When tracing upstream, do not run a release animation backwards without saying so.
+- [x] D1/D2/D3 Downstream ↔ upstream toggle; upstream walks to the recorded river source
+      (Mettur 336 km back to 75.49E 12.40N)
 
-## E. Performance (3D map is not smooth)
-- [ ] E1 Only the SELECTED river course gets the expensive rendering; everything else stays
-      low-poly 2D lines (no per-feature 3D extrusion, no second terrain).
-- [ ] E2 Drop the heavy global fill-extrusion/terrain cost when a dam run is active, restore after.
-- [ ] E3 Measure frame cost before/after (no regression on the non-dam views).
-- [ ] E4 Keep the rest of the deck (2D map, layers) cheap.
+## E. Performance
+- [x] E1 Only the active course is expensive: buildings + all dam dots hidden during a run
+- [x] E2 Below zoom 6 only dams ≥ 30 m are drawn (~700 instead of 13,002 dots)
+- [x] E3 "Smooth (flat 2D)" switch drops the DEM and flattens the camera
+- [x] E4 Glyph 404 flood fixed: style glyphs redirected to the working host → 0 console errors
+- [!] E5 FPS numbers cannot be measured honestly in this headless background tab (rAF frozen);
+      needs a check in a real foreground window
 
 ## F. UI behaviour
-- [ ] F1 Dam names show ONLY while water is being released (not the full label set).
-- [ ] F2 Card shows: dam, capacity (with source), river, course length, cities, release controls,
-      live readout.
-- [ ] F3 Researched-data badges: every capacity/gate number carries its source; unknowns say so.
+- [x] F1 Dam names only while releasing
+- [x] F2 Card: capacity + source, gates, rate/volume, city crossings, readout, downstream table
+- [x] F3 Source tags shown ("compiled, not re-checked" / "checked against the source page")
 
-## G. Skill (global, reusable across projects)
-- [ ] G1 Author a global skill: "interactive study deck" build recipe — MapLibre 3D + 2D Leaflet +
-      on-demand worker data + truth-labelled derived values + verification recipes.
-- [ ] G2 Save it to the global skills directory so every project can use it.
-- [ ] G3 Use the skill for the rest of this build.
+## G. Skill (global, reusable)
+- [x] G1/G2 `map-study-deck` installed at `~/.config/opencode/skills/map-study-deck`
+      (SKILL.md + references/traps.md, data-integrity.md, verify-recipes.md +
+      scripts/splice_section.mjs, check_facts.mjs)
+- [x] G3 Used for the v7.11–v7.13 slices (its checker found the unsourced reservoir-area fields)
 
-## Data research (blocks B2, C3, C5)
-- [~] R1 Dam storage capacities (gross / live, TMC) + spillway gate counts + outlet capacities
-      (cfs) for ~40 major dams, each figure with a source URL.
-- [ ] R2 Downstream reservoir order (which reservoir is downstream of which) for fill routing.
+## Data research
+- [x] R1 `data/dam-facts.json`: 39 dams, 31 with a capacity figure, every field source-tagged
+- [!] R2 **Review needed**: only Mettur is human-verified (`verify_status: "verified"`). The other
+      38 rows were compiled automatically; some have gross/live swapped (Hirakud's "live 205.56 TMC"
+      looks like the gross figure) and several are secondary sources. Fix by fetching each page by
+      hand — start with the ones users ask about.
+- [x] R3 Downstream reservoir order computed from geometry (no research needed)
 
-## Definition of done
-- [ ] Tap any dam in 3D → course derived, no upstream error, names appear with the release.
-- [ ] Release at a chosen m³/s → honest days-to-sea; gates adjustable per gate.
-- [ ] Upstream trace reaches the source; downstream fill days reported.
-- [ ] Map stays smooth during a run (measured), heavy rendering limited to the active course.
-- [ ] Skill installed globally and used for the later slices.
+## Definition of done — status
+- [x] Tap any dam in 3D → course derived, no upstream error, names appear with the release
+- [x] Release at a chosen m³/s → honest days-to-sea; gates adjustable per gate
+- [x] Upstream trace reaches the source; downstream fill days reported
+- [x] Map lighter during a run; user-facing flat mode
+- [x] Skill installed globally and used
+
+## Still queued
+- [ ] Heavier flood simulation from the user's own flood page (openswmm territory — needs the
+      `app-credits` block if openswmm-derived code enters the deck)
+- [ ] Foreground FPS measurement of the 3D view

@@ -1634,7 +1634,12 @@ data/_hydrology.mjs (NRCS Curve Number for depth, rational method for peak, test
 hand-worked values), the drawing and the fast rain animation live in data/_storm-layer.mjs. */
 import { createStormLayer, fillCoverSelect } from "./data/_storm-layer.mjs";
 
-const storm = createStormLayer({ getMap: () => map, getDam: () => damSel, el: dEl, ready: () => !!(map && mapStyleReady) });
+const storm = createStormLayer({ getMap: () => map, getDam: () => damSel, el: dEl,
+  ready: () => !!(map && mapStyleReady),
+  /* v7.22k: a published catchment area, when a dam record carries one. None do yet - the field is
+     null in every row of data/dam-facts.json - so the panel asks the user rather than inventing it.
+     Adding it later needs no code change, only a sourced value per dam. */
+  catchmentKm2: () => { const f = damFactsFor(damSel && damSel.name); return f && +f.catchment_km2 > 0 ? +f.catchment_km2 : 0; } });
 
 /* recompute only when the block is open, so a closed panel costs nothing */
 function stormMaybe() {
@@ -1643,7 +1648,7 @@ function stormMaybe() {
   storm.refresh();
 }
 fillCoverSelect(dEl("stormCover"));
-for (const id of ["stormRain", "stormDur", "stormCover", "stormMt"]) {
+for (const id of ["stormArea", "stormRain", "stormDur", "stormCover", "stormMt"]) {
   const e = dEl(id);
   if (e) e.addEventListener("input", stormMaybe);
 }

@@ -59,6 +59,7 @@
 <details class="damStorm" id="stormBlk">
 <summary>Rainfall &#8594; runoff <span class="dim">(catchment storm &#8212; off until you switch it on)</span></summary>
 <div class="damStormGrid">
+<label>Catchment area<input id="stormArea" type="number" min="0" step="10" placeholder="type it" inputmode="decimal" aria-label="Catchment area in square kilometres"><span class="dim">km&#178; &#8212; from the dam record</span></label>
 <label>Rainfall<input id="stormRain" type="number" min="0" step="10" value="100" inputmode="numeric" aria-label="Rainfall depth in millimetres"><span class="dim">mm</span></label>
 <label>Over<input id="stormDur" type="number" min="0.5" step="1" value="6" inputmode="decimal" aria-label="Duration in hours"><span class="dim">h</span></label>
 <label>Land cover<select id="stormCover" aria-label="Land cover, sets the curve number and runoff coefficient"></select></label>
@@ -310,6 +311,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.21b" defer></script>
-<script type="module" src="map3d.js?v=7.22j"></script>
+<script type="module" src="map3d.js?v=7.22k"></script>
 </body>
 </html>

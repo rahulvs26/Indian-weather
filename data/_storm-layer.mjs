@@ -15,11 +15,25 @@
    No per-frame feature updates, no per-feature JavaScript, streaks capped, everything torn down
    the moment the checkbox is cleared. */
 
-import { stormModel, subbasinAt, CN_TABLE, COVER_KEYS, DEFAULT_THRESHOLD_M } from "./_hydrology.mjs";
+import { stormModel, CN_TABLE, COVER_KEYS, DEFAULT_THRESHOLD_M } from "./_hydrology.mjs";
 
 const V = "?v=7.22";
 const MAX_STREAKS = 360;      /* hard cap: 360 short segments is one cheap draw call */
 const CLOUD_MIN_M = 900, CLOUD_MAX_M = 9000;
+/* A catchment drawn from an area alone has no boundary in any of our sources, so it is drawn as a
+   circle of that area centred on the dam and labelled as a circle — never as "the" catchment. */
+function circleAround(lon, lat, km2) {
+  const rKm = Math.sqrt(km2 / Math.PI);
+  const dLat = rKm / 110.574;
+  const dLon = rKm / (111.320 * Math.cos(lat * Math.PI / 180) || 1);
+  const ring = [];
+  for (let i = 0; i <= 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    ring.push([lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)]);
+  }
+  ring.push(ring[0]);
+  return { type: "Polygon", coordinates: [ring] };
+}
 
 /* point-in-ring, for placing rain inside the catchment */
 function inRing(ring, x, y) {
@@ -62,11 +76,31 @@ export function createStormLayer(ctx) {
     if (data) return data;
     if (!loading) loading = (async () => {
       const get = async u => { try { const r = await fetch(u + V); return r.ok ? await r.json() : null; } catch (_) { return null; } };
-      const [subs, areas] = await Promise.all([get("data/subbasins.geo.json"), get("data/subbasin-areas.json")]);
-      data = subs && subs.features && subs.features.length ? { subs, areas } : null;
+      const [subs, stats] = await Promise.all([get("data/subbasins.geo.json"), get("data/river-stats.json")]);
+      data = { subs, stats, byName: new Map((stats && stats.rivers || []).map(r => [r.name.toLowerCase(), r])) };
       return data;
     })();
     return loading;
+  }
+
+  /* what the data actually knows about THIS dam's river: its measured length, and the tile it sits
+     in - including how many other rivers share that tile. Measured, because the tile is not a
+     catchment: 99.7% of the 27,479 rivers in the network share their tile with more than 25 others
+     (data/_gen_river_stats.mjs). Calling a tile area a catchment overstated the Vaippar by more
+     than two orders of magnitude, which the user caught. */
+  function riverFacts(dam) {
+    if (!data || !dam) return null;
+    const cands = [];
+    const push = n => { const r = data.byName.get(String(n || "").trim().toLowerCase()); if (r && !cands.includes(r)) cands.push(r); };
+    push(dam.river);
+    const head = String(dam.river || "").split(/[(,/]/)[0];
+    push(head);
+    if (!cands.length) return null;
+    let best = cands[0];
+    for (const r of cands) if (r.km > best.km) best = r;
+    return { river: best.name, km: best.km, features: best.n, tileRivers: best.tileRivers,
+      tileKm2: best.tileKm2, tileName: best.tiles && best.tiles.length ? best.tiles[0].name : null,
+      composite: !!best.composite, basin: best.basin };
   }
 
   /* rain columns inside the catchment, thinned by intensity; deterministic so the picture does
@@ -139,17 +173,21 @@ export function createStormLayer(ctx) {
     const out = el("stormOut");
     if (!dam) { if (out) out.textContent = "Choose a dam first — the storm falls on the catchment above it."; return null; }
     const d = await load();
-    if (!d) { if (out) out.innerHTML = '<span class="warn">Could not load the sub-basin polygons, so the catchment area is unknown. The runoff numbers need it.</span>'; return null; }
-    const hit = subbasinAt(d.subs, d.areas, dam.lon, dam.lat);
-    if (!hit) {
-      if (out) out.innerHTML = '<span class="warn">This dam sits outside the mapped sub-basins, so its catchment area is not recorded in the sources used. Type an area to go on.</span>';
-      return null;
-    }
+    if (!d) { if (out) out.innerHTML = '<span class="warn">Could not load the river data, so this dam&#8217;s river is unknown. Type a catchment area to go on.</span>'; return null; }
+    const rf = riverFacts(dam);
+    /* the area is ONLY what the dam record gives, or what the user types. The sub-basin tile is
+       never used as the area: it is a CWRD tile shared by up to 1,253 rivers, and using it made a
+       79 km river report a 19,937 km&#178; catchment. */
+    const typed = +val("stormArea");
+    const area = typed > 0 ? typed : (ctx.catchmentKm2 ? ctx.catchmentKm2() : 0);
+    const areaFrom = typed > 0 ? "your figure" : (area > 0 ? "the dam record" : null);
     const rain = Math.max(0, +val("stormRain") || 0);
     const dur = Math.max(0.1, +val("stormDur") || 1);
     const cover = el("stormCover") ? el("stormCover").value : "forest";
     const th = val("stormMt") == null ? DEFAULT_THRESHOLD_M : Math.max(0, +val("stormMt"));
-    const m = stormModel({ areaKm2: hit.km2, areaLabel: hit.name, rainMm: rain, durationH: dur, cover, thresholdM: th });
+    const m = stormModel({ areaKm2: area, areaLabel: rf ? rf.river : (dam.river || "this river"),
+      rainMm: rain, durationH: dur, cover, thresholdM: th });
+    const hit = rf ? { name: rf.river, rf, area, areaFrom, lon: dam.lon, lat: dam.lat } : null;
     if (out) out.innerHTML = text(m, hit);
     if (shown) {
       /* a draw failure must be visible, not a silent half-applied storm */
@@ -159,7 +197,7 @@ export function createStormLayer(ctx) {
         if (box) box.innerHTML += '<br><span class="warn">The 3D storm could not be drawn: ' + esc(lastErr) + "</span>";
       });
     }
-    lastKey = m.areaLabel + "|" + m.rainMm + "|" + m.durationH + "|" + m.cover + "|" + m.mountain.thresholdM;
+    lastKey = (rf ? rf.river : "") + "|" + area + "|" + m.rainMm + "|" + m.durationH + "|" + m.cover + "|" + m.mountain.thresholdM;
     return m;
   }
 
@@ -168,20 +206,40 @@ export function createStormLayer(ctx) {
   function text(m, hit) {
     const run = m.runoffMm > 0;
     const pct = m.areaKm2 > 0 ? (m.runoffMm / m.rainMm) * 100 : 0;
-    return '<b class="big">' + fmt(m.intensityMmH, 1) + ' mm/h over ' + fmt(m.areaKm2) + ' km²</b>'
-      + '<br><span class="k">catchment</span> ' + esc(m.areaLabel)
-      + '<br><span class="k">runoff</span> ' + (run ? fmt(m.runoffMm, 1) + ' mm (' + pct.toFixed(0) + '% of the rain, the rest soaks in or is held back)'
-        : (m.rainMm > 0 ? 'nothing yet — the storm has not beaten the ' + fmt(m.initialAbsMm, 1) + ' mm the ground soaks up first' : 'enter a rainfall to see runoff'))
-      + '<br><span class="k">volume</span> ' + (run ? fmt(m.volumeM3 / 1e6, 2) + ' million m³' : '—')
-      + '<br><span class="k">peak flow</span> ' + (run ? fmt(m.peakM3s) + ' m³/s' : '—')
-      + '<br><span class="k">mountain / plain</span> ' + (m.upstreamKm > 0
-        ? fmt(m.mountain.mtKm, 0) + ' km of river above ' + fmt(m.mountain.thresholdM) + ' m vs ' + fmt(m.mountain.plKm, 0) + ' km below it'
-        : 'needs the upstream trace (Trace: Upstream)')
-      + (m.upstreamKm > 0 ? ' (' + (m.mountain.mountainFrac * 100).toFixed(0) + '% mountain)' : '')
-      + '<br><span class="k">land cover</span> ' + esc(m.coverLabel) + ' — curve number ' + m.cn + ', coefficient ' + m.c
-      + '<br><span class="k">cloud area</span> ' + (shown
-        ? 'the ' + fmt(m.areaKm2) + ' km² catchment above; intensity sets its height and drop density, not its footprint'
-        : 'tick “show it in 3D” to place the cloud over the catchment');
+    const rf = hit && hit.rf;
+    let head;
+    if (!hit) {
+      head = '<b class="big">enter a catchment area</b>';
+    } else if (m.areaKm2 > 0) {
+      head = '<b class="big">' + fmt(m.intensityMmH, 1) + ' mm/h over ' + fmt(m.areaKm2) + ' km&#178;</b>'
+        + '<br><span class="k">area from</span> ' + esc(hit.areaFrom || "your figure");
+    } else {
+      head = '<b class="big">no catchment area yet</b>'
+        + '<br><span class="k">this river</span> ' + (rf ? esc(rf.river) + ' &#183; ' + fmt(rf.km, 0) + ' km mapped in the CWC network' : esc(m.areaLabel))
+        + '<br><span class="k">why it is blank</span> no catchment area for this dam is recorded in the sources used. '
+        + 'The ' + (rf ? esc(rf.tileName || "sub-basin tile") + ' tile' : "sub-basin tile") + ' is <b>not</b> a catchment'
+        + (rf && rf.tileRivers ? ' &#8212; it is shared by <b>' + fmt(rf.tileRivers) + ' other rivers</b>' : '')
+        + '. Type the published catchment area above and everything below appears.';
+    }
+    return head
+      + (m.areaKm2 > 0
+        ? '<br><span class="k">runoff</span> ' + (run ? fmt(m.runoffMm, 1) + ' mm (' + pct.toFixed(0) + '% of the rain, the rest soaks in or is held back)'
+          : (m.rainMm > 0 ? 'nothing yet &#8212; the storm has not beaten the ' + fmt(m.initialAbsMm, 1) + ' mm the ground soaks up first' : 'enter a rainfall to see runoff'))
+        + '<br><span class="k">volume</span> ' + (run ? fmt(m.volumeM3 / 1e6, 2) + ' million m&#179;' : '&#8212;')
+        + '<br><span class="k">peak flow</span> ' + (run ? fmt(m.peakM3s) + ' m&#179;/s' : '&#8212;') : "")
+      + (rf ? '<br><span class="k">this river</span> ' + esc(rf.river) + ' &#183; ' + fmt(rf.km, 0) + ' km mapped, '
+          + rf.features + ' feature' + (rf.features === 1 ? '' : 's') + ' in the CWC network' : "")
+      + (rf && rf.composite ? '<br><span class="k">its tile</span> &#8220;' + esc(rf.tileName || "") + '&#8221; holds '
+          + fmt(rf.tileRivers) + ' rivers over ' + fmt(rf.tileKm2) + ' km&#178; &#8212; a CWRD tile, not this river&#8217;s catchment' : "")
+      + (m.upstreamKm > 0
+        ? '<br><span class="k">mountain / plain</span> ' + fmt(m.mountain.mtKm, 0) + ' km of river above ' + fmt(m.mountain.thresholdM) + ' m vs ' + fmt(m.mountain.plKm, 0) + ' km below it (' + (m.mountain.mountainFrac * 100).toFixed(0) + '% mountain)'
+        : (m.areaKm2 > 0 ? '<br><span class="k">mountain / plain</span> needs the upstream trace (Trace: Upstream)' : ""))
+      + (m.areaKm2 > 0 ? '<br><span class="k">land cover</span> ' + esc(m.coverLabel) + ' &#8212; curve number ' + m.cn + ', coefficient ' + m.c : "")
+      + (m.areaKm2 > 0
+        ? '<br><span class="k">cloud area</span> ' + (shown
+          ? 'a circle of ' + fmt(m.areaKm2) + ' km&#178; centred on the dam &#8212; an area, not a real boundary. Intensity sets its height and drop density, not its footprint'
+          : 'tick &#8220;show it in 3D&#8221; to place the cloud over that area')
+        : "");
   }
   const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
@@ -223,27 +281,7 @@ export function createStormLayer(ctx) {
     return baseP;
   }
 
-  /* GeoJSON exterior rings must run counter-clockwise. The sub-basin shapefile's rings are wound the
-     other way, which a plain fill tolerates but a fill-extrusion silently culls - so the cloud was
-     drawn with no error and simply never appeared. Normalise the winding before using a polygon
-     for an extrusion, and say so in the code because the symptom is invisible. */
-  function ccw(ring) {
-    let a = 0;
-    for (let i = 0, n = ring.length, j = n - 1; i < n; j = i++)
-      a += (ring[j][0] - ring[i][0]) * (ring[j][1] + ring[i][1]);
-    return a > 0 ? ring.slice().reverse() : ring;
-  }
-  function asExtrusion(geom) {
-    if (!geom) return null;
-    if (geom.type === "Polygon")
-      return { type: "Polygon", coordinates: geom.coordinates.map((r, i) => i === 0 ? ccw(r) : ccw(r).slice().reverse()) };
-    if (geom.type === "MultiPolygon")
-      return { type: "MultiPolygon", coordinates: geom.coordinates.map(p =>
-        p.map((r, i) => i === 0 ? ccw(r) : ccw(r).slice().reverse())) };
-    return null;
-  }
-
-async function draw(m, hit) {
+  async function draw(m, hit) {
     const map = getMap();
     /* Measured: MapLibre's isStyleLoaded() is false whenever any tile is in flight, so gating on
        it meant the storm drew once and then silently refused every update (the cloud never grew).
@@ -255,13 +293,11 @@ async function draw(m, hit) {
       return;
     }
     tries = 0;
-    const geom = geomOf(hit);
+    const geom = hit && hit.area > 0 ? circleAround(hit.lon, hit.lat, hit.area) : null;
     cloudBase = await terrainBase(geom);
-    const feature = d_f(hit);
-    const solid = { type: "FeatureCollection", features: (() => {
-      const g = asExtrusion(geomOf(hit));
-      return g ? [{ type: "Feature", properties: {}, geometry: g }] : [];
-    })() };
+    const feature = geom ? { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: geom }] }
+      : { type: "FeatureCollection", features: [] };
+    const solid = feature;
     const src = map.getSource("storm-catch");
     if (!src) {
       map.addSource("storm-catch", { type: "geojson", data: feature });
@@ -299,18 +335,6 @@ async function draw(m, hit) {
     animate(map, m.intensityMmH);
   }
 
-  /* recover the polygon geometry for the sub-basin we matched */
-  function geomOf(hit) {
-    if (!data) return null;
-    for (const f of data.subs.features) {
-      const p = f.properties || {};
-      const name = (p.ba_name ? p.ba_name + " / " : "") + (p.sub_basin || p.ba_name || "");
-      if (name === hit.name) return f.geometry;
-    }
-    return null;
-  }
-  const d_f = hit => ({ type: "FeatureCollection", features: geomOf(hit)
-    ? [{ type: "Feature", properties: {}, geometry: geomOf(hit) }] : [] });
 
   return {
     async refresh() { return compute(); },

@@ -58,6 +58,11 @@ Status legend: [ ] todo · [~] in progress · [x] done · [!] needs data/review
 - [x] Skill installed globally and used
 
 ## Still queued
+- [x] **Slope-derived velocity (v7.19)** — published reservoir levels (`frl_m`) for the 4 dams with an
+      official source, DEM profile between the level and sea level, Manning velocity per reach with
+      disclosed slope clamping, non-linear "travel by slope", one-row converter.
+- [ ] Research and add `frl_m` for more dams (Indira Sagar, Gandhi Sagar, Srisailam, Idukki, Omkareshwar,
+      Tawa, Kaveri, Kabini, Bhadra, Pochampally…) so more courses get a published anchor instead of a typed one.
 - [x] **Console + accuracy slice (v7.18)** — panel fits its container and folds; the drawn course is
       measured (segment sampling, not vertex sampling) and the source's holes are drawn as amber
       "not mapped" connectors instead of passing for river; Madurai and 47 other missing river cities

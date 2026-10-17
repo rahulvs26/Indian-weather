@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.18">
+<link rel="stylesheet" href="styles.css?v=7.19">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.18</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.19</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -42,21 +42,31 @@
 <div class="damGates" id="damGates"></div>
 <div class="damRelRow"><label for="damRate">Rate</label><select id="damUnit" aria-label="Release rate unit"><option value="cms">m³/s</option><option value="cfs">cfs</option><option value="cm">cumec</option></select><input id="damRate" type="number" min="0" step="100" value="20000" inputmode="numeric" aria-label="Release rate"></div>
 <div class="damRelRow"><label for="damVol">Volume</label><input id="damVol" type="number" min="0" step="1" value="20" inputmode="decimal" aria-label="Volume to release in TMC"><span class="dim">TMC · 0 = keep releasing</span></div>
-<div class="damRelRow"><label for="damVel">Wave</label><input id="damVel" type="number" min="0.2" max="5" step="0.1" value="1.5" inputmode="decimal" aria-label="Travel wave speed in metres per second"><span class="dim">m/s · <span id="damVelRange">typical river 0.5-3.0</span></span></div>
+<div class="damRelRow"><label for="damVel">Speed</label><input id="damVel" type="number" min="0.2" max="5" step="0.1" value="1.5" inputmode="decimal" aria-label="Travel wave speed in metres per second"><span class="dim">m/s · <span id="damVelRange">river 0.5–3.0</span></span></div>
+<details class="damSlope" id="damSlopeBlk">
+<summary>Slope → velocity <span class="dim">(reservoir level to sea level)</span></summary>
+<div class="damSlopeGrid">
+<label>Reservoir level<input id="damFrl" type="number" step="0.1" min="0" placeholder="type it" inputmode="decimal"><span class="srcTag" id="damFrlTag"></span></label>
+<label>End level<input id="damEnd" type="number" step="0.1" placeholder="0 = sea" inputmode="decimal"><span class="srcTag" id="damEndTag"></span></label>
+<label>Roughness n<input id="damMann" type="number" step="0.005" min="0.005" max="0.1" value="0.03" inputmode="decimal"><span class="srcTag">Manning</span></label>
+<label>Depth R<input id="damDepth" type="number" step="0.5" min="0.5" max="30" value="3" inputmode="decimal"><span class="srcTag">hyd. radius</span></label>
+</div>
+<svg class="damProf" id="damProf" viewBox="0 0 240 46" preserveAspectRatio="none" aria-hidden="true"></svg>
+<div class="damSlopeOut" id="damSlopeOut">Reservoir level is needed — pick a dam whose level is published, or type it above.</div>
+<div class="damSlopeBtns"><button type="button" id="damUseSpeed">use this speed</button><label class="damChk"><input type="checkbox" id="damProfMode"> travel by slope</label></div>
+<div class="damConvFoot">Slope and speed from Manning v = R<sup>2/3</sup>·√S ⁄ n with the relief between the two anchors read from the terrain DEM (land surface, so a proxy for the water surface) — illustrative, not a survey.</div>
+</details>
 <div class="damLim" id="damLim"></div>
 <div class="damRead" id="damRead"></div>
-<details class="damConv" id="damConv"><summary>Unit converter · cfs ⇄ m³/s ⇄ TMC</summary>
-<div class="damConvGrid">
-<label>Discharge Q<input id="cvQ" type="number" value="1000" step="100" min="0"></label>
-<label>m³/s<input id="cvCms" type="number" step="0.01"></label>
-<label>cfs<input id="cvCfs" type="number" step="1"></label>
-<label>cumec<input id="cvCumec" type="number" step="0.01"></label>
-<label>TMC / day<input id="cvTmcDay" type="number" step="0.001"></label>
-<label>Volume over 1 day (TMC)<input id="cvVol" type="number" step="0.001"></label>
-<label>Volume over 7 days (TMC)<input id="vol7" type="number" step="0.01"></label>
-<label>Days to pass 1 TMC<input id="cvDays" type="number" step="0.01"></label>
+<details class="damConv" id="damConv"><summary>Unit converter</summary>
+<div class="damConv1">
+<input id="cvQ" type="number" value="1000" step="100" min="0" inputmode="decimal" aria-label="Quantity to convert">
+<select id="cvFrom" aria-label="Convert from"><option value="cms">m³/s</option><option value="cfs">cfs</option><option value="cm">cumec</option><option value="tmcday">TMC/day</option><option value="tmc">TMC (volume)</option><option value="m3">m³ (volume)</option><option value="mcmday">MCM/day</option></select>
+<span class="arw">→</span>
+<select id="cvTo" aria-label="Convert to"><option value="tmcday">TMC/day</option><option value="cms">m³/s</option><option value="cfs">cfs</option><option value="cm">cumec</option><option value="tmc">TMC (volume)</option><option value="m3">m³ (volume)</option><option value="mcmday">MCM/day</option></select>
 </div>
-<div class="damConvFoot">1 TMC = 28,316.85 m³ = 1,000,000 ft³ · 1 cfs = 1 cumec ÷ 35.3147 · 1 TMC/day = 0.3277 m³/s = 11.57 cfs (exact conversions)</div>
+<div class="damConvResult"><b id="cvOut">—</b><span id="cvOutEq" class="dim"></span></div>
+<div class="damConvFoot">1 cfs = 0.0283168466 m³/s · 1 TMC = 28,316.85 m³ · 1 TMC/day = 0.3277 m³/s · exact conversions</div>
 </details>
 </div>
 <div class="damStat" id="damStat">—</div>
@@ -287,6 +297,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.17" defer></script>
-<script type="module" src="map3d.js?v=7.18"></script>
+<script type="module" src="map3d.js?v=7.19"></script>
 </body>
 </html>

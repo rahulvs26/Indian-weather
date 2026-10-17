@@ -330,7 +330,7 @@ return new Promise((resolve,reject)=>{
 }
 
 /* ---- researched dam facts (capacity + gates) — data/dam-facts.json, loaded once ---------- */
-const DAM_FACTS_URL="data/dam-facts.json";
+const DAM_FACTS_URL="data/dam-facts.json?v=7.19";
 let damFactsP=null,damFactsById=null;
 function damLoadFacts(){
   if(damFactsP)return damFactsP;
@@ -420,16 +420,287 @@ function damInputs(){
   const velMps=damVelocity();
   return {unit,rateRaw,rateM3s,volTmc,gates,gateCfs,gateDriven,velMps,velKmDay:velMps*86.4};
 }
+/* ---- v7.19 longitudinal profile: published reservoir level -> mean sea level ----
+   ANCHORS are real: `frl_m` from data/dam-facts.json (full reservoir level in metres above mean
+   sea level, published rows only) and 0 m at the mouth. THE SHAPE BETWEEN THEM is read from the
+   terrain DEM already loaded for the 3D view — the lowest of a 3x3 neighbourhood at points ~3 km
+   apart, because the DEM stores land surface and a single sample inside a gorge can sit on a
+   hillside. The series is then forced monotonically downhill and scaled so both anchors are exact.
+   PHYSICS: Manning v = R^(2/3)·√S ⁄ n, n and R as stated engineering defaults the user can change.
+   Every number derived here is illustrative — this is a study tool, not a hydraulic model. */
+const PROF_STEP_KM=3,PROF_MAX=70,S_FLOOR=1e-5,S_CEIL=0.06,V_FLOOR=0.05,V_CEIL=12;
+function damSlopeInputs(){
+  const facts=damFactsFor(damSel&&damSel.name);
+  const frlBox=dEl("damFrl"),endBox=dEl("damEnd");
+  const typed=parseFloat(frlBox&&frlBox.value);
+  const published=facts&&typeof facts.frl_m==="number"?facts.frl_m:null;
+  const frl=isFinite(typed)&&frlBox.value!==""?typed:published;
+  const coastal=!!(route&&route.coastal);
+  const endTyped=parseFloat(endBox&&endBox.value);
+  const end=coastal?0:(isFinite(endTyped)&&endBox.value!==""?endTyped:null);
+  const n=Math.min(0.1,Math.max(0.005,parseFloat((dEl("damMann")||{}).value)||0.03));
+  const R=Math.min(30,Math.max(0.5,parseFloat((dEl("damDepth")||{}).value)||3));
+  return {frl,published,typedFrl:isFinite(typed)&&frlBox&&frlBox.value!=="",end,coastal,n,R,
+    frlNote:(facts&&facts.frl_note)||null,frlSource:(facts&&facts.sources&&facts.sources.frl_m)||null};
+}
+/* sample points every ~PROF_STEP_KM along the course (never fewer than PROF_MAX) */
+function damProfilePoints(){
+  if(!route||!route.coords||route.coords.length<2||!map)return [];
+  const step=Math.max(PROF_STEP_KM,route.totalKm/PROF_MAX);
+  const out=[];
+  let km=0,i=0;
+  const q=map.queryTerrainElevation?map.queryTerrainElevation.bind(map):null;
+  while(km<=route.totalKm&&out.length<PROF_MAX+2){
+    while(i<route.cum.length-2&&route.cum[i+1]<km)i++;
+    const a=route.coords[i],b=route.coords[i+1]||route.coords[i];
+    const seg=Math.max(1e-6,route.cum[i+1]-route.cum[i]);
+    const t=Math.min(1,Math.max(0,(km-route.cum[i])/seg));
+    const c=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+    let z=null;
+    if(q){
+      let lo=Infinity;
+      for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){
+        const e=q([c[0]+di*0.009,c[1]+dj*0.009]);
+        if(typeof e==="number"&&isFinite(e)&&e<lo)lo=e;
+      }
+      if(lo<Infinity)z=lo;
+    }
+    out.push({km:+km.toFixed(3),lon:c[0],lat:c[1],z});
+    km+=step;
+  }
+  if(!out.length||out[out.length-1].km<route.totalKm-0.5){
+    const last=route.coords[route.coords.length-1];
+    let z=null;
+    if(q){const e=q(last);if(typeof e==="number"&&isFinite(e))z=e;}
+    out.push({km:+route.totalKm.toFixed(3),lon:last[0],lat:last[1],z});
+  }
+  return out;
+}
+/* the whole slope -> velocity -> days chain; null when the reservoir level is not known */
+let PROF_CACHE=null;
+function damProfile(){
+  const inp0=damSlopeInputs();
+  const key=[damSel?damSel.id+(route&&route.upstream?"#up":""):"",route?route.totalKm:0,
+    inp0.frl,inp0.end,inp0.n,inp0.R].join("|");
+  if(PROF_CACHE&&PROF_CACHE.key===key)return PROF_CACHE.prof;   /* ~630 DEM queries per build, so cache */
+  const inp=inp0;
+  if(inp.frl==null||inp.end==null)return (PROF_CACHE={key,prof:null},null);
+  const pts=damProfilePoints();
+  if(pts.length<2)return (PROF_CACHE={key,prof:null},null);
+  /* forced downhill: elevation must not rise downstream. A DEM spur or a bar next to the channel
+     can read higher than the water a kilometre downstream; walking from the sea back upstream and
+     lifting any upstream value that sits below its neighbour removes those steps without touching
+     the overall fall. (Walking the other way — clamping upstream values DOWN to the next one —
+     flattens the whole profile to a single number, which is what an earlier version did.) */
+  const zs=pts.map(p=>p.z);
+  const haveDem=zs.filter(z=>typeof z==="number"&&isFinite(z)).length>=zs.length*0.6;
+  if(haveDem){
+    for(let i=zs.length-2;i>=0;i--){
+      const z=typeof zs[i]==="number"&&isFinite(zs[i])?zs[i]:null;
+      const below=zs[i+1];
+      if(z==null)zs[i]=below;
+      else if(z<below)zs[i]=below;
+    }
+  }else{
+    for(let i=0;i<zs.length;i++)zs[i]=null;
+  }
+  /* scale the shape onto the two anchors exactly */
+  const zFirst=haveDem?zs[0]:null,zLast=haveDem?zs[zs.length-1]:null;
+  const span=(zFirst!=null&&zLast!=null)?(zFirst-zLast):0;
+  const prof=pts.map((p,i)=>({km:p.km,lon:p.lon,lat:p.lat,
+    z:haveDem&&span>1
+      ? inp.end+(zs[i]-zLast)*(inp.frl-inp.end)/span
+      : inp.frl+(inp.end-inp.frl)*(p.km/Math.max(1e-6,route.totalKm))}));
+  /* per-reach slope -> Manning velocity -> days.
+     A reach cannot fall more slowly than a small fraction of the course's overall fall: the DEM
+     bed in a plain is nearly level, but the water surface keeps a working slope there. So the
+     local slope is held between S_mean/10 and 20·S_mean and every clamped reach is counted and
+     disclosed — without this the Ganga plain reaches collapse to the 0.05 m/s floor and the course
+     "takes" 61 days, which is an artefact of the bed DEM, not a property of the river. */
+  const Smean=(inp.frl-inp.end)/Math.max(1e-6,route.totalKm*1000);
+  const Slo=Math.max(S_FLOOR,Smean/10),Shi=Math.min(S_CEIL,Math.max(Smean*20,Smean*2));
+  const reaches=[];
+  let t=0,clamped=0,flat=0,floored=0;
+  for(let i=1;i<prof.length;i++){
+    const ds=Math.max(1,(prof[i].km-prof[i-1].km)*1000);
+    const dz=prof[i-1].z-prof[i].z;
+    let S=dz/ds;
+    if(!(S>0)){S=S_FLOOR;flat++;}
+    if(S<Slo){S=Slo;floored++;}
+    if(S>Shi){S=Shi;clamped++;}
+    const v=Math.min(V_CEIL,Math.max(V_FLOOR,(1/inp.n)*Math.pow(inp.R,2/3)*Math.sqrt(S)));
+    const days=(ds/v)/86400;
+    t+=days;
+    reaches.push({km:prof[i].km,v:+v.toFixed(3),S:S,days:+days.toFixed(4)});
+  }
+  const totalDays=t>0?t:null;
+  let steep=reaches[0],steepS=-1;
+  for(const r of reaches)if(r.S>steepS){steepS=r.S;steep=r;}
+  const meanV=totalDays?route.totalKm/totalDays/86.4:null;   /* m/s */
+  const out={key,prof,reaches,totalDays,meanV,steepKm:steep?steep.km:null,steepS:steepS>0?steepS:null,
+    dem:haveDem,clamped,flat,floored,inp,Slo,Shi,raw:pts.map(q=>q.z),
+    headM:inp.frl-inp.end,slopeMean:(inp.frl-inp.end)/Math.max(1e-6,route.totalKm*1000)};
+  /* never cache a build made before the DEM tiles for this course arrived: those come back null
+     and the straight FRL-to-sea fallback would stick for the rest of the session */
+  const terrainOn=!!(map&&map.getTerrain&&map.getTerrain());
+  if(haveDem||!terrainOn)PROF_CACHE={key,prof:out};
+  return out;
+}
+/* rebuild the profile once the camera has settled and the DEM tiles exist */
+let PROF_RETRY=0,DAM_SPEED_AUTO=true;
+function damSlopeSeed(){
+  const p=damProfile(),box=dEl("damVel"),hint=dEl("damVelRange");
+  if(!p||!p.meanV||!box||!DAM_SPEED_AUTO||document.activeElement===box)return;
+  box.value=Math.min(VEL_MAX,Math.max(VEL_MIN,+p.meanV.toFixed(2)));
+  if(hint)hint.textContent="from slope "+p.meanV.toFixed(2)+" m/s";
+}
+function damSlopeRefresh(){
+  PROF_CACHE=null;
+  damSlopeUI();
+  damSlopeSeed();
+  damReadout();
+  if(map&&PROF_RETRY<3&&damSel){
+    PROF_RETRY++;
+    try{map.once("idle",()=>{if(PROF_RETRY<=3)damSlopeRefresh();});}catch(_){}
+    setTimeout(()=>{if(PROF_RETRY<=3)damSlopeRefresh();},1400);
+  }
+}
+/* km <-> day over the profile, so the clock is not linear when the river is not */
+function damTiming(){
+  const useProf=dEl("damProfMode")&&dEl("damProfMode").checked;
+  const waveKmDay=damVelocity()*86.4;
+  const p=useProf?damProfile():null;
+  if(!p||!p.totalDays){
+    return {mode:"flat",waveKmDay,totalDays:route?route.totalKm/waveKmDay:0,prof:null,
+      dayAt:km=>waveKmDay>0?km/waveKmDay:0,kmAt:day=>day*waveKmDay};
+  }
+  const pts=p.prof;
+  const rKm=(p2,i)=>p2.prof[i+1]?p2.prof[i+1].km:p2.prof[p2.prof.length-1].km;
+  const dayAt=km=>{                       /* cumulative days at each profile point */
+    let acc=0,i=0;
+    for(;i<p.reaches.length;i++){const r=p.reaches[i];if(r.km>=km)break;acc+=r.days;}
+    if(i>=p.reaches.length)return p.totalDays;
+    const prev=i>0?p.reaches[i-1].km:0,frac=(km-prev)/Math.max(1e-9,rKm(p,i)-prev);
+    return acc+p.reaches[i].days*Math.min(1,Math.max(0,frac));
+  };
+  const kmAt=day=>{
+    let acc=0;
+    for(let i=0;i<p.reaches.length;i++){
+      if(acc+p.reaches[i].days>=day){
+        const f=(day-acc)/Math.max(1e-9,p.reaches[i].days);
+        const prev=i>0?p.reaches[i-1].km:0;
+        return prev+(rKm(p,i)-prev)*Math.min(1,Math.max(0,f));
+      }
+      acc+=p.reaches[i].days;
+    }
+    return route?route.totalKm:0;
+  };
+  return {mode:"profile",waveKmDay,totalDays:p.totalDays,prof:p,dayAt,kmAt};
+}
+/* ---- v7.19 the slope block: head, mean slope, Manning velocity, and the drawn profile ---- */
+function damSlopeUI(){
+  const out=dEl("damSlopeOut"),svg=dEl("damProf"),frlTag=dEl("damFrlTag"),endTag=dEl("damEndTag");
+  if(!out)return;
+  const inp=damSlopeInputs();
+  if(frlTag)frlTag.textContent=inp.published!=null
+    ?(inp.typedFrl?"yours (published "+inp.published+" m)":"published")
+    :"not published";
+  if(endTag)endTag.textContent=inp.coastal?"sea = 0 m":"type it";
+  const frlBox=dEl("damFrl");
+  if(frlBox&&!inp.typedFrl&&document.activeElement!==frlBox)
+    frlBox.value=inp.published!=null?inp.published:"";
+  const endBox=dEl("damEnd");
+  if(endBox&&inp.coastal&&document.activeElement!==endBox)endBox.value="0";
+  const p=damProfile();
+  if(!p){
+    out.innerHTML=inp.frl==null
+      ?'<span class="warnc">No published reservoir level for this dam</span> — type the full reservoir level (m above sea level) above, or pick a dam that has one. Without it there is no head, and without head there is no slope.'
+      :'This course does not reach the sea, so there is no sea-level datum — type the level of the course’s end above to get a slope.';
+    if(svg)svg.innerHTML="";
+    return;
+  }
+  const oneIn=p.slopeMean>0?Math.round(1/p.slopeMean):null;
+  const pct=(p.slopeMean*100);
+  const daysTxt=p.totalDays<1?(p.totalDays*24).toFixed(1)+" h":p.totalDays.toFixed(1)+" d";
+  const notes=[];
+  notes.push(p.dem?"relief from the terrain DEM (land surface — a proxy for the water surface)"
+    :"no terrain data yet: straight profile between the two levels");
+  if(p.floored)notes.push(p.floored+" flat reach(es) held at 1/10 of the mean slope");
+  if(p.clamped)notes.push(p.clamped+" reach(es) at the 20× mean-slope ceiling");
+  out.innerHTML="head <b>"+p.headM.toFixed(1)+" m</b> over "+route.totalKm.toFixed(0)+" km → mean slope "
+    +(oneIn?"1 : "+oneIn.toLocaleString("en-IN"):"")+" ("+pct.toFixed(4)+"%)<br>"
+    +"Manning n="+inp.n+", R="+inp.R+" m → normal flow <b>"+p.meanV.toFixed(2)+" m/s</b> ("
+    +(p.meanV*86.4).toFixed(0)+" km/day) → whole course <b>"+daysTxt+"</b>; steepest reach "
+    +p.steepKm.toFixed(0)+" km at 1 : "+Math.round(1/Math.max(1e-9,p.steepS)).toLocaleString("en-IN")+"<br>"
+    +'<span class="dim">'+notes.join(" · ").replace(/</g,"&lt;")
+    +" · a flood wave is faster than this: measured plains flood waves travel ~100–150 km/day (≈1.2–1.8 m/s)</span>";
+  /* sparkline: the profile, with the two anchors marked */
+  if(svg){
+    const w=240,h=46,pad=3;
+    if(!p.prof.length){svg.innerHTML="";return;}
+    const zs=p.prof.map(q=>q.z),lo=Math.min.apply(null,zs.concat([0])),hi=Math.max.apply(null,zs.concat([inp.frl]));
+    const X=km=>pad+(km/Math.max(1e-6,route.totalKm))*(w-2*pad);
+    const Y=z=>h-pad-((z-lo)/Math.max(1e-6,hi-lo))*(h-2*pad);
+    let d="M"+X(0).toFixed(1)+" "+Y(p.prof[0].z).toFixed(1);
+    for(let i=1;i<p.prof.length;i++)d+=" L"+X(p.prof[i].km).toFixed(1)+" "+Y(p.prof[i].z).toFixed(1);
+    svg.innerHTML='<path d="'+d+' L'+(w-pad)+' '+h+' L'+pad+' '+h+' Z" fill="rgba(45,212,191,.14)"/>'
+      +'<path d="'+d+'" fill="none" stroke="#2DD4BF" stroke-width="1.2"/>'
+      +'<circle cx="'+X(0).toFixed(1)+'" cy="'+Y(inp.frl).toFixed(1)+'" r="2.4" fill="#F59E0B"/>'
+      +'<circle cx="'+(w-pad).toFixed(1)+'" cy="'+Y(inp.end).toFixed(1)+'" r="2.4" fill="#1D4ED8"/>';
+  }
+}
+function damUseSpeed(){
+  const p=damProfile();
+  if(!p||!p.meanV)return;
+  const box=dEl("damVel");
+  if(box){box.value=Math.min(VEL_MAX,Math.max(VEL_MIN,+p.meanV.toFixed(2)));box.dispatchEvent(new Event("input"));}
+  damMsg("Speed set from the slope profile ("+p.meanV.toFixed(2)+" m/s mean, illustrative).");
+}
+
+function damConverter(){
+  const g=id=>dEl(id);
+  if(!g("cvQ"))return;
+  const FACT={cms:1,cfs:CFS_M3S,cm:1,tmcday:TMC_M3/86400,tmc:TMC_M3,m3:1,mcmday:1000*TMC_M3/86400};
+  const UNIT={cms:"m³/s",cfs:"cfs",cm:"cumec",tmcday:"TMC/day",tmc:"TMC",m3:"m³",mcmday:"MCM/day"};
+  const KIND={cms:"q",cfs:"q",cm:"q",tmcday:"q",tmc:"v",m3:"v",mcmday:"q"};
+  function run(){
+    const v=parseFloat(g("cvQ").value),from=g("cvFrom").value,to=g("cvTo").value;
+    const outEl=g("cvOut"),eqEl=g("cvOutEq");
+    if(!isFinite(v)){outEl.textContent="—";eqEl.textContent="";return;}
+    const ff=FACT[from],ft=FACT[to];
+    const kFrom=KIND[from],kTo=KIND[to];
+    let val,note;
+    if(kFrom===kTo){
+      val=v*ff/ft;                       /* same quantity: a straight factor */
+      note="1 "+UNIT[from]+" = "+(ff/ft).toPrecision(6)+" "+UNIT[to];
+    }else if(kFrom==="q"&&kTo==="v"){
+      val=v*ff*86400/ft;                 /* a rate sustained for one day is a volume */
+      note="rate × 1 day (86,400 s) = volume";
+    }else{
+      val=v*ff/(86400*ft);               /* a volume spread over one day is a rate */
+      note="volume ÷ 1 day (86,400 s) = rate";
+    }
+    outEl.textContent=val.toLocaleString("en-IN",{maximumFractionDigits:Math.abs(val)>=1000?1:4})+" "+UNIT[to];
+    eqEl.textContent=note;
+  }
+  for(const id of ["cvQ","cvFrom","cvTo"]){
+    const el=g(id);
+    if(el){el.addEventListener("input",run);el.addEventListener("change",run);}
+  }
+  run();
+}
 function damPlan(){
   const inp=damInputs();
   const rateM3s=inp.gateDriven?inp.gateCfs*M3S_CFS:inp.rateM3s;
-  /* v7.18: the travel speed is the user's input (bounded), not a fixed constant */
-  const waveKmDay=inp.velKmDay;
+  /* v7.18/v7.19: the travel time is the user's speed, or the slope-derived profile when
+     "travel by slope" is on (steep reaches then take longer than flat ones) */
+  const tm=damTiming();
   const totalKm=route?route.totalKm:0;
   const up=!!(route&&route.upstream);
-  const frontDays=rateM3s>0?totalKm/waveKmDay:Infinity;
+  const frontDays=tm.totalDays;
   const gateDays=(rateM3s>0&&inp.volTmc!=null)?inp.volTmc*TMC_M3/rateM3s/86400:Infinity;
-  return {rateM3s,volM3:inp.volTmc!=null?inp.volTmc*TMC_M3:null,frontDays,gateDays,waveKmDay,totalKm,
+  return {rateM3s,volM3:inp.volTmc!=null?inp.volTmc*TMC_M3:null,frontDays,gateDays,
+    waveKmDay:inp.velKmDay,totalKm,timing:tm,meanV:tm.prof&&tm.prof.meanV,
     daysToSea:frontDays,daysAllOut:frontDays+gateDays,upstream:up,velMps:inp.velMps,inp};
 }
 
@@ -479,78 +750,6 @@ function damLimits(){
   box.innerHTML=notes.join("<br>");
 }
 
-/* ---- v7.18 interactive unit converter: cfs ⇄ m³/s ⇄ cumec ⇄ TMC/day ⇄ volume ---- */
-function damConverter(){
-  const g=id=>dEl(id);
-  if(!g("cvQ"))return;
-  const set=(id,v)=>{const el=g(id);if(el&&document.activeElement!==el)el.value=(Math.abs(v)>=0.01||v===0)?v.toFixed(v<1?4:2):v.toFixed(5);};
-  const read=id=>{const v=parseFloat(g(id).value);return isFinite(v)?v:null;};
-  function fromCms(q){
-    if(q==null)return;
-    set("cvCms",q);
-    set("cvCfs",q*M3S_CFS);
-    set("cvCumec",q);
-    set("cvTmcDay",q*86400/TMC_M3);
-    set("cvVol",q*86400/TMC_M3);
-    set("vol7",q*86400*7/TMC_M3);
-    set("cvDays",q>0?TMC_M3/q/86400:0);
-  }
-  const map={
-    cvQ:(v)=>fromCms(v),
-    cvCms:(v)=>fromCms(v),
-    cvCfs:(v)=>fromCms(v==null?null:v*CFS_M3S),
-    cvCumec:(v)=>fromCms(v),
-    cvTmcDay:(v)=>fromCms(v==null?null:v*TMC_M3/86400),
-    cvVol:(v)=>fromCms(v==null?null:v*TMC_M3/86400),
-    vol7:(v)=>fromCms(v==null?null:v*TMC_M3/(86400*7)),
-    cvDays:(v)=>fromCms(v==null?null:TMC_M3/v/86400)
-  };
-  for(const id in map){
-    const el=g(id);
-    if(el)el.addEventListener("input",()=>map[id](read(id)));
-  }
-  fromCms(read("cvQ"));
-}
-
-/* dams that lie ON this course, ordered by distance along it (v7.12) */
-function damDownstream(maxN){
-  if(!route||!damList||!route.coords)return [];
-  const c=route.coords;
-  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-  for(const p of c){
-    if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];
-    if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];
-  }
-  const LON=111.32*Math.cos(y0*Math.PI/180),LAT=111.19;
-  const out=[];
-  for(const d of damList){
-    if(d.lon<x0-8/LON||d.lon>x1+8/LON||d.lat<y0-8/LAT||d.lat>y1+8/LAT)continue;
-    let best=Infinity,at=0,run=0;
-    for(let i=1;i<c.length;i++){
-      const a=c[i-1],b=c[i];
-      const abx=(b[0]-a[0])*LON,aby=(b[1]-a[1])*LAT;
-      const seg=Math.hypot(abx,aby),L2=seg*seg;
-      const t=L2?Math.max(0,Math.min(1,(((d.lon-a[0])*LON)*abx+((d.lat-a[1])*LAT)*aby)/L2)):0;
-      const dx=d.lon*LON-(a[0]*LON+abx*t),dy=d.lat*LAT-(a[1]*LAT+aby*t);
-      const dd=dx*dx+dy*dy;
-      if(dd<best){best=dd;at=run+seg*t;}
-      run+=seg;
-    }
-    const km=Math.sqrt(best);
-    if(km>8)continue;
-    if(damSel&&hav([d.lon,d.lat],[damSel.lon,damSel.lat])<2)continue;   /* skip the dam itself */
-    out.push({dam:d,atKm:at,distKm:km,key:(d.name||"").toUpperCase().replace(/[^A-Z]/g,"").replace(/DAM$/,"")});
-  }
-  /* dams.geo.json carries near-duplicate records (Karjan / KARJAN, Tumaria Dam / TUMARIA DAM) —
-     keep the nearest instance of each name so the fill table reads once per structure */
-  const seen={},uniq=[];
-  for(const x of out.sort((a,b)=>a.atKm-b.atKm)){
-    if(seen[x.key])continue;
-    seen[x.key]=1;uniq.push(x);
-  }
-  return uniq.slice(0,maxN||6);
-}
-
 /* gate sliders — one per PUBLISHED gate; each 0-100% of that gate's full-open discharge */
 function damGateUI(f){
   const box=dEl("damGates");if(!box)return;
@@ -582,6 +781,8 @@ function damGateSum(){
   const pct=inp.gateCfs/parseFloat(box.dataset.gateCfs)*100;
   sum.textContent=(inp.gateCfs*M3S_CFS).toFixed(0)+" m³/s ("+inp.gateCfs.toFixed(0)+" cfs) · "+pct.toFixed(0)+"% open";
 }
+
+/* the readout: timings, volume, drawdown and which downstream dam fills when */
 
 /* the readout: timings, volume, drawdown and which downstream dam fills when */
 function damReadout(){
@@ -630,6 +831,49 @@ function damReadout(){
 }
 
 /* direction: downstream to the sea, or upstream to the reservoir origin (v7.12) */
+
+/* dams that lie ON this course, ordered by distance along it (v7.12) */
+function damDownstream(maxN){
+  if(!route||!damList||!route.coords)return [];
+  const c=route.coords;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const p of c){
+    if(p[0]<x0)x0=p[0];if(p[0]>x1)x1=p[0];
+    if(p[1]<y0)y0=p[1];if(p[1]>y1)y1=p[1];
+  }
+  const LON=111.32*Math.cos(y0*Math.PI/180),LAT=111.19;
+  const out=[];
+  for(const d of damList){
+    if(d.lon<x0-8/LON||d.lon>x1+8/LON||d.lat<y0-8/LAT||d.lat>y1+8/LAT)continue;
+    let best=Infinity,at=0,run=0;
+    for(let i=1;i<c.length;i++){
+      const a=c[i-1],b=c[i];
+      const abx=(b[0]-a[0])*LON,aby=(b[1]-a[1])*LAT;
+      const seg=Math.hypot(abx,aby),L2=seg*seg;
+      const t=L2?Math.max(0,Math.min(1,(((d.lon-a[0])*LON)*abx+((d.lat-a[1])*LAT)*aby)/L2)):0;
+      const dx=d.lon*LON-(a[0]*LON+abx*t),dy=d.lat*LAT-(a[1]*LAT+aby*t);
+      const dd=dx*dx+dy*dy;
+      if(dd<best){best=dd;at=run+seg*t;}
+      run+=seg;
+    }
+    const km=Math.sqrt(best);
+    if(km>8)continue;
+    if(damSel&&hav([d.lon,d.lat],[damSel.lon,damSel.lat])<2)continue;   /* skip the dam itself */
+    out.push({dam:d,atKm:at,distKm:km,key:(d.name||"").toUpperCase().replace(/[^A-Z]/g,"").replace(/DAM$/,"")});
+  }
+  /* dams.geo.json carries near-duplicate records (Karjan / KARJAN, Tumaria Dam / TUMARIA DAM) —
+     keep the nearest instance of each name so the fill table reads once per structure */
+  const seen={},uniq=[];
+  for(const x of out.sort((a,b)=>a.atKm-b.atKm)){
+    if(seen[x.key])continue;
+    seen[x.key]=1;uniq.push(x);
+  }
+  return uniq.slice(0,maxN||6);
+}
+
+/* gate sliders — one per PUBLISHED gate; each 0-100% of that gate's full-open discharge */
+
+/* direction: downstream to the sea, or upstream to the reservoir origin (v7.12) */
 function damDirection(){
   const up=dEl("damDirUp");
   return (up&&up.checked)?"up":"down";
@@ -638,6 +882,7 @@ async function damReselect(){
   if(!damSel)return;
   await damSelect(damSel);
 }
+
 /* ---- select a dam (tap or type) → course → card + layers + bird's-eye frame ---- */
 function routeFromRoute(r,dam){
 const coords=r.coords||[];
@@ -717,6 +962,10 @@ try{
   const fx=dEl("damFacts");
   if(fx)fx.innerHTML=damFactsText(facts)+' <a class="damSrc" href="data/dam-facts.json" target="_blank" rel="noopener">source list</a>';
   damGateUI(facts);
+  /* v7.19: the slope block first, so the Speed box can be seeded with the slope-derived mean */
+  PROF_RETRY=0;
+  DAM_SPEED_AUTO=true;
+  damSlopeRefresh();
   damReadout();
   if(map&&mapStyleReady){
     if(!map.getSource("dam-route")){if(addDamLayers()){} }
@@ -930,15 +1179,16 @@ return true;
 function damSet(km,final){
 if(!route)return;
 const dayEl=dEl("damDay"),stat=dEl("damStat");
-const waveKmDay=(route.speedMps||1.5)*86.4,day=km/waveKmDay;
+const tm=damTiming();
+const day=tm.dayAt(km);
 if(dayEl)dayEl.textContent="Day "+day.toFixed(1);
 const plan=damPlan();
 const volOut=(plan.volM3!=null&&plan.rateM3s>0)?Math.min(plan.volM3,plan.rateM3s*day*86400):null;
 if(stat)stat.textContent=final
 ?(route.coastal?"Reached the sea in ≈":"Reached the recorded river end in ≈")+plan.daysToSea.toFixed(1)+" days (illustrative)"
-:Math.round(km)+" / "+route.totalKm.toFixed(0)+" km · day "+day.toFixed(1)
+:Math.round(km)+" / "+route.totalKm.toFixed(0)+" km · day "+day.toFixed(1)+" of "+tm.totalDays.toFixed(1)
 +(volOut!=null?" · released "+(volOut/TMC_M3).toFixed(1)+" TMC":"")
-+(plan.rateM3s>0?(" · "+plan.rateM3s.toFixed(0)+" m³/s"):" · wave 1.5 m/s (illustrative)");
++(plan.rateM3s>0?(" · "+plan.rateM3s.toFixed(0)+" m³/s"):(tm.mode==="profile"?" · slope profile (illustrative)":" · "+damVelocity().toFixed(1)+" m/s (illustrative)"));
 if(!map||!damLoaded)return;
 const s=sliceAt(km),wet=map.getSource("dam-wet"),head=map.getSource("dam-head");
 if(wet)wet.setData(s.wet);
@@ -988,7 +1238,7 @@ async function damStart(){
 const btn=dEl("damBtn");
 if(damRun&&damRun.on)damReset();
 if(!route){
-  if(btn){btn.disabled=false;btn.textContent="Release water";}
+  if(btn){btn.disabled=false;btn.textContent="Release";}
   damMsg("Pick a dam first: turn on “Find a dam”, then tap a dot or type a name.");
   return false;
 }
@@ -997,7 +1247,7 @@ try{
   for(let i=0;i<40&&!addDamLayers();i++)await new Promise(r=>setTimeout(r,150));   /* the style may still be loading */
   if(!damLoaded)throw new Error("map style not ready for route layers");
 }catch(e){
-  if(btn){btn.disabled=false;btn.textContent="Release water";}
+  if(btn){btn.disabled=false;btn.textContent="Release";}
   const st=dEl("damStat");if(st)st.textContent="Route/map not loaded — needs the 3D map (MapLibre + tiles).";
   console.warn("[dam]",e.message||e);
   return false;
@@ -1022,7 +1272,7 @@ damSet(0,false);
 const dayEl=dEl("damDay");if(dayEl)dayEl.textContent="Day 0.0";
 try{ damFrameAll(); }catch(_){}
 idleStat();
-const btn=dEl("damBtn");if(btn){btn.disabled=!route;btn.textContent="Release water";}
+const btn=dEl("damBtn");if(btn){btn.disabled=!route;btn.textContent="Release";}
 }
 
 window.__dam={
@@ -1040,11 +1290,23 @@ search:q=>{damSearchRender(q);return (dEl("damResults")||{}).childElementCount||
 pick:id=>damSelect(damById[id]),
 selected:()=>damSel?{id:damSel.id,name:damSel.name,state:damSel.state,river:damSel.river,h:damSel.h}:null,
 facts:()=>{const f=damFactsFor(damSel&&damSel.name);return f?{name:f.name,gross_tmc:f.gross_tmc,live_tmc:f.live_tmc,gates:f.gate_count,gate_cfs:f.gate_capacity_cfs,verified:f.verify_status}:null;},
-plan:()=>{const p=damPlan();return {rate_m3s:+p.rateM3s.toFixed(1),rate_cfs:+(p.rateM3s*M3S_CFS).toFixed(0),volTmc:p.inp.volTmc,frontDays:+p.frontDays.toFixed(2),gateDays:isFinite(p.gateDays)?+p.gateDays.toFixed(3):null,daysToSea:+p.daysToSea.toFixed(2),daysAllOut:isFinite(p.daysAllOut)?+p.daysAllOut.toFixed(2):null,upstream:p.upstream};},
+plan:()=>{const p=damPlan();return {rate_m3s:+p.rateM3s.toFixed(1),rate_cfs:+(p.rateM3s*M3S_CFS).toFixed(0),volTmc:p.inp.volTmc,frontDays:+p.frontDays.toFixed(2),gateDays:isFinite(p.gateDays)?+p.gateDays.toFixed(3):null,daysToSea:+p.daysToSea.toFixed(2),daysAllOut:isFinite(p.daysAllOut)?+p.daysAllOut.toFixed(2):null,upstream:p.upstream,mode:p.timing.mode,speed_mps:+damVelocity().toFixed(2)};},
+/* v7.19: the measured slope chain, exposed so verification can read the numbers */
+timing:()=>{const tm=damTiming();return {mode:tm.mode,totalDays:+tm.totalDays.toFixed(3),
+  dayAtFrac:f=>+tm.dayAt(f*(route?route.totalKm:0)).toFixed(3)};},
+profile:()=>{const p=damProfile();if(!p)return null;return {frl:p.inp.frl,end:p.inp.end,n:p.inp.n,R:p.inp.R,
+  dem0:p.raw?p.raw.filter((_,i)=>i%6===0):null,
+  published:p.inp.published,head:+p.headM.toFixed(2),slopeMean:+p.slopeMean.toExponential(3),
+  oneIn:Math.round(1/Math.max(1e-9,p.slopeMean)),meanV:+p.meanV.toFixed(3),
+  meanKmDay:+(p.meanV*86.4).toFixed(1),totalDays:+p.totalDays.toFixed(2),
+  steepKm:p.steepKm,steepS:+p.steepS.toExponential(2),steepV:p.reaches?null:null,
+  dem:p.dem,clamped:p.clamped,floored:p.floored,flat:p.flat,points:p.prof.length,
+  shape:p.prof.filter((q,i)=>i%Math.max(1,Math.round(p.prof.length/12))===0).map(q=>[q.km,+q.z.toFixed(1)]),
+  vRange:[Math.min.apply(null,p.reaches.map(r=>r.v)),Math.max.apply(null,p.reaches.map(r=>r.v))].map(v=>+v.toFixed(2))};},
 downstream:()=>damDownstream(6).map(x=>({name:x.dam.name,atKm:+x.atKm.toFixed(1),distKm:+x.distKm.toFixed(1),live:(damFactsFor(x.dam.name)||{}).live_tmc||null})),
 damCount:()=>damList?damList.length:0,
 cached:()=>Object.keys(damCache).length,
-state:()=>({running:!!(damRun&&damRun.on),day:+((damRun?damRun.km:0)/(route?route.speedMps*86.4:129.6)).toFixed(3),
+state:()=>({running:!!(damRun&&damRun.on),day:+damTiming().dayAt(damRun?damRun.km:0).toFixed(3),
   km:+((damRun?damRun.km:0)).toFixed(2),totalKm:route?+route.totalKm.toFixed(2):null,
   arrivalDays:route?+route.arrivalDays.toFixed(2):null,reached:!!(damRun&&damRun.reached),
   pitch:map?+map.getPitch().toFixed(1):null,zoom:map?+map.getZoom().toFixed(2):null}),
@@ -1073,7 +1335,15 @@ dEl("damRate")&&dEl("damRate").addEventListener("input",()=>{
   if(box)box.dataset.gateDriven="0";          /* the typed rate now drives the sim */
   damReadout();
 });
-dEl("damVel")&&dEl("damVel").addEventListener("input",()=>damReadout());
+dEl("damVel")&&dEl("damVel").addEventListener("input",()=>{DAM_SPEED_AUTO=false;damReadout();});
+/* v7.19: the slope block is the source of the suggested speed, so every one of its inputs redraws
+   the profile, the numbers and the suggested velocity */
+for(const id of ["damFrl","damEnd","damMann","damDepth"]){
+  const el=dEl(id);
+  if(el)el.addEventListener("input",()=>{PROF_CACHE=null;damSlopeUI();damSlopeSeed();damReadout();});
+}
+dEl("damUseSpeed")&&dEl("damUseSpeed").addEventListener("click",()=>damUseSpeed());
+dEl("damProfMode")&&dEl("damProfMode").addEventListener("change",()=>{damReset();damReadout();});
 /* v7.18: collapse / expand the console (remembered per session; ?fold=1 starts folded) */
 dEl("damFold")&&dEl("damFold").addEventListener("click",()=>{
   const ui=dEl("damUI"),btn=dEl("damFold");

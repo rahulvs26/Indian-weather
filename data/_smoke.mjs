@@ -340,5 +340,65 @@ for (const d of [...underscoreDeps]) {
   ok(exists(rel), "runtime dependency is present in the tree: " + d);
 }
 
+/* ---------------------------------------------------------------- 12. the view switch is reachable from both 3D views
+   Reported as: "in the 3D mountains button there is no other buttons".
+
+   The three view buttons had their markup and their handlers since v7.21, and the CSS showed
+   .m3tools only for .stage.map3d-on. The mountains view puts terrain-on on the stage instead, so the
+   strip was display:none there - leaving only the 2D map's own button, which goes back. The 3D map
+   was unreachable from the mountains: the same one-way-door problem v7.21 had just fixed,
+   reintroduced one view over. It survived because the code drawing the buttons worked perfectly and
+   the rule deciding whether you could SEE them never ran.
+
+   Static check, because that is the layer at which it was wrong. The live hit-testing that then
+   turned up two follow-on layout collisions is recorded in PERFORMANCE.md, not here. */
+section("12. the 2D / 3D mountains / 3D map switch is visible in both 3D views");
+const cssTxt=readFileSync("styles.css","utf8");
+ok(/\.m3tools\{[^}]*display:none/.test(cssTxt), ".m3tools is hidden by default");
+ok(/\.stage\.map3d-on \.m3tools[^{]*\{[^}]*display:flex/.test(cssTxt),
+  "the switch shows in the 3D map view", "missing .stage.map3d-on rule");
+ok(/\.stage\.terrain-on \.m3tools[^{]*\{[^}]*display:flex/.test(cssTxt),
+  "the switch shows in the 3D mountains view - the reported bug", "missing .stage.terrain-on rule");
+for(const vid of ["m3v2d","m3v3d","m3vmap"]){
+  ok(new RegExp('id="'+vid+'"').test(html), "view button is in the markup: "+vid);
+  ok(gateSrc.indexOf('"'+vid+'"')>=0, "view button is wired in app.js: "+vid);
+}
+/* The HUD needs ~712px for its six buttons on one line. Below that it wraps, and the help box -
+   positioned at a fixed top:52px that assumes a single row - lands on top of its own "?" toggle,
+   making the box's own instruction "Tap ? to close" impossible to follow. */
+ok(/\.stage\.terrain-on \.t3hud\{[^}]*max-width:7\d%/.test(cssTxt),
+  "the mountains HUD is wide enough to keep its six buttons on one line",
+  "HUD will wrap, and the open help box will cover its own toggle");
+
+/* ---------------------------------------------------------------- 13. the wireframe still matches the page
+   about.html carries a drawn map of the site - which section holds what, and which control goes
+   where. A diagram like that is only useful while it is true, and diagrams rot silently: rename a
+   section, drop a layer chip, and the picture keeps confidently asserting the old arrangement.
+
+   So the labels are checked against the live markup. Every section the diagram names must exist as
+   an id in index.html, and every control it draws must be a real button on the page. */
+section("13. the about page wireframe still describes the real page");
+const about = readFileSync("about.html", "utf8");
+ok(/<svg[^>]*viewBox="0 0 900 620"/.test(about), "the wireframe is in about.html with a viewBox");
+ok(/aria-labelledby="wireT wireD"/.test(about) && /<title id="wireT">/.test(about) && /<desc id="wireD">/.test(about),
+  "the wireframe has a title and a description for screen readers",
+  "an SVG with no accessible name is invisible to assistive tech");
+ok(/<figcaption/.test(about), "the wireframe is captioned");
+
+for (const sId of ["map", "mjo", "iod", "heat", "deck"]) {
+  ok(new RegExp('id="' + sId + '"').test(html), "a section the diagram draws really exists: #" + sId);
+}
+const DRAWN_RE = /^(2D map|3D mountains|3D map|Winds \+ arrows|Heat \/ Cold zones|Doppler radars|IOD boxes|MJO pulse|Rivers)$/;
+const drawn = [...about.matchAll(/<text class="wa"[^>]*>([^<]{1,20})<\/text>/g)]
+  .map(m => m[1].replace(/\s+/g, " ").trim()).filter(d => DRAWN_RE.test(d));
+const real = new Set([...html.matchAll(/<button[^>]*>([^<]{1,24})<\/button>/g)]
+  .map(m => m[1].replace(/\s+/g, " ").trim()));
+const unknown = drawn.filter(d => !real.has(d));
+ok(unknown.length === 0,
+  "every control drawn in the wireframe exists as a real button on the page",
+  "drawn but not on the page: " + unknown.join(", "));
+ok(drawn.length >= 9, "the wireframe labels the main controls, not just the sections",
+  "only " + drawn.length + " control labels found");
+
 console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
 process.exit(fail ? 1 : 0);

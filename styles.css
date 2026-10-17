@@ -56,7 +56,44 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 .m3viewb{border-color:transparent;background:transparent;padding:3px 7px;font-size:10.5px;color:#B9C9C3}
 .m3viewb:hover{background:rgba(15,118,110,.5);color:#fff}
 .m3viewb.on{background:rgba(15,118,110,.5);border-color:#2DD4BF;color:#fff}
-.stage.map3d-on .m3tools{display:flex}
+/* v7.27: the view switch was shown ONLY in the 3D map, so in the 3D mountains there was exactly one
+   control - the button in the 2D map's own bar, which reads "2D map" and takes you back. That left
+   the 3D map unreachable from the mountains: the same one-way-door problem v7.21 fixed for the map,
+   then reintroduced one view over. app.js already sets the correct .on state for each button in
+   both views; only the visibility rule was missing.
+
+   They do not collide: .t3hud is left:8px with max-width:72%, and this strip sits at right:8px. */
+.stage.map3d-on .m3tools,.stage.terrain-on .m3tools{display:flex}
+/* v7.27: the switch now appears in the mountains view, stacked VERTICALLY at the top-right.
+
+   Measured, after trying three arrangements:
+     1. top-right, horizontal - 428 px wide against 256 px of clear space beside the .t3hud strip,
+        so it overlapped it by about 180 px, with zoom and relief sitting under an invisible layer.
+     2. narrowing .t3hud to stop short - the HUD has flex-wrap, so it wrapped and pushed spin,
+        relief and help below the fold. elementFromPoint at their centres returned null. Trading an
+        overlap for three unreachable controls is worse than either problem.
+     3. bottom-right - the stage's bottom edge is at y=1055 in a 700 px viewport, so the whole
+        strip landed below the fold. Bottom-left is the long caption (#terrainCap).
+
+   A vertical column of five buttons is about 150 px wide and 130 px tall, which fits the 256 px of
+   clear space and the HUD's 78 px height. Same top edge, no collision, nothing squeezed.
+
+   Worth knowing while reading this: the six HUD buttons are ~712 px on their own, so they wrap to a
+   second line inside the 679 px HUD, and "? How to move" therefore sits partly below the fold at
+   this viewport height. That predates this change. */
+.stage.terrain-on .m3tools{flex-direction:column;align-items:stretch}
+.stage.terrain-on .m3tools .m3view{flex-direction:column}
+/* v7.27: the six HUD buttons need about 712px on one line, but the HUD was capped at 72% (679px),
+   so How-to-move wrapped to a second row. The help box is positioned at a fixed top:52px, which
+   assumed a single row - so once the button wrapped, the OPEN help box landed on top of its own
+   toggle. Not cosmetic: the box says Tap ? to close, and the ? it meant was covered.
+   76% of the 943px stage is 717px, just over what the buttons need, and still leaves about 20px
+   of clear space before the switch strip at the right. */
+.stage.terrain-on .t3hud{max-width:76%}
+@media (max-width:700px){
+  .stage.terrain-on .m3tools .m3view{flex-direction:row}
+  .stage.terrain-on .m3tools{flex-direction:row;flex-wrap:wrap}
+}
 .m3b{font:600 11px ui-monospace,monospace;color:#E7E5E4;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:6px;padding:4px 9px;cursor:pointer}
 .m3b:hover{background:rgba(15,118,110,.55);border-color:#2DD4BF}
 .m3b:focus-visible{outline:2px solid #5EEAD4;outline-offset:2px}

@@ -123,6 +123,51 @@ comments before checking, because a test that cries wolf gets ignored.
 
 ---
 
+# 5. The 3D mountains control layout, measured
+
+Reported as "in the 3D mountains button there is no other buttons". True, and the cause was a CSS
+visibility rule rather than missing code.
+
+The three view buttons - `m3v2d`, `m3v3d`, `m3vmap` - had their markup and their click handlers
+since v7.21. The CSS showed `.m3tools` only for `.stage.map3d-on`. The mountains view puts
+`terrain-on` on the stage instead, so the strip was `display:none` there. In the 3D mountains the
+only control was the 2D map's own button, which goes back - the 3D map was unreachable. That is the
+one-way-door problem v7.21 had just fixed, reintroduced one view over, and it survived because the
+code drawing the buttons worked perfectly and the rule deciding whether you could *see* them never
+ran.
+
+Showing it immediately exposed two further problems, both found by hit-testing every control at its
+own centre with `elementFromPoint`:
+
+| arrangement | measured | verdict |
+|---|---|---|
+| top-right, horizontal | 428 px wide against **256 px** of clear space beside the HUD, so a **180 px overlap** | rejected |
+| HUD narrowed to `calc(100% - 460px)` | the HUD has `flex-wrap`, so it wrapped; `spin`, `relief` and `help` fell below the fold, `elementFromPoint` returned `null` | rejected - trading an overlap for three unreachable controls is worse |
+| bottom-right | the stage's bottom edge is at **y=1055** in a 700 px viewport, so the strip landed below the fold; bottom-left is the long `#terrainCap` caption | rejected |
+| **top-right, vertical** | **102 x 140 px**, in **108 px** of clear space beside the HUD, inside the 420 px stage | adopted |
+
+A second, older bug surfaced with it: the six HUD buttons need about 712 px on one line, but the HUD
+was capped at `max-width:72%` (679 px), so `? How to move` wrapped to a second row. The help box is
+positioned at a fixed `top:52px`, which assumes a single row - so once the button wrapped, the
+**open help box sat on top of its own `?` toggle**, and the box's own instruction read "Tap ? to
+close". Widening the HUD to `76%` (717 px) puts all six buttons on one line and restores the
+geometry that fixed offset was written for.
+
+Final measured geometry at a 943 px stage: HUD `29..746`, switch strip `854..956`, caption
+bottom-left. All eleven controls hit-testable, no overlaps.
+
+**Still unverified:** the harness will not scroll while the mountains view is active (`scrollY`
+stays 0), so the scrolled position could not be measured. The geometry is sound on inspection - both
+strips sit inside the 420 px stage, 108 px apart - but a human should confirm on a real screen.
+
+`data/_smoke.mjs` sections 12 and 13 (87 checks) now assert the switch is visible in both 3D views,
+that the HUD is wide enough not to wrap, and that the wireframe in `about.html` still names only
+sections and buttons that really exist. That last check earned its place immediately: it caught the
+diagram labelling three layer chips "Winds", "Heat / Cold" and "Radars" where the page actually says
+"Winds + arrows", "Heat / Cold zones" and "Doppler radars".
+
+---
+
 # 4. The 3D mountains: measured v7.23b
 
 Reported as "the 3D mountains are dead slow". They were not slow. **They never

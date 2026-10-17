@@ -92,7 +92,14 @@ All three serve the files identically — there is no build in this project to r
 
 ### Everything else
 
-- [ ] `node data/_smoke.mjs` — 39 checks, all passing
+- [x] **`.nojekyll` is committed.** GitHub Pages runs Jekyll by default, and Jekyll silently skips
+      every file starting with `_`. This site loads three such files at runtime —
+      `data/_mjo-article.mjs` (the section 2 article), `data/_crossings.mjs` and
+      `data/_storm-layer.mjs` (imported by `map3d.js`). Without the empty `.nojekyll` file they
+      would all 404 **in production only**: no MJO article, no storm layer, and the 3D map's module
+      graph would fail to resolve. Locally there is no Jekyll, so everything works — which is
+      exactly how this hides until after you publish. `data/_smoke.mjs` section 11 asserts it.
+- [ ] `node data/_smoke.mjs` — 67 checks, all passing
 - [ ] `node data/_run_tests.mjs` — 6 of 6 suites
 - [ ] `git ls-files | wc -l` and confirm `Shape files/` and `pdf/` are **not** in the list
 - [ ] `node data/_audit_inventory.mjs` — confirms no document or spreadsheet has crept in, and

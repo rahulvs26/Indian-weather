@@ -304,5 +304,41 @@ ok(exists("sitemap.xml") && exists("robots.txt"), "sitemap.xml and robots.txt ex
 ok(/Sitemap:\s*https?:\/\/\S+\/sitemap\.xml/.test(readFileSync("robots.txt", "utf8")),
   "robots.txt points at the sitemap with an absolute URL");
 
+/* ---------------------------------------------------------------- 11. the site survives GitHub Pages
+   This check exists because publishing to GitHub Pages would have broken the site outright, and
+   only after it was already live.
+
+   GitHub Pages runs Jekyll by default. Jekyll silently SKIPS every file and directory whose name
+   starts with an underscore or a dot. This project depends on several such files at runtime:
+
+     index.html  ->  <script src="data/_mjo-article.mjs">     the section 2 article's prose
+     map3d.js    ->  import "./data/_crossings.mjs"           reservoir crossings on a course
+     map3d.js    ->  import "./data/_storm-layer.mjs"        the catchment-storm layer
+     app.js      ->  the catchment, hydrology, MVT and OSM-refine modules, underscore-named too
+
+   Without .nojekyll every one of those 404s in production: no MJO article, no storm layer, no
+   crossings, and the 3D map's module graph fails to resolve at all. Locally there is no Jekyll, so
+   all of it works - which is exactly why this class of bug survives right up to the moment of
+   publishing, and why the fix is asserted here rather than remembered.
+
+   The empty .nojekyll file tells Pages to serve the repository tree verbatim. It is the whole fix. */
+section("11. GitHub Pages will not strip the files this site loads");
+ok(exists(".nojekyll"), ".nojekyll exists, so Pages serves the tree verbatim instead of running Jekyll",
+  "MISSING - Jekyll would strip every underscore-prefixed file and break the 3D map and section 2");
+
+const underscoreDeps = new Set();
+for (const p of ["index.html", "app.js", "map3d.js"]) {
+  const src = readFileSync(p, "utf8");
+  const re = /(?:src=["']|from\s*["']|import\(["'])(\.?\.?\/?(?:data\/)?_[a-z0-9_\-]+\.(?:mjs|js))/gi;
+  for (const m of src.matchAll(re)) underscoreDeps.add(m[1].replace(/^\.\//, ""));
+}
+ok(underscoreDeps.size > 0,
+  "the site really does load underscore-prefixed modules (so .nojekyll matters)",
+  "none found - if this ever reaches zero, .nojekyll can be dropped");
+for (const d of [...underscoreDeps]) {
+  const rel = d.startsWith("data/") ? d : "data/" + d;
+  ok(exists(rel), "runtime dependency is present in the tree: " + d);
+}
+
 console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
 process.exit(fail ? 1 : 0);

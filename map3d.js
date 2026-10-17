@@ -88,7 +88,41 @@ paint:{
      3. every course is cached per dam; geometry, km and days come from the CWC network only.
    Travel time stays ILLUSTRATIVE (constant kinematic wave, not measured). */
 const DAM_DAMS="data/dams.geo.json?v=7.9";
-const DAM_WORKER="data/dam-router-worker.js?v=7.20";
+const DAM_WORKER="data/dam-router-worker.js?v=7.22";
+/* v7.20 perf: pre-warm the OSM shape pass. The shape pass costs 11-21 s cold (OpenFreeMap tile
+   fetches) and ~0.4 s from localStorage, so starting it while the pointer is still on the result
+   row removes the wait for the dam the user is about to open. Idle callbacks are cheap and the
+   worker does the work off-thread, so a hover that is never clicked costs one tile fetch. */
+const OSM_PREWARM_IDLE=900;      /* ms of pointer stillness before we spend the network */
+function damOsmPrewarm(dam){
+  if(!damOsmOn()||!dam)return;
+  const key=dam.id+(damDirection()==="up"?"#up":"");
+  if(osmCache.has(key)||damOsmLsGet(key)||damOsmPre.has(key))return;
+  damOsmPre.set(key,dam.id);
+  clearTimeout(damOsmPreTimer);
+  damOsmPreTimer=setTimeout(async ()=>{
+    damOsmPre.delete(key);
+    try{
+      let hit=damCache[key];
+      if(!hit){
+        /* the course is needed for both the routing and the shaping; do it once, cache it as the
+           selection would have, so opening the dam later costs nothing extra */
+        hit=await damAsk(dam,SNAP_NEAR_KM,{upstream:damDirection()==="up"});
+        damCache[key]=hit;damCachePut(key,hit);
+      }
+      const res=await damAskOsm(hit.coords);
+      if(res&&res.osm){
+        const rec={coords:res.osm.coords,devKm:res.osm.devKm,segs:res.osm.segs,km:res.osm.km,
+          spineKm:res.osm.spineKm,ways:res.ways,src:res.src};
+        osmCache.set(key,rec);
+        while(osmCache.size>OSM_CACHE_MAX)osmCache.delete(osmCache.keys().next().value);
+        damOsmLsPut(key,rec);
+      }
+    }catch(_){}
+  },OSM_PREWARM_IDLE);
+}
+let damOsmPre=new Map(),damOsmPreTimer=0;
+
 const SNAP_NEAR_KM=6,SNAP_FAR_KM=12,DAM_SEARCH_MAX=14;
 
 let damP=null,damList=null,damById=null,damCache={},damCacheOrder=[],damWorker=null,damWait={},damSeq=0,damMode=false,damSel=null,damIdleT=0;
@@ -436,9 +470,10 @@ function damOsmMaybe(){
       osmCache.set(ck,rec);
       while(osmCache.size>OSM_CACHE_MAX)osmCache.delete(osmCache.keys().next().value);
       damOsmLsPut(ck,rec);
-      damApplyOsm(rec,{ways:res.ways});
+      damApplyOsm(rec,{ways:res.ways,src:res.src});
     }else{
-      damOsmNote(null,"OpenStreetMap shape unavailable — showing the CWC schematic line.");
+      damOsmNote(null,"No OpenStreetMap path for this course ("+((res&&res.src)||"no source")
+        +") — showing the CWC schematic line.");
     }
   }).catch(()=>{clearTimeout(slow);damOsmNote(null,"OpenStreetMap shape unavailable — showing the CWC schematic line.");});
 }
@@ -1132,6 +1167,17 @@ let h="";
 for(const d of out)h+='<button class="damRes" type="button" data-id="'+d.id+'"><b>'+d.name+"</b><span>"
   +(d.state||"—")+(d.river?" · "+d.river:"")+(d.h?" · "+d.h+" m":"")+"</span></button>";
 box.innerHTML=h;
+/* v7.20 perf: resting on a result row pre-warms that dam's course and OSM shape, so opening it is
+   instant instead of an 11-21 s network wait (measured). 900 ms of stillness, and nothing is spent
+   if the pointer just passes over. */
+for(const b of box.querySelectorAll(".damRes")){
+  let preTimer=0;
+  b.addEventListener("pointerenter",()=>{
+    clearTimeout(preTimer);
+    preTimer=setTimeout(()=>damOsmPrewarm(damById[b.getAttribute("data-id")]),OSM_PREWARM_IDLE);
+  });
+  b.addEventListener("pointerleave",()=>clearTimeout(preTimer));
+}
 for(const b of box.querySelectorAll(".damRes"))b.addEventListener("click",()=>{
   const d=damById[b.getAttribute("data-id")];
   if(d)damSelect(d);

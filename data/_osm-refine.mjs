@@ -51,27 +51,28 @@ export function polylineGrid(pts) {
   return { cell, buckets, pts };
 }
 const LON_K = 111.32 * Math.cos(0 * Math.PI / 180);      /* replaced per call with cos(lat) */
-export function distToPolyline(pt, grid, lat0) {
+export function nearestOnPolyline(pt, grid, lat0) {
   const kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 111.19;
   const i = Math.floor(pt[0] / grid.cell), j = Math.floor(pt[1] / grid.cell);
-  let best = Infinity;
+  let best = Infinity, idx = 0;
   for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
     const arr = grid.buckets.get((i + di) + ":" + (j + dj));
     if (!arr) continue;
-    for (const idx of arr) {
-      const a = grid.pts[idx];
-      const b = grid.pts[idx + 1] || grid.pts[idx];
+    for (const i2 of arr) {
+      const a = grid.pts[i2];
+      const b = grid.pts[i2 + 1] || grid.pts[i2];
       const abx = (b[0] - a[0]) * kx, aby = (b[1] - a[1]) * ky;
       const L2 = abx * abx + aby * aby;
       let t = L2 ? (((pt[0] - a[0]) * kx * abx) + ((pt[1] - a[1]) * ky * aby)) / L2 : 0;
       t = Math.max(0, Math.min(1, t));
       const dx = (pt[0] - a[0]) * kx - abx * t, dy = (pt[1] - a[1]) * ky - aby * t;
       const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < best) best = d;
+      if (d < best) { best = d; idx = i2; }
     }
   }
-  return best;
+  return { dKm: best, idx };
 }
+export function distToPolyline(pt, grid, lat0) { return nearestOnPolyline(pt, grid, lat0).dKm; }
 
 /**
  * @param {Array<[number,number]>} spine  the CWC course (authority)
@@ -86,6 +87,7 @@ export function osmRefineCourse(spine, ways, o) {
   const penalty = o.penalty == null ? 5 : o.penalty;
   if (!spine || spine.length < 2 || !ways || !ways.length) return null;
   const lat0 = spine[0][1];
+  const kx0 = 111.32 * Math.cos(lat0 * Math.PI / 180), ky0 = 111.19;
 
   /* 1. flatten the ways into segments */
   const segs = [];
@@ -97,13 +99,28 @@ export function osmRefineCourse(spine, ways, o) {
   if (!segs.length) return null;
   const sidx = buildSegIndex(segs);
 
-  /* 2. corridor test: the segment's midpoint must hug the spine */
+  /* 2. corridor test: the segment's midpoint must hug the spine — WIDENED near both ends.
+     Near a river's mouth (or a dam's snap point) OSM often maps the channel well away from the
+     schematic line: for Sardar Sarovar the Narmada's mouth sits further than corridorKm from any
+     mapped way, so a constant corridor leaves the graph with no node near the end and the whole
+     course is refused (measured: 784 corridor segments available, end unreachable). The allowance
+     therefore grows to maxDevKm over the last/first END_TAPER_KM of the course, which lets the path
+     hook onto the real channel there without loosening the middle of the reach. */
   const spineGrid = polylineGrid(spine);
+  const along=[0];
+  for(let i=1;i<spine.length;i++)along.push(along[i-1]+Math.sqrt(
+    ((spine[i][0]-spine[i-1][0])*kx0)**2+((spine[i][1]-spine[i-1][1])*ky0)**2));
+  const spineKm=along[along.length-1];
+  const END_TAPER_KM=o.endTaperKm==null?Math.max(25,spineKm*0.2):o.endTaperKm;
   const keep = [];
   for (let s = 0; s < segs.length; s++) {
     const g = segs[s];
     const mid = [(g.a[0] + g.b[0]) / 2, (g.a[1] + g.b[1]) / 2];
-    if (distToPolyline(mid, spineGrid, lat0) <= corridorKm) keep.push(s);
+    const near = nearestOnPolyline(mid, spineGrid, lat0);
+    const pos = along[Math.min(near.idx, along.length - 1)];
+    const nearEnd = Math.min(pos, spineKm - pos) <= END_TAPER_KM;
+    const allow = nearEnd ? Math.max(corridorKm, o.maxDevKm == null ? corridorKm * 2 : o.maxDevKm) : corridorKm;
+    if (near.dKm <= allow) keep.push(s);
   }
   if (keep.length < 2) return null;
 
@@ -130,20 +147,34 @@ export function osmRefineCourse(spine, ways, o) {
     adj.get(ib).push({ to: ia, cost, seg: s });
   }
 
-  /* 4. nearest kept node to each spine end */
-  const nearestNode = p => {
+  /* 4. nearest kept node to each spine end.
+     snapKm is the budget for snapping a course END to the nearest OSM node. A dam's snapped start is
+     on the river (0.28 km for Sardar Sarovar) but a river's MAPPED END can sit kilometres inland of
+     the OSM waterway — the Narmada's recorded end is 4.01 km from the nearest OSM node, which made
+     the 3 km budget refuse the entire course even though 784 corridor segments were available. So
+     the budget is applied to the side that must be exact (the dam) and a wider, separate budget
+     (endSnapKm, default 3× snapKm) applies to the other end, with the connection drawn explicitly
+     so the line still starts and finishes where the CWC course does. */
+  const endSnapKm = o.endSnapKm == null ? Math.max(snapKm, 9) : o.endSnapKm;
+  const nearestNode = (p, budget) => {
     let best = null, bestD = Infinity;
     for (const [id, q] of nodes) {
       const d = Math.sqrt(((q[0] - p[0]) * kx) ** 2 + ((q[1] - p[1]) * ky) ** 2);
       if (d < bestD) { bestD = d; best = id; }
     }
-    return bestD <= snapKm ? { id: best, km: bestD } : null;
+    return bestD <= budget ? { id: best, km: bestD } : null;
   };
-  const start = nearestNode(spine[0]);
-  const end = nearestNode(spine[spine.length - 1]);
-  if (!start || !end) return null;
+  const start = nearestNode(spine[0], snapKm);
+  if (!start) return null;
+  const endNear = nearestNode(spine[spine.length - 1], endSnapKm);
 
-  /* 5. Dijkstra */
+  /* 5. Dijkstra from the start node, then pick the best REACHABLE node for the end.
+     The corridor graph is often split: where OSM maps a wide braided river further from the
+     schematic line than corridorKm, no kept segment reaches the course's last leg, and demanding a
+     path to the node nearest the end point refuses the whole course (measured: Sardar Sarovar, the
+     Narmada's mouth, 784 corridor segments available, 0 reachable end). So the end is chosen among
+     the nodes Dijkstra actually reached, nearest the course's end, within endSnapKm — and the last
+     stretch is then a straight connector the card already discloses as not-mapped. */
   const dist = new Map([[start.id, 0]]);
   const prev = new Map();
   const pq = [[0, start.id]];
@@ -153,7 +184,6 @@ export function osmRefineCourse(spine, ways, o) {
     const [d, u] = pq.shift();
     if (seen.has(u)) continue;
     seen.add(u);
-    if (u === end.id) break;
     for (const e of adj.get(u) || []) {
       const nd = d + e.cost;
       if (nd < (dist.get(e.to) == null ? Infinity : dist.get(e.to))) {
@@ -161,11 +191,23 @@ export function osmRefineCourse(spine, ways, o) {
       }
     }
   }
-  if (!seen.has(end.id) || !dist.has(end.id)) return null;
+  const endPt = spine[spine.length - 1];
+  let endId = null, endD = Infinity, endKm = 0;
+  if (endNear && seen.has(endNear.id)) {
+    endId = endNear.id; endKm = endNear.km;
+  } else {
+    for (const id of seen) {
+      const q = nodes.get(id);
+      const d = Math.sqrt(((q[0] - endPt[0]) * kx) ** 2 + ((q[1] - endPt[1]) * ky) ** 2);
+      if (d < endD) { endD = d; endId = id; }
+    }
+    if (endId == null || endD > endSnapKm) return null;
+    endKm = endD;
+  }
 
   /* 6. walk the path back and emit coordinates */
   const path = [];
-  for (let u = end.id; u != null; u = prev.get(u)) path.push(u);
+  for (let u = endId; u != null; u = prev.get(u)) path.push(u);
   path.reverse();
   if (path.length < 2) return null;
   const coords = [spine[0]];
@@ -175,8 +217,6 @@ export function osmRefineCourse(spine, ways, o) {
   /* 7. measure what we produced */
   let km = 0;
   for (let i = 1; i < coords.length; i++) km += Math.sqrt(((coords[i][0] - coords[i-1][0]) * kx) ** 2 + ((coords[i][1] - coords[i-1][1]) * ky) ** 2);
-  let spineKm = 0;
-  for (let i = 1; i < spine.length; i++) spineKm += Math.sqrt(((spine[i][0] - spine[i-1][0]) * kx) ** 2 + ((spine[i][1] - spine[i-1][1]) * ky) ** 2);
   const grid2 = polylineGrid(spine);
   let devKm = 0;
   for (const p of coords) { const d = distToPolyline(p, grid2, lat0); if (d > devKm) devKm = d; }

@@ -5,7 +5,7 @@
    The walk/simplify maths is the shared engine (data/_route-engine.mjs), the same code the
    offline generator uses. Protocol: postMessage({cmd, dam}) → {ok, route} / {ok:false, error}. */
 import {buildIndex,solveRoute,coastSegments} from "./_route-engine.mjs?v=7.18";
-import {osmRefineCourse} from "./_osm-refine.mjs?v=7.20";
+import {osmRefineCourse} from "./_osm-refine.mjs?v=7.21";
 import {decodeTile} from "./_mvt.mjs?v=7.20";
 
 let idx=null,features=null,coast=null,cities=[],loading=null;
@@ -199,8 +199,22 @@ self.onmessage=async(e)=>{
       const coords=(m.coords||[]).filter(p=>Array.isArray(p)&&p.length===2);
       if(coords.length<2)throw new Error("no course to shape");
       const got=await osmWaysFor(coords);
-      const r=osmRefineCourse(coords,got.ways,{corridorKm:(m.opts&&m.opts.corridorKm)||4.5,snapKm:3});
-      post({ok:true,id:m.id,osm:r,ways:got.ways.length,src:got.src});
+      let r=osmRefineCourse(coords,got.ways,{corridorKm:(m.opts&&m.opts.corridorKm)||4.5,snapKm:3});
+      let src=got.src;
+      /* The tiles are only a shortcut. When they cannot shape the course — measured on the Narmada
+         at Sardar Sarovar: 784 corridor segments but 764 separate components and the reachable
+         network stops 77 km short of the mouth, because OSM's lower Narmada is not carried as
+         connected waterway=river ways in those tiles — ask Overpass rather than give up. Refusal
+         itself stays the last resort: a wrong line is worse than the schematic one. */
+      if(!r&&got.src!=="overpass"){
+        try{
+          const ways=await overpassWaysFor(coords);
+          const r2=osmRefineCourse(coords,ways,{corridorKm:(m.opts&&m.opts.corridorKm)||4.5,snapKm:3});
+          if(r2){r=r2;src="overpass (tiles could not shape this course)";}
+          else src=got.src+" — no path found either";
+        }catch(e){ src=got.src+" — Overpass also unavailable ("+String(e.message||e).slice(0,60)+")"; }
+      }
+      post({ok:true,id:m.id,osm:r,ways:got.ways.length,src});
     }catch(err){
       post({ok:false,id:m.id,error:String(err.message||err)});
     }

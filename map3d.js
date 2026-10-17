@@ -225,6 +225,42 @@ function damSmooth(on){
   }catch(_){}
 }
 
+/* ---- full screen (v7.14): the stage holds the map, the dam card and the caption, so putting
+   the STAGE in full screen keeps every control reachable. MapLibre needs a resize to fill it. ---- */
+function mapFullscreenToggle(ev){
+  const stage=map?map.getContainer().parentNode:null;
+  if(!stage)return false;
+  const api=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const cinema=stage.classList.contains("fsmode");
+  if(api){ try{(document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);}catch(_){} }
+  /* the CSS class is the fallback (and the layout driver): some webviews block the API entirely */
+  stage.classList.toggle("fsmode",!cinema);
+  if(document.body)document.body.classList.toggle("fsmode",!cinema);
+  /* only a real click may call the Fullscreen API — otherwise the browser logs a permission error */
+  if(!cinema&&(!ev||ev.isTrusted!==false)){
+    try{
+      const req=stage.requestFullscreen||stage.webkitRequestFullscreen;
+      if(req)req.call(stage);
+    }catch(_){}
+  }
+  mapFullscreenSync();
+  return !cinema;
+}
+function mapFullscreenSync(){
+  const api=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const stage=map?map.getContainer().parentNode:null;
+  const cinema=!!(stage&&stage.classList.contains("fsmode"));
+  const btn=dEl("m3fs");
+  if(btn)btn.textContent=(api||cinema)?"✕ Exit full screen":"⛶ Full screen";
+  /* the canvas must be resized after the layout settles, or the map stays letterboxed */
+  if(map){
+    try{ map.resize(); }catch(_){}
+    setTimeout(()=>{ try{ map.resize(); map._render&&map._render(performance.now()); }catch(_){} },60);
+    setTimeout(()=>{ try{ map.resize(); }catch(_){} },260);
+  }
+}
+addEventListener("resize",()=>{ if(map)mapFullscreenSync(); });
+
 /* ---- the routing worker (heavy data lives here, not in the page) ---- */
 function damEnsureWorker(){
 if(damWorker)return damWorker;
@@ -781,6 +817,9 @@ start:()=>damStart(),
 reset:()=>{damReset();return true;},
 mode:on=>damSetMode(on),
 smooth:on=>{damSmooth(on);return true;},
+fullscreen:()=>mapFullscreenToggle(),
+fullscreenOn:()=>!!(document.fullscreenElement||document.webkitFullscreenElement)||
+  !!(map&&map.getContainer().parentNode.classList.contains("fsmode")),
 pickAt:(x,y)=>{const d=damPickAt(x,y);if(d)damSelect(d);return d?d.name:null;},
 modeOn:()=>damMode,
 search:q=>{damSearchRender(q);return (dEl("damResults")||{}).childElementCount||0;},
@@ -818,6 +857,15 @@ dEl("damRate")&&dEl("damRate").addEventListener("input",()=>{
   damReadout();
 });
 for(const id of ["damDirDown","damDirUp"])dEl(id)&&dEl(id).addEventListener("change",()=>damReselect());
+/* v7.14 full screen: button, F key, and resize on every full-screen change */
+dEl("m3fs")&&dEl("m3fs").addEventListener("click",(e)=>mapFullscreenToggle(e));
+document.addEventListener("fullscreenchange",mapFullscreenSync);
+document.addEventListener("webkitfullscreenchange",mapFullscreenSync);
+addEventListener("keydown",e=>{
+  const tag=(e.target&&e.target.tagName)||"";
+  if(tag==="INPUT"||tag==="SELECT"||tag==="TEXTAREA"||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key==="f"||e.key==="F"){ e.preventDefault(); mapFullscreenToggle(e); }
+});
 
 /* ---------- end v7.6 dam release ---------- */
 

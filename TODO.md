@@ -58,6 +58,11 @@ Status legend: [ ] todo · [~] in progress · [x] done · [!] needs data/review
 - [x] Skill installed globally and used
 
 ## Still queued
+- [ ] **Performance sweep** — see `PERF-GAPS.md` (evidence-based gap list: 131 style layers, no
+      off-screen pausing, 127 MB heap, unbounded route cache, worker footprint, camera-animation
+      overlap). **Do E1 first** (a `?perf=1` frame-time mode) — this headless tab freezes rAF, so no
+      perf claim can be verified until that exists.
 - [ ] Heavier flood simulation from the user's own flood page (openswmm territory — needs the
       `app-credits` block if openswmm-derived code enters the deck)
 - [ ] Foreground FPS measurement of the 3D view
+- [ ] Hand-verify the 38 unverified dam-capacity rows page by page

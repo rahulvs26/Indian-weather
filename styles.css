@@ -46,6 +46,23 @@ section.block .sub{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:7
 .stage.map3d-on #osmMap,.stage.map3d-on #windCanvas,.stage.map3d-on #terrainWrap{display:none}
 #map3dCap{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:8px;color:#fff;font-size:12px;text-shadow:0 1px 3px #000;max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:9}
 .stage.map3d-on #map3dCap{display:block}
+/* v7.14 full screen: the whole stage (map + dam card + caption) goes full screen, so the release
+   controls stay reachable without scrolling back */
+.m3tools{position:absolute;right:8px;top:8px;z-index:9;display:none;gap:6px}
+.stage.map3d-on .m3tools{display:flex}
+.m3b{font:600 11px ui-monospace,monospace;color:#E7E5E4;background:rgba(10,15,13,.82);border:1px solid #2a3a34;border-radius:6px;padding:4px 9px;cursor:pointer}
+.m3b:hover{background:rgba(15,118,110,.55);border-color:#2DD4BF}
+.m3b:focus-visible{outline:2px solid #5EEAD4;outline-offset:2px}
+.stage:fullscreen,.stage:-webkit-full-screen{height:100vh!important;width:100vw;background:#0e1513}
+.stage:fullscreen #map3d,.stage:-webkit-full-screen #map3d{height:100%!important}
+.stage:fullscreen .damUI,.stage:-webkit-full-screen .damUI{max-height:calc(100vh - 24px);overflow:auto}
+.stage:fullscreen #map3dCap,.stage:-webkit-full-screen #map3dCap{bottom:14px}
+/* cinema fallback: same layout when the Fullscreen API is blocked (embedded webviews, automation) */
+.stage.fsmode{position:fixed;inset:0;z-index:60;height:100vh!important;width:100vw;background:#0e1513;overflow:hidden}
+.stage.fsmode #map3d{height:100%!important}
+.stage.fsmode .damUI{max-height:calc(100vh - 24px);overflow:auto}
+.stage.fsmode #map3dCap{bottom:14px}
+body.fsmode{overflow:hidden}
 .ctLbl{position:absolute;transform:translate(-50%,-135%);font:600 11px ui-monospace,monospace;color:#FCD34D;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
 .rvLbl{position:absolute;transform:translate(-50%,-135%);font:600 10px ui-monospace,monospace;color:#7DD3FC;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
 .bsLbl{position:absolute;transform:translate(-50%,-135%);font:600 10px ui-monospace,monospace;color:#E7E5E4;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap;letter-spacing:.5px}

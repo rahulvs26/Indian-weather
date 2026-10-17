@@ -120,3 +120,125 @@ comments before checking, because a test that cries wolf gets ignored.
 - **No accessibility or mobile-viewport test.** Not started.
 - **No cross-browser test.** Everything above is Chromium.
 - **The 1 fps stall is measured but not fixed** (see above).
+
+---
+
+# 4. The 3D mountains: measured v7.23b
+
+Reported as "the 3D mountains are dead slow". They were not slow. **They never
+rendered a frame at all.**
+
+## The defect
+
+A v7.16 performance optimisation added a visibility gate so off-screen renderers
+would not waste work:
+
+```js
+window.__deckStageLive = el => DECK_VIS.stages.has(el);
+```
+
+`DECK_VIS.stages` is populated by an IntersectionObserver that watches only
+elements with class `stage`. The three call sites passed elements that are
+**inside** a `.stage`, not ones that are:
+
+| line | call site | is it a `.stage`? |
+|---|---|---|
+| ~147 | wind canvas | no — parent is |
+| ~1180 | `#terrainWrap` | no — parent is |
+| ~1490 | `#osmMap` | no — parent is |
+
+So the lookup was permanently `false`, every call returned `false`, and each of
+those loops returned before doing any work **on every frame, forever**.
+
+What that looks like from outside: `buildTerrain()` spends 9.3 s decoding 56 DEM
+tiles and building 1.03 M terrain triangles plus 651 K dam triangles, then the
+render loop is gated off, so the canvas keeps Three's constructor default of
+300×150 and the reader waits a long time for a frame that never arrives. A long
+wait followed by no result is indistinguishable from being slow.
+
+Fixed by walking up to the nearest `.stage` ancestor, which is what the observer
+actually tracks, falling back to `offsetParent` when there is no such ancestor.
+
+## Two misreadings, recorded because both sent me the wrong way
+
+**1. The fps was never measured.** The harness browser reported a steady 61 fps
+for the 3D mountains. That was the *global* rAF loop, not the terrain renderer.
+A dead loop measures as a perfect 60 — no frame-rate number can detect this
+class of defect, which is why it survived from v7.16.
+
+**2. The blur was not the bottleneck.** A Node benchmark at real array size
+(1792 × 2048 = 3.67 M samples) predicted the separable blur was the dominant
+cost. Sub-instrumenting the `mesh` phase showed the blur was **139 ms** and the
+per-vertex mesh loop was 491 ms. In the browser the blur is not the hot spot.
+
+## Measured build, after sub-instrumenting the `mesh` phase
+
+It was one 4.75 s black box. Now:
+
+| phase | ms | note |
+|---|---|---|
+| `damLoop` | ~1550 | 13,002 dam cross-sections, ~651 K triangles |
+| `meshVerts` | ~880 | 517,537 vertices, was ~490 before the sampler change on a quieter machine — see A/B |
+| `blur` | ~570 | separable 3×3 over 3.67 M samples |
+| `damBuild` | ~500 | |
+| `normals` | ~410 | `computeVertexNormals` over 1.03 M triangles |
+| `tileDecode` | ~400 | 56 Terrarium tiles |
+| `basins` | ~270 | |
+| `threeImport` | ~60 | cached after first load |
+
+Warm total ≈ **4.9 s**. Cold ≈ **9.3 s**: the extra ~4 s is 56 PNG tile
+downloads from `s3.amazonaws.com`.
+
+## The sampler change, and an honest A/B
+
+The per-vertex loop called `hAt(lon,lat)`, and `hAt` evaluates a Mercator
+projection — two trig calls and a log — once per vertex, to compute 672 lat and
+768 lon values that are each reused along a whole row or column. Tabling the two
+axes removes ~1.55 M transcendental evaluations.
+
+Controlled A/B, same session, alternated:
+
+| variant | `meshVerts` | total build |
+|---|---|---|
+| old | 973 / 990 / 1367 ms | 4725 / 4841 / 5659 ms |
+| new | 863 / 899 / 908 ms | 4987 / 4996 / 5013 ms |
+
+**~110 ms, about 2 % of the build.** The Node benchmark had predicted 141 → 28 ms
+for that phase; in the browser, V8 had already optimised the original loop well.
+The change is kept because it is free and provably harmless, not because it is
+significant. `data/_dem_sampler.test.mjs` asserts the heights are **bit-identical**
+to `hAt()` across all 517,537 vertices, 20,000 randomised sub-grid points and
+every edge — not "close enough".
+
+That test earned its place immediately: the first version used `Float32Array` and
+four of six tests failed, because 187.62857142857143 does not survive a 24-bit
+mantissa. The tables are `Float64Array` now, and the test asserts it so nobody
+narrows them back.
+
+## What was deliberately NOT changed
+
+Three candidates would help more and were left alone, because each changes what
+appears on screen and **nothing in this project can see its own output**:
+
+1. **DEM zoom 6 → 5.** 56 tiles → 16, cutting most of the 4 s cold fetch. The
+   z6 grid is 2.3 km/px against a mesh spacing of ~4.6 km, so it is roughly 2×
+   oversampled — but the result would be a different, smoother surface.
+2. **A relief-detail control** for the 1.03 M terrain triangles. This is the
+   honest lever for "slow on my machine": it hands the choice to whoever is
+   looking, instead of guessing their GPU.
+3. **Rebuilding the 13,002 dams by importance tier.** ~1.55 s of the build.
+
+## Still unverified after all of this
+
+**The frame rate of the 3D mountains.** `document.hidden === true` in the
+harness tab, and a hidden document gets no IntersectionObserver callbacks and no
+`requestAnimationFrame` — rAF does not fire at all, verified by a probe whose
+promise never resolved. The loop was forced open by adding the stage to the live
+set and overriding `document.hidden`, which proved the gate now resolves
+(`gateOpen: true`) but cannot produce a trustworthy fps: the canvas would be
+rendering 1.68 M triangles through software GL.
+
+So: the fix is verified logically and by DOM side-effects, and the build time is
+measured. **The resulting frame rate is not measured and needs a human with a
+real GPU.** If it is still slow after this, candidate 2 above is the first thing
+to reach for.

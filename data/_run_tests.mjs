@@ -6,6 +6,7 @@ const suites = [
   ["static smoke", "_smoke.mjs", "wiring, contracts, payload"],
   ["hydrology", "_hydrology.test.mjs", "Curve Number arithmetic vs hand-worked values"],
   ["crossings", "_crossings.test.mjs", "reservoir crossings vs known geometry"],
+  ["dem sampler", "_dem_sampler.test.mjs", "tabled mesh sampler is bit-identical to hAt()"],
   ["route engine", "_route_engine_check.mjs", "400 dams: routing, up-flow, timing"],
   ["OSM refiner", "_osm-refine.test.mjs", "corridor, end snap, max-deviation cap"],
   ["projection", "_crs_check.mjs", "India LCC inverse vs the Dam file's own lat/lon"],

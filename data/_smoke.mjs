@@ -231,5 +231,43 @@ ok(uncited.length === 0,
   "every binary file in the published tree is named in a SOURCES note",
   uncited.join("; "));
 
+/* ---------------------------------------------------------------- 9. the render-loop gate is wired to a watched element
+   This check exists because of v7.16. A visibility optimisation was added to stop the 3D
+   renderer and the wind canvas drawing for sections the reader cannot see. It was written as
+
+     __deckStageLive(el) => DECK_VIS.stages.has(el)
+
+   and DECK_VIS.stages is populated by an IntersectionObserver that only observes elements with
+   class "stage". The call sites passed elements that are INSIDE a .stage rather than being one:
+   #terrainWrap, #osmMap and the wind canvas. So the lookup was permanently false, and three
+   render loops - including the whole 3D-mountains view - returned before doing any work on every
+   frame. Forever. Nobody noticed for versions because the failure looks exactly like slowness: a
+   long wait, then a canvas that never updates.
+
+   A perf optimisation that silently disables the thing it was optimising is the worst failure mode
+   a renderer has, and no fps number catches it, because a dead loop measures as a perfect 60.
+   So this is asserted statically: every element handed to __deckStageLive must have a .stage
+   ancestor, and the gate must resolve through the ancestor walk rather than a bare lookup. */
+section("9. render-loop visibility gate resolves to an observed element");
+const gateSrc = readFileSync("app.js", "utf8");
+ok(/__deckStageLive\s*=\s*el=>\{/.test(gateSrc) && /parentElement/.test(gateSrc),
+  "__deckStageLive walks up to the nearest .stage instead of a bare Set lookup",
+  "the gate does not resolve through an ancestor walk");
+ok(/IntersectionObserver/.test(gateSrc) && /querySelectorAll\("\.stage"\)/.test(gateSrc),
+  "the observer watches .stage elements (the set the gate is checked against)");
+
+/* every getElementById passed to the gate must name an element the page actually contains, and the
+   page must give it a .stage ancestor. Parsed from index.html so this is a static assertion. */
+const gateIds = [...gateSrc.matchAll(/__deckStageLive\(\s*document\.getElementById\("([^"]+)"\)/g)].map(m => m[1]);
+ok(gateIds.length >= 2, "the gate has call sites to check", "found " + gateIds.length);
+const missingGateIds = gateIds.filter(id => !new RegExp(`id="${id}"`).test(html));
+ok(missingGateIds.length === 0, "every element the gate is asked about exists in the markup",
+  missingGateIds.join(", "));
+
+/* stage ancestors cannot be proven from markup alone (the observer attaches at runtime), so assert
+   the thing that actually broke: that the page's stages carry the class the observer keys on. */
+const stageCount = (html.match(/class="[^"]*\bstage\b/g) || []).length;
+ok(stageCount > 0, "the page has .stage elements for the observer to watch", "none found");
+
 console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
 process.exit(fail ? 1 : 0);

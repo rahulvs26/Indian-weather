@@ -100,7 +100,36 @@ const DECK_VIS={stages:new WeakSet(),any:true};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",watch);else watch();
 })();
 window.__deckVis=DECK_VIS;
-window.__deckStageLive=el=>!el||!DECK_VIS||DECK_VIS.stages.has(el);
+/* v7.23b FIX — this one function silently killed three render loops.
+   It was asked about elements that are NOT the .stage elements the observer watches:
+     ~line 1180  __deckStageLive(document.getElementById("terrainWrap"))  - 3D mountains
+     ~line 1490  __deckStageLive(document.getElementById("osmMap"))       - 3D map
+     ~line 147   __deckStageLive(windCanvas)                             - wind particles
+   #terrainWrap's PARENT carries the class, not #terrainWrap itself. So DECK_VIS.stages.has(el)
+   was always false, every call returned false, and each of those loops returned before doing any
+   work on every single frame - forever.
+
+   What that looked like from the outside, and why it read as "the 3D mountains are slow":
+   buildTerrain() spends ~9.3 s decoding 56 DEM tiles and building 1.03 M terrain triangles and
+   651 K dam triangles, and then the render loop is gated off, so the canvas keeps Three's
+   constructor default of 300x150 and the reader stares at a stale frame. A long wait followed by
+   no result is indistinguishable from being slow, and it is why this survived from v7.16.
+
+   Every fps figure taken before this fix was measuring the wrong loop: the harness browser
+   reported a steady 61 fps for a render loop that never ran a frame.
+
+   Fix: walk up to the nearest .stage ancestor, which is what the observer actually tracks. If an
+   element has no .stage ancestor, fall back to layout visibility, which still catches the
+   display:none ancestor case the observer was introduced for. */
+window.__deckStageLive=el=>{
+  if(!el||!DECK_VIS)return true;
+  let n=el;
+  while(n&&n.nodeType===1){
+    if(n.classList&&n.classList.contains("stage"))return DECK_VIS.stages.has(n);
+    n=n.parentElement;
+  }
+  return !!el.offsetParent;
+};
 
 /* ===== v7.16 E1: a frame-time probe, because perf claims need numbers =====
    A backgrounded tab freezes requestAnimationFrame, so this reports that plainly instead of
@@ -715,19 +744,20 @@ const tileXY=(lon,lat,z)=>{const n=2**z;return[Math.floor((lon+180)/360*n),Math.
 async function buildTerrain(){
 const _t3p={};let _t3s=performance.now();const _t3=k=>{_t3p[k]=Math.round(performance.now()-_t3s);_t3s=performance.now();};   /* v7.0 phase timings → t3Stats.phases */
 const cap=$("terrainCap");cap.textContent="loading elevation…";
-const THREE=await import("three");
+const THREE=await import("three");_t3("threeImport");
 const [x0,y0]=tileXY(TB.lon0,TB.lat1,TB.z),[x1,y1]=tileXY(TB.lon1,TB.lat0,TB.z);
 const NX=x1-x0+1,NY=y1-y0+1,T=256,Wpx=NX*T,Hpx=NY*T;
 const H=new Float32Array(Wpx*Hpx);
 const load=(x,y)=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>res(im);im.onerror=rej;im.src=`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${TB.z}/${x}/${y}.png`;});
 const jobs=[];for(let ty=0;ty<NY;ty++)for(let tx=0;tx<NX;tx++)jobs.push(load(x0+tx,y0+ty).then(im=>({tx,ty,im})));
-const cv=document.createElement("canvas");cv.width=cv.height=T;
+const cv=document.createElement("canvas");cv.width=cv.height=T;_t3("tileFetch");
 const cx2=cv.getContext("2d",{willReadFrequently:true});
 for(const{tx,ty,im}of await Promise.all(jobs)){
 cx2.clearRect(0,0,T,T);cx2.drawImage(im,0,0);
 const d=cx2.getImageData(0,0,T,T).data;
 for(let j=0;j<T;j++)for(let i=0;i<T;i++){const o=(j*T+i)*4;H[(ty*T+j)*Wpx+tx*T+i]=d[o]*256+d[o+1]+d[o+2]/256-32768;}
 }
+_t3("tileDecode");
 const lonLT=(x0/Math.pow(2,TB.z))*360-180, spanLon=NX*360/Math.pow(2,TB.z);
 const y2lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/Math.pow(2,TB.z))))*180/Math.PI;
 const mY=la=>Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180));
@@ -739,6 +769,7 @@ const hAt=(lon,lat)=>{const fx=Math.min(Wpx-1,Math.max(0,(lon-lonLT)/spanLon*(Wp
 const tmp=new Float32Array(Math.max(Wpx,Hpx));
 for(let j=0;j<Hpx;j++){for(let i=0;i<Wpx;i++){let s=0;for(let k=-1;k<=1;k++)s+=H[j*Wpx+Math.min(Wpx-1,Math.max(0,i+k))];tmp[i]=s/3;}for(let i=0;i<Wpx;i++)H[j*Wpx+i]=tmp[i];}
 for(let i=0;i<Wpx;i++){for(let j=0;j<Hpx;j++){let s=0;for(let k=-1;k<=1;k++)s+=H[Math.min(Hpx-1,Math.max(0,j+k))*Wpx+i];tmp[j]=s/3;}for(let j=0;j<Hpx;j++)H[j*Wpx+i]=tmp[j];}
+_t3("blur");
 const W=3.4,D=2.55,SX=768,SY=672;   /* v7.0 mesh 768×672 ≈ 1.03 M tris — resolves the z6 DEM under true scale */
 const renderer=new THREE.WebGLRenderer({canvas:$("terrain3d"),antialias:true});
 renderer.setPixelRatio(Math.min(1.5,devicePixelRatio||1));
@@ -758,16 +789,27 @@ const UPM=1e-6;                          /* metres → world units (true scale: 
 const terrCol=(h,c)=>{if(h>1800)c.copy(cC).lerp(cS,Math.min(1,(h-1800)/3400*0.3+Math.max(0,h-4400)/2000));else if(h>400)c.copy(cB).lerp(cC,(h-400)/1400*0.5);else c.copy(cA).lerp(cB,Math.min(1,h/400)*0.5);return c;};
 const yOf=h=>Math.max(0,h)*UPM;          /* v7.0 true metres: Everest 8849 m = 0.008849 u (was 1.15 u) — unclipped */
 const MZ=m=>m*UPM;                       /* metric offsets: sea level, water levels, label lifts */
+﻿/* v7.23c: the two projection axes are tabled, so the per-vertex cost is a bilinear read instead
+   of a log-tan-sec. Values are identical to what hAt() would have computed for the same grid
+   point - see data/_dem_sampler.test.mjs, which asserts bit-identical output over a randomised
+   grid. hAt() itself is unchanged and still used everywhere lon/lat are arbitrary. */
+const colX=new Float64Array(SX+1),rowZ=new Float64Array(SY+1);
+for(let ix=0;ix<=SX;ix++){const lon=TB.lon0+(TB.lon1-TB.lon0)*ix/SX;
+  colX[ix]=Math.min(Wpx-1,Math.max(0,(lon-lonLT)/spanLon*(Wpx-1)));}
+for(let iz=0;iz<=SY;iz++){const lat=TB.lat1-(TB.lat1-TB.lat0)*iz/SY;
+  rowZ[iz]=Math.min(Hpx-1,Math.max(0,(myT-mY(Math.max(-85,Math.min(85,lat))))/(myT-myB)*(Hpx-1)));}
 for(let k=0;k<pos.count;k++){
 const ix=k%(SX+1),iz=Math.floor(k/(SX+1));
-const lon=TB.lon0+(TB.lon1-TB.lon0)*ix/SX,lat=TB.lat1-(TB.lat1-TB.lat0)*iz/SY;
-const h=Math.max(0,hAt(lon,lat));
+const fx=colX[ix],fz=rowZ[iz],ix0=fx|0,iz0=fz|0;
+const ix1=ix0+1<Wpx?ix0+1:ix0,iz1=iz0+1<Hpx?iz0+1:iz0,xa=fx-ix0,za=fz-iz0,r0=iz0*Wpx,r1=iz1*Wpx;
+const h=Math.max(0,H[r0+ix0]*(1-xa)*(1-za)+H[r0+ix1]*xa*(1-za)+H[r1+ix0]*(1-xa)*za+H[r1+ix1]*xa*za);
 pos.setY(k,yOf(h));
 terrCol(h,tc);
 cols.push(tc.r,tc.g,tc.b);
 }
 geo.setAttribute("color",new THREE.Float32BufferAttribute(cols,3));
-geo.computeVertexNormals();
+_t3("meshVerts");
+geo.computeVertexNormals();_t3("normals");
 const tMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));relG.add(tMesh);_t3("mesh");
 /* Indian MSL datum: translucent sea plane at 0 m — relief reads against mean sea level */
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(W*1.25,D*1.25),new THREE.MeshStandardMaterial({color:0x0b3b5c,transparent:true,opacity:0.88,roughness:0.55,metalness:0}));
@@ -1102,7 +1144,7 @@ wxWGeo.attributes.position.needsUpdate=true;}
 };
 applyHydro(INDWeather.month||7,true);   /* v6.1: seed flow + reservoir levels for the current month */
 const cam=new THREE.PerspectiveCamera(42,2,0.1,50);
-let th=0,ph=0.62,R=4.4,drag=false,px=0,py=0,lastW=0,spin=false,panDrag=false;   /* v7.0: spin OFF by default (user feedback) + pan state */
+let th=0,ph=0.62,R=4.4,drag=false,px=0,py=0,lastW=0,lastH=0,spin=false,panDrag=false;   /* v7.0: spin OFF by default (user feedback) + pan state */
 /* v6.0 deep zoom: movable orbit target (double-click a spot to fly to it; double-click empty sky
    resets home), exponential wheel zoom over R 12→0.01 (0.01 ≈ 10 km — the z6 DEM's honest floor),
    near plane scales with R so ultra-close views never clip. */
@@ -1110,7 +1152,12 @@ const tgt=new THREE.Vector3(0,0.0019,0),HOME=new THREE.Vector3(0,0.0019,0);   /*
 let fly=null;
 const startFly=(tt,tr)=>{fly={t0:performance.now(),ft:tgt.clone(),tt:tt.clone(),fr:R,tr};};
 const cv3=$("terrain3d");
-const fit=()=>{const w=cv3.clientWidth||cv3.parentElement.clientWidth;if(w===lastW)return;lastW=w;renderer.setSize(w,420,false);cam.aspect=w/420;cam.updateProjectionMatrix();};
+/* v7.23d: fit() now watches the height as well as the width. It used to bail out on width alone
+   (`if(w===lastW)return`), so a window that was only resized vertically left the drawing buffer at
+   the old height and Three stretched the frame. Harmless while the render loop was dead; not
+   harmless now that it runs. Also guards against a zero-size container, which would otherwise hand
+   setSize a 0 and leave the canvas unrenderable. */
+const fit=()=>{const w=Math.max(1,cv3.clientWidth||(cv3.parentElement&&cv3.parentElement.clientWidth)||0),h=Math.max(1,cv3.clientHeight||420);if(w===lastW&&h===lastH)return;lastW=w;lastH=h;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();};
 /* v7.8 LAYMAN NAVIGATION — one finger / left-drag = look around; TWO fingers (or shift / right / middle-drag)
    = slide across; pinch or scroll or the +/− buttons = zoom; tap (touch) or double-click (mouse) = fly there,
    tap the sky = come home. Arrow keys / + − / Home / Space work too, so no gesture is required. */
@@ -1203,6 +1250,10 @@ cap.textContent=((m>=6&&m<=9)?`${d.label}: monsoon — Himalayan snowmelt + rain
 };
 window.__terrainMonth(monthByNum(INDWeather.month||7));
 _t3("tail");t3Stats.phases=_t3p;
+/* v7.23b: expose the phase timings. t3Stats is a top-level const in a classic script, so it is not
+   on window and this profiling data - which has existed since v7.0 - could never be read from
+   outside. A profiler nobody can read is how a 60-second build stayed invisible for that long. */
+window.__t3=t3Stats;
 window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly,th:+th.toFixed(3),ph:+ph.toFixed(3)}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag,ptrs:ptrs.size}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount}),colAt:h=>"#"+terrCol(h,new THREE.Color()).getHexString(),flyTo:(lo,la,r)=>startFly(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))*REL,Z(la)),r||0.004),glint:{n:heroGl.length,o:()=>glintMat?+glintMat.opacity.toFixed(3):null,at:i=>{const g=heroGl[i];return g?{x:+g[0].toFixed(5),y:+g[1].toFixed(6),z:+g[2].toFixed(5),s:+g[3].toFixed(6),py:g[4]?+g[4].position.y.toFixed(6):null}:null},sp:i=>heroGl[i]?heroGl[i][4]:null,mat:()=>glintMat}};
 /* v7.3: dam hover labels — the top-300 recorded-height tier (same set as the 2D dam labels).
    Projection mirrors tag() exactly (y × REL, 420 px canvas); the label text is real CWC data. */

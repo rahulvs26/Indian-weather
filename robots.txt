@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+# Nothing here is private, but there is no value in a crawler walking the 35 MB of GeoJSON:
+# it is all linked from the two pages below and is data, not content to index.
+Disallow: /data/
+Disallow: /Shape files/
+
+Sitemap: https://rahulvs26.github.io/Indian-weather/sitemap.xml

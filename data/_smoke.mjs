@@ -272,5 +272,37 @@ ok(missingGateIds.length === 0, "every element the gate is asked about exists in
 const stageCount = (html.match(/class="[^"]*\bstage\b/g) || []).length;
 ok(stageCount > 0, "the page has .stage elements for the observer to watch", "none found");
 
+/* ---------------------------------------------------------------- 10. nothing links to a file that will not render
+   A published static site has one quietly broken link shape: pointing at a .md file. GitHub Pages
+   serves Markdown as plain text, not as a rendered page, so the reader lands on an unstyled wall of
+   raw syntax and the link looks broken even though the file exists.
+
+   The docs are still worth linking to - just via the repository, which renders them properly. So
+   the rule is not "no .md links" but "no .md links to a local path".
+
+   The second half is that every same-site link names a file that is actually in the tree, and every
+   cross-page anchor exists as an id. about.html was added in v7.24 and could easily have shipped
+   linking to a section that does not exist. */
+section("10. every link in a published page resolves to something real");
+const published = ["index.html", "about.html"];
+for (const p of published) {
+  const src = readFileSync(p, "utf8");
+  const mdLocal = [...src.matchAll(/href="([A-Za-z0-9_\-]+\.md)"/g)].map(m => m[1]);
+  ok(mdLocal.length === 0, p + ": no links to a local .md file (Pages serves those as plain text)",
+    mdLocal.join(", "));
+
+  const rel = [...src.matchAll(/href="((?!https?:|mailto:|#)[^"]+\.(?:html|xml|txt))"/g)].map(m => m[1]);
+  const dangling = rel.filter(r => !exists(r));
+  ok(dangling.length === 0, p + ": every relative file link exists in the tree", dangling.join(", "));
+
+  const anchors = [...src.matchAll(/href="index\.html#([\w-]+)"/g)].map(m => m[1]);
+  const idx = readFileSync("index.html", "utf8");
+  const deadAnchors = anchors.filter(a => !new RegExp('id="' + a + '"').test(idx));
+  ok(deadAnchors.length === 0, p + ": every cross-page anchor exists in index.html", deadAnchors.join(", "));
+}
+ok(exists("sitemap.xml") && exists("robots.txt"), "sitemap.xml and robots.txt exist");
+ok(/Sitemap:\s*https?:\/\/\S+\/sitemap\.xml/.test(readFileSync("robots.txt", "utf8")),
+  "robots.txt points at the sitemap with an absolute URL");
+
 console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
 process.exit(fail ? 1 : 0);

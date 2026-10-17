@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>About this project â€” Indian Weather Study Deck</title>
+<meta name="description" content="What the Indian Weather Study Deck is, where every number comes from, how it is built, what is real and what is illustrative, and what you may reuse. Read this before trusting anything on the site.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://rahulvs26.github.io/Indian-weather/about.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="About â€” Indian Weather Study Deck">
+<meta property="og:description" content="Every figure cites a source. Real geography, real river courses, real dams. Derived values are labelled. Study use only.">
+<meta property="og:url" content="https://rahulvs26.github.io/Indian-weather/about.html">
+<meta property="og:site_name" content="Indian Weather Study Deck">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="About â€” Indian Weather Study Deck">
+<meta name="twitter:description" content="Every figure cites a source. Real geography, real river courses, real dams. Derived values are labelled. Study use only.">
+<link rel="stylesheet" href="styles.css?v=7.23h">
+</head>
+<body class="about">
+<header class="top"><div class="wrap">
+<div class="brand"><a href="index.html" style="color:inherit;text-decoration:none">Indian Weather</a> <small>about</small></div>
+<nav aria-label="Sections"><a href="index.html">Study deck</a><a href="index.html#mjo">MJO</a><a href="index.html#iod">IOD</a><a href="https://github.com/rahulvs26/Indian-weather/blob/main/CITATIONS.md">Citations</a><a href="https://github.com/rahulvs26/Indian-weather/blob/main/COPYRIGHT-AUDIT.md">Rights audit</a></nav>
+</div></header>
+
+<main class="wrap doc">
+<h1>About this project</h1>
+<p class="lead">An interactive study aid for Indian monsoon weather and hydrology. It is built on
+published data from the India Meteorological Department, the Central Water Commission, WRIS and
+open sources â€” and it is explicit, on every figure, about what is real, what is measured here, and
+what is invented to make a mechanism visible.</p>
+
+<div class="callout">
+<b>The one rule this project is built around:</b> nothing is asserted without a source, and anything
+that is not a source figure says so. If a number is derived, it is labelled
+<b>(illustrative)</b>. If a source did not state something, the site says <i>"not recorded in the
+sources used"</i> rather than filling the gap with a plausible value.
+</div>
+
+<h2>1. What is actually here</h2>
+<table class="tbl">
+<thead><tr><th>Section</th><th>What it does</th><th>Real or modelled</th></tr></thead>
+<tbody>
+<tr><td><a href="index.html#map">1 Â· Live map</a></td>
+    <td>Relief basemap of India and its neighbours. Scrub Jan&rarr;Sep to swing the winds from the
+        NE trades to the split SW monsoon, Arabian Sea against Bay of Bengal. Toggle heat and cold
+        zones, 23 Doppler radars with range circles, IOD boxes, rivers, basins, 13,002 dams.</td>
+    <td>Raster and vector layers are real. The wind and rainfall pattern per month is a
+        <b>model</b>, qualitative for rainfall â€” no invented millimetre values.</td></tr>
+<tr><td><a href="index.html#mjo">2 Â· Madden&ndash;Julian Oscillation</a></td>
+    <td>An interactive reference article. Eight-sector phase diagram you can tap, an amplitude
+        control that says what weak versus strong means for a forecast, sourced fact table.</td>
+    <td>Prose is written for the article. The per-phase India effects and their sources are read
+        from <code>data/mjo.json</code>. The diagram is a schematic â€” no RMM series is shipped.</td></tr>
+<tr><td><a href="index.html#iod">3 Â· Indian Ocean Dipole</a></td>
+    <td>Seesaw rig plus ocean boxes, and a time-machine through 13 landmark IOD events.</td>
+    <td>Event years are published. The DMI slider positions are illustrative, not measured.</td></tr>
+<tr><td><a href="index.html#heat">4 Â· Heat and cold waves</a></td>
+    <td>The IMD threshold dial for heat waves, severe heat waves, cold waves and severe cold waves.</td>
+    <td>Thresholds are IMD's, from the IMD monograph. The dial is a teaching instrument.</td></tr>
+<tr><td><a href="index.html#deck">5 Â· Study deck</a></td>
+    <td>Flashcards and a quiz built from the same sourced figures. Progress stays in your browser.</td>
+    <td>Every card carries its page reference.</td></tr>
+<tr><td>3D mountains</td>
+    <td>True-scale Himalaya and Western Ghats relief from Terrarium DEM, with all 13,002 CWC dams as
+        modelled cross-sections, 1,813 reservoir outlines, draped rivers, snow caps and rainfall.</td>
+    <td>Positions and CWC heights are real. Every dam's cross-section profile, every travel speed and
+        every rainfall intensity is <b>(illustrative)</b> engineering convention.</td></tr>
+<tr><td>3D map &amp; dam release</td>
+    <td>Tap any of 13,002 dams. A release is routed along the <i>mapped</i> river channel â€” never a
+        straight line across land â€” at the dam's real position, with the cities it passes marked.</td>
+    <td>The course is real geometry. Timing, velocity and storage are a model, and labelled as one.</td></tr>
+</tbody>
+</table>
+
+<h2>2. Where the data comes from</h2>
+<p>The full bibliography is in <a href="https://github.com/rahulvs26/Indian-weather/blob/main/CITATIONS.md"><code>CITATIONS.md</code></a>. In short:</p>
+<ul>
+  <li><b>India Meteorological Department</b> â€” <i>Monsoon 2025: A Report</i>, the Southwest Monsoon
+      Met. Monograph (Rao 1976), the Northeast Monsoon monograph, the Heat and Cold Waves
+      monograph, the Monsoon Monograph Vol.&nbsp;2, and the IOD chapter by Vinayachandran, Francis
+      &amp; Rao. Seasonal totals, onset dates, heat and cold thresholds, IOD event years.</li>
+  <li><b>Central Water Commission</b> â€” basins, sub-basins, dams, barrages, weirs, reservoirs.</li>
+  <li><b>WRIS / IndiaWRIS</b> â€” watershed polygons, catchment areas, river network, reservoir
+      outlines.</li>
+  <li><b>Natural Earth</b> â€” state boundaries and river centrelines. Public domain.</li>
+  <li><b>OpenStreetMap</b>, <b>Esri</b>, <b>OpenMapTiles</b>, <b>Terrarium</b> â€” tiles and basemaps,
+      rendered live, never redistributed here.</li>
+</ul>
+<p>The IMD PDFs themselves are <b>not</b> published here. They are quoted for study, with attribution
+and page references.</p>
+
+<h2>3. Things this project is careful about</h2>
+<p>These are the places where an easy mistake would produce a confident wrong answer, and what is done
+instead:</p>
+<ul>
+  <li><b>A catchment is not a sub-basin tile.</b> An early version showed Bhakra, on a 79&nbsp;km
+      river, a catchment of 19,937&nbsp;kmÂ² â€” that was a whole sub-basin. Now every catchment comes
+      from a real WRIS watershed unit, and where a watershed unit and the published dam catchment
+      disagree, <b>the published dam figure is shown and the discrepancy is named</b>.</li>
+  <li><b>A river cannot flow both ways at once.</b> A race between two code paths could draw a
+      course twice, upstream and downstream. Fixed with a sequence token, so a stale response can
+      never overwrite a newer one.</li>
+  <li><b>A river course follows the mapped channel.</b> Courses are draped on real river geometry and
+      simplified to a stated tolerance, never drawn as a straight line between two points.</li>
+  <li><b>Reservoir areas were in hectares.</b> The source field is hectares; every card now also
+      carries the published kmÂ² and the independently measured polygon area, because they differ by
+      about 4&nbsp;% and that difference is worth showing.</li>
+  <li><b>Heights you do not have are not invented silently.</b> Where the CWC file has no dam height,
+      a class median is used and the card says so.</li>
+  <li><b>Unknown is a valid answer.</b> "not recorded in the sources used" appears wherever a figure
+      could not be found, instead of an estimate wearing a real number's clothes.</li>
+</ul>
+
+<h2>4. Known limitations, stated plainly</h2>
+<ul>
+  <li><b>The rainfall table is a 1901&ndash;2015 record mean, not the official 1971&ndash;2000 LPA.</b>
+      State values are area-weighted approximations across IMD subdivisions.</li>
+  <li><b>Phenomena sources are weaker than everything else.</b> The 41 climate phenomena and the eight
+      MJO phases cite sources as "web Â· Pai 2011" with no journal or page, so they cannot be checked
+      from the deck. Every other number cites a PDF and a page. Re-sourcing these is open work.</li>
+  <li><b>Dam records are hand-compiled.</b> A 39-entry table of published capacities and gate data,
+      each figure carrying its own source URL. One row of 39 has been independently verified so far.</li>
+  <li><b>Visual layout has never been machine-checked.</b> Every test here is arithmetic, structural
+      or timing-based. Nothing in this project can see its own output, so how it <i>looks</i> is
+      confirmed by people, not by tests.</li>
+  <li><b>State boundaries are coarser than they were.</b> They are Natural Earth admin-1 at 10m,
+      public domain, used so the repository can lawfully be published at all. The previous source
+      forbade redistribution.</li>
+</ul>
+
+<h2>5. Build and run</h2>
+<p>No build step and no framework. Static files, two CDN libraries.</p>
+<pre><code>python -m http.server 8000
+# open http://localhost:8000   (data fetches need http, not file://)</code></pre>
+<p>Tests:</p>
+<pre><code>node data/_run_tests.mjs     # 7 suites
+node data/_smoke.mjs          # 54 static checks: wiring, contracts, payload, rights notices
+node data/_gen_india_states.mjs   # rebuilds the public-domain boundaries; aborts if a key breaks</code></pre>
+
+<h2>6. What you may reuse</h2>
+<div class="callout warn">
+<p><b>The study notes are yours to reuse. The data are not.</b> The prose, the instruments and the
+code are the author's and may be reused with credit. The underlying data belong to IMD, CWC,
+WRIS/IndiaWRIS, Natural Earth and others â€” <b>cite the original source, not this site</b>. The
+copyright position is audited file by file in <a href="https://github.com/rahulvs26/Indian-weather/blob/main/COPYRIGHT-AUDIT.md"><code>COPYRIGHT-AUDIT.md</code></a>.</p>
+</div>
+<p>Suggested credit:</p>
+<blockquote>Indian Weather Study Deck (2026) â€” facts and data &copy; India Meteorological
+Department, Central Water Commission, WRIS/IndiaWRIS, Natural Earth, Bureau of Meteorology, Esri,
+OpenStreetMap contributors and OpenMapTiles, as cited per figure. Study use only.</blockquote>
+<p><b>Not for operational use.</b> This is a study aid. For official warnings, forecasts and
+bulletins, use the IMD â€” <a href="https://mausam.imd.gov.in" rel="noopener">mausam.imd.gov.in</a>.</p>
+
+<h2>7. Corrections</h2>
+<p>If a figure here is wrong, or an owner wants material removed or a credit changed, that is a
+reasonable request and it will be honoured. The audit document records exactly what is here and under
+what terms, so a specific question can be answered rather than argued about.</p>
+
+</main>
+
+<footer><div class="wrap">
+<p class="discFine">Study demo &mdash; not an operational product, not an IMD publication.
+Full bibliography <code>CITATIONS.md</code> &middot; rights audit <code>COPYRIGHT-AUDIT.md</code>
+&middot; data registry <code>data/README.md</code> &middot; performance <code>PERFORMANCE.md</code>.</p>
+</div></footer>
+</body>
+</html>

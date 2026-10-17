@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap for the Indian Weather Study Deck.
+
+  Three things worth knowing about this file:
+
+  1. It lists PAGES, not the 35 MB of GeoJSON under /data/. Those files are the substance of the
+     site but they are data, not documents: a crawler cannot render them usefully, and inviting it
+     to walk them is a waste of crawl budget. The Dataset entry in index.html's JSON-LD describes
+     them instead, which is the correct way to tell a search engine they exist.
+
+  2. lastmod is deliberately omitted rather than faked. A wrong lastmod is worse than none - it
+     tells the crawler the content changed when it did not, and earns a lower crawl rate over time.
+
+  3. If you switch to a custom domain, change the three <loc> values below and the one in robots.txt.
+
+  Validate with: https://www.google.com/webmasters/tools/sitemap and the Schema validator at
+  https://validator.schema.org/ - the JSON-LD in index.html is the part most likely to have a typo,
+  because nothing on the page renders differently when structured data is malformed.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://rahulvs26.github.io/Indian-weather/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://rahulvs26.github.io/Indian-weather/about.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

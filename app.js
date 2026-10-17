@@ -244,7 +244,9 @@ L.geoJSON(reg,{style:{color:"#9CA3AF",weight:1,fillColor:"#E8E5DE",fillOpacity:0
 const ind=await getJSON("data/india-detailed.geo.json","indiaDetailed");
 L.geoJSON(ind,{style:{color:"#1A1A1A",weight:1.6,fillColor:"#0F766E",fillOpacity:0.10}}).addTo(map);
 }catch(e){console.warn("geojson overlay failed",e);}
-/* state boundaries (GADM) + per-month rain highlight; tap a state for its name */
+/* state boundaries (Natural Earth admin-1, public domain) + per-month rain highlight; tap a state for
+   its name. NAME_1 holds this deck's own keys, preserved across the GADM -> Natural Earth swap in
+   v7.23g, so rain-state-avg.json needed no edit. */
 let stateLayers={};
 try{
 const st=await getJSON("data/india-states.geo.json","indiaStates");
@@ -1255,6 +1257,51 @@ _t3("tail");t3Stats.phases=_t3p;
    outside. A profiler nobody can read is how a 60-second build stayed invisible for that long. */
 window.__t3=t3Stats;
 window.__t3={hAt,yOf,stats:t3Stats,view:()=>({R:+R.toFixed(4),near:+cam.near.toFixed(5),tgt:[+tgt.x.toFixed(4),+tgt.y.toFixed(6),+tgt.z.toFixed(4)],fly:!!fly,th:+th.toFixed(3),ph:+ph.toFixed(3)}),nav:()=>({spin:spin,rel:REL,relScale:+relG.scale.y.toFixed(2),pan:panDrag,ptrs:ptrs.size}),setRel:setRel,setSpin:setSpin,hydro:()=>({m:hydroM,rf:+hydroRF.toFixed(3),fill:+hydroF.toFixed(3),rel:+hydroR.toFixed(3),scale:+(0.35+0.65*hydroF).toFixed(3),res0:resMeshes.length?+resMeshes[0].m.matrix.elements[0].toFixed(3):null,gates:relGates.length}),wx:()=>({m:hydroM,rf:+hydroRF.toFixed(3),rain:wxRN,wind:wxWN,vx:+wxVec.x.toFixed(2),vz:+wxVec.z.toFixed(2),pkt:pktN,west:draped.length-neCount}),colAt:h=>"#"+terrCol(h,new THREE.Color()).getHexString(),flyTo:(lo,la,r)=>startFly(new THREE.Vector3(X(lo),yOf(Math.max(0,hAt(lo,la)))*REL,Z(la)),r||0.004),glint:{n:heroGl.length,o:()=>glintMat?+glintMat.opacity.toFixed(3):null,at:i=>{const g=heroGl[i];return g?{x:+g[0].toFixed(5),y:+g[1].toFixed(6),z:+g[2].toFixed(5),s:+g[3].toFixed(6),py:g[4]?+g[4].position.y.toFixed(6):null}:null},sp:i=>heroGl[i]?heroGl[i][4]:null,mat:()=>glintMat}};
+/* v7.23f: frame-time benchmark for the 3D mountains. See data/_terrain_bench.mjs for why
+   this exists and, more importantly, for the caveat attached to the numbers it returns: this
+   environment renders through software GL, so absolute ms/frame is a pessimistic floor, not a
+   prediction for a real machine. The per-layer comparison is the usable part. */
+window.__t3.bench=function(n,opts){
+opts=opts||{};const nFrames=Math.max(1,Math.min(400,n||30)),warm=opts.warm==null?3:opts.warm;
+const w=opts.w||0,h=opts.h||0;
+if(w&&h){renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+/* name the subtrees so a layer can be switched off and its cost attributed. Traverse the whole
+   scene, not relG: the merged dam and reservoir batches are parented to the scene, so walking
+   relG alone found the terrain mesh and nothing else. */
+const bank={terrain:[],dams:[],reservoirs:[],rivers:[],markers:[],weather:[]};
+scene.traverse(o=>{
+  if(o.isMesh||o.isLine||o.isPoints||o.isSprite){
+    const g=o.geometry,m=o.material;
+    const tris=g&&g.attributes&&g.attributes.position?g.attributes.position.count:0;
+    if(o.userData&&o.userData.bench)return;
+    o.userData=o.userData||{};o.userData.bench=true;o.userData.benchTris=tris;
+    const name=(o.name||"").toLowerCase();
+    if(m&&m.transparent)bank.weather.push(o);
+    else if(tris>400000)bank.terrain.push(o);
+    else if(name.indexOf("river")>=0||name.indexOf("drape")>=0)bank.rivers.push(o);
+    else if(tris>3000)bank.reservoirs.push(o);
+    else if(tris===0)bank.markers.push(o);
+    else bank.dams.push(o);
+  }});
+const hidden=(opts.hide||[]).map(k=>bank[k]||[]).flat();
+hidden.forEach(o=>{o.userData.__wasVis=o.visible;o.visible=false;});
+const draw=()=>renderer.render(scene,cam);
+for(let i=0;i<warm;i++)draw();
+const t0=performance.now();
+for(let i=0;i<nFrames;i++)draw();
+const total=performance.now()-t0;
+hidden.forEach(o=>{o.visible=o.userData.__wasVis;});
+const per=total/nFrames;
+const tri=renderer.info.render.triangles,call=renderer.info.render.calls;
+return {frames:nFrames,totalMs:+total.toFixed(1),meanMs:+per.toFixed(2),
+  impliedFps:Math.round(1000/per),
+  triangles:tri,drawCalls:call,
+  buffer:cv3.width+"x"+cv3.height,
+  sizeAt:renderer.getSize(new THREE.Vector2()).x+"x"+renderer.getSize(new THREE.Vector2()).y,
+  banks:Object.keys(bank).map(k=>k+":"+bank[k].length),
+  glInfo:{renderer:(function(){try{const g=renderer.getContext();const d=g.getExtension("WEBGL_debug_renderer_info");return d?g.getParameter(d.UNMASKED_RENDERER_WEBGL):"unknown";}catch(e){return "unknown";}})()},
+  caveat:"software GL in this harness: absolute ms/frame is a pessimistic floor, not a real-GPU prediction"};
+};
 /* v7.3: dam hover labels — the top-300 recorded-height tier (same set as the 2D dam labels).
    Projection mirrors tag() exactly (y × REL, 420 px canvas); the label text is real CWC data. */
 const damTip=document.createElement("div");damTip.id="damTip";damTip.style.display="none";

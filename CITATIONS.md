@@ -48,8 +48,9 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
    tile pane only). Replaced OpenStreetMap volunteer tiles 2026-10-15 — their
    tile-usage policy 403-blocked the app after heavy testing (the block is what
    showed up on the map); do not point the layer back at OSM's servers.
-9. Natural Earth (public domain) — river centerlines; GADM (non-commercial
-   academic use) — state boundaries; Terrarium DEM tiles (AWS open data) — relief.
+9. Natural Earth (public domain) — river centerlines AND India state/union-territory
+   boundaries (admin-1, 10m; `data/india-states.geo.json`, rebuilt by
+   `data/_gen_india_states.mjs`); Terrarium DEM tiles (AWS open data) — relief.
 10. Bureau of Meteorology (Australia) — IOD definition, ±0.4 °C event rule;
     NOAA Climate.gov — IOD history; PIB/MoES — DWR counts and ranges;
     PMF IAS / IMD materials — monsoon branch dates.
@@ -106,17 +107,25 @@ original government source.** The individual files each name this in their own
     the two disagree, the published dam figure is the one shown and the
     discrepancy is named.
 
-## GADM — attribution is not sufficient; read the licence
+## GADM v4.1 — REMOVED, replaced by Natural Earth
 
-14. **GADM v4.1** (`gadm.org`), India level-1 boundaries, in
-    `data/india-states.geo.json`. Licence: *"freely available for academic use
-    and other non-commercial use. Redistribution, or commercial use is not allowed
-    without prior permission."*
+14. **GADM v4.1** was previously used for India level-1 boundaries in
+    `data/india-states.geo.json`. Its licence reads *"freely available for academic
+    use and other non-commercial use. Redistribution, or commercial use is not
+    allowed without prior permission"* — so it could not lawfully ship in a public
+    repository, and no credit line satisfied it.
 
-    **This is the one item in the audit that a credit line does not satisfy.**
-    Publishing the repository publishes the file. See `COPYRIGHT-AUDIT.md` F1 for
-    the three options, and `HOSTING.md` for the pre-publish blocker. Natural
-    Earth (public domain) is the drop-in replacement if the geometry is swapped.
+    **It has been replaced with Natural Earth admin-1 (public domain).** The
+    geometry now comes from `ne_10m_admin_1_states_provinces`, filtered to
+    `adm0_a3 = IND`, and the file carries `licence: public domain` in its own
+    header. `data/_gen_india_states.mjs` does the rebuild and refuses to run if a
+    key stops resolving.
+
+    Two consequences, both recorded in the file itself: Natural Earth merges
+    Dadra and Nagar Haveli with Daman and Diu (India merged them in 2020), and it
+    has Ladakh (carved out of Jammu and Kashmir in 2019), for which no rainfall row
+    exists. Boundary detail is coarser than GADM 4.1 — that was the price of being
+    able to publish. The history is in `COPYRIGHT-AUDIT.md` F1.
 
 ## Bureau of Meteorology (Australia) — diagrams held in `photos/`
 

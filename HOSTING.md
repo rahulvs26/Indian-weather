@@ -79,20 +79,16 @@ All three serve the files identically — there is no build in this project to r
 
 ## 5. Before you publish: the short checklist
 
-### Blocker — read this first
+### Blockers
 
-- [ ] **Resolve GADM.** `data/india-states.geo.json` is GADM v4.1, whose licence
-      says *"Redistribution, or commercial use is not allowed without prior
-      permission."* Publishing the repository publishes the file, and an
-      attribution line does **not** satisfy that licence. Pick one
-      (`COPYRIGHT-AUDIT.md` §F1 has the three options):
-      - **A.** swap the geometry for Natural Earth admin-1, public domain, and
-        re-key the state names in `months.json` and `rain-state-avg.json`
-      - **B.** write to GADM for permission
-      - **C.** do not publish the repository publicly
+- [x] **GADM resolved.** `data/india-states.geo.json` was GADM v4.1, whose licence
+      forbids redistribution without permission. It has been replaced with
+      **Natural Earth admin-1 (public domain)** by `data/_gen_india_states.mjs`.
+      35 of the 36 old keys still resolve; `DamanandDiu` is carried in
+      `merged_keys` after India's 2020 merger, and `Ladakh` is new and has no
+      rainfall row. Re-run the generator to confirm the guard still passes.
 
-      Until one of these is done, **do not make the repo public.** Everything
-      else on this page is ready.
+### Everything else
 
 ### Everything else
 

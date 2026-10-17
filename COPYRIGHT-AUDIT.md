@@ -11,11 +11,19 @@ Scope: every file that GitHub Pages would publish from this repository, as of
 | IMD PDFs, monographs, shapefiles in the tree | **none** — correctly git-ignored |
 | Third-party text reproduced verbatim | **none found** |
 | Items needing only an attribution line | 6 groups |
-| Items where attribution is **not** enough | **1 — GADM. Do not publish as-is.** |
+| Items where attribution is **not** enough | 1 — GADM. **RESOLVED in v7.23g**: replaced with Natural Earth admin-1 (public domain) |
 
 ---
 
-## F1 · BLOCKING — GADM may not be redistributed
+## F1 · RESOLVED in v7.23g — GADM replaced with Natural Earth
+
+> **This finding is closed.** GADM v4.1 may not be redistributed, so it was
+> replaced with Natural Earth admin-1 (public domain). Option **A** below was
+> taken. `data/_gen_india_states.mjs` rebuilds the file and aborts if any of the
+> 36 existing keys stops resolving; re-run it to re-verify. The reasoning is kept
+> below because the licence terms are what made the change necessary, and
+> because a future "simplification" that reintroduces GADM should have to read
+> why it was removed.
 
 `data/india-states.geo.json` — 41 MultiPolygon features, 204 KB. Fields are
 unmistakable GADM v4.1: `GID_1: "IND.1_1"`, `NAME_1`, `VARNAME_1`, `ENGTYPE_1`,
@@ -40,7 +48,7 @@ Two things follow, and they are different in kind:
    and it stops being fine the moment someone puts a GADM-only identifier in a
    key.
 
-**Options, cheapest first**
+**Options, cheapest first** — option A was taken; see the note above.
 
 | Option | Work | Result |
 |---|---|---|
@@ -48,12 +56,13 @@ Two things follow, and they are different in kind:
 | **B.** Write to GADM for redistribution permission | A letter | Unblocks publishing as-is; unbounded wait |
 | **C.** Keep it private, do not publish | none | You can host on a private repo served to yourself, but not on a public GitHub Pages site |
 
-I have not changed the file. Option A is roughly an hour of careful renaming and
-I would want your go-ahead first, because renaming state keys touches the map
-highlighting and the rainfall table, and a silent key mismatch there would show
-up as "the rain highlight does nothing" rather than as an error.
-
-Whatever you choose, this belongs in the pre-publish checklist in `HOSTING.md`.
+**What was actually done (option A).** Natural Earth admin-1 at 10m, filtered to
+`adm0_a3 = IND`, gives 36 features in 708 KB. The deck's existing 36 keys were
+preserved on `NAME_1` so `months.json` and `rain-state-avg.json` needed no edits at
+all; each feature also carries `name` (the readable Natural Earth name) and `src`.
+Two differences are declared in the file rather than smoothed over: Natural Earth
+merges Dadra and Nagar Haveli with Daman and Diu, and includes Ladakh, which has
+no rainfall row. Boundary detail is coarser than GADM 4.1.
 
 ---
 
@@ -184,9 +193,8 @@ itself):
 things a reader must be told, then two collapsible source lists, with the
 licence obligations that are legally stronger than a credit line (OSM's ODbL,
 GADM's no-redistribution, the BoM CC BY requirement) marked in place.
-`CITATIONS.md` gained the missing WRIS, GADM, imagery and library entries.
-`photos/SOURCES.md` and `data/README.md` were added. `HOSTING.md` gained GADM
-as a pre-publish blocker.
+`CITATIONS.md` gained the missing WRIS, imagery and library entries.
+`photos/SOURCES.md` and `data/README.md` were added.
 
 `data/_smoke.mjs` gained a section 8 that fails the build if the required rights
 notices go missing. Attribution is the one defect in this project that no other
@@ -195,9 +203,8 @@ non-compliant. It also fails if a binary file appears in the published tree
 without being named in a SOURCES note — a raster cannot carry its own credit,
 which is how the three orphaned BoM diagrams went unnoticed.
 
-**Not changed:** no data file was deleted, no licence text was paraphrased into
-permissiveness, and the GADM question is left as a decision in F1 rather than
-quietly resolved.
+**Later, in v7.23g:** GADM was replaced rather than left as a decision — see F1.
+No licence text was paraphrased into permissiveness at any point.
 
 **Re-run the audit any time:**
 
@@ -210,5 +217,5 @@ node data/_smoke.mjs             # are the required notices still on the page
 **Suggested credit line for anything you reuse:**
 
 > Indian Weather Study Deck — facts and data © India Meteorological Department,
-> CWC, WRIS/IndiaWRIS, GADM, Bureau of Meteorology, Natural Earth, Esri,
+> CWC, WRIS/IndiaWRIS, Bureau of Meteorology, Natural Earth, Esri,
 > OpenStreetMap contributors and OpenMapTiles, as cited per figure. Study use only.

@@ -1,5 +1,8 @@
 /* v7.2 rain average generator: IMD subdivision monthly rainfall 1901-2015 (open-data CSV mirror)
-   -> per-GADM-state monthly long-period means, mm/month.
+   -> per-state monthly long-period means, mm/month.
+   v7.23g: written when india-states.geo.json came from GADM. The NAME_1 keys it maps onto are
+   preserved exactly by the Natural Earth swap (data/_gen_india_states.mjs), so nothing here had
+   to change - the key names are this deck's own, and the geometry behind them is now public domain.
    Run: node data/_gen_rain_avg.mjs   (rewrites data/rain-state-avg.json)
    Source CSV stays in data/_src/ (git-ignored, fetched copy). Fetch URL:
    https://raw.githubusercontent.com/ayushmauryaiitj/Monsoon-Drought-Analytics/main/data/rainfall%20in%20india%201901-2015.csv

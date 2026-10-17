@@ -45,7 +45,7 @@ Derivatives only. The originals are never published.
 ### Open data
 | File | Size | Features | Source |
 |---|---|---|---|
-| `india-states.geo.json` | 204 KB | 41 | **GADM v4.1** — see `COPYRIGHT-AUDIT.md` F1. Redistribution is not permitted by its licence |
+| `india-states.geo.json` | 708 KB | 36 | **Natural Earth admin-1** (10m), public domain. Replaced GADM v4.1 (no redistribution permitted). Built by `_gen_india_states.mjs`, which aborts if a key stops resolving. Dadra & Nagar Haveli / Daman & Diu arrive merged; Ladakh has no rainfall row |
 | `india-detailed.geo.json` | 280 KB | 1 | India outline + coast, used for the coastal routing test |
 | `india-rivers.geo.json` | 83 KB | 109 | Natural Earth river centrelines (public domain) |
 | `india-rivers-west.geo.json` | 181 KB | 633 | west-flowing subset, ≥30 km, Douglas–Peucker ≈0.9 km |

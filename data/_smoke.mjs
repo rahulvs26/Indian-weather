@@ -210,8 +210,11 @@ ok(/not our/i.test(html) && /copyright/i.test(html),
   "the footer states that the material is owned by others", "ownership disclaimer missing");
 ok(/illustrative/i.test(html),
   "the footer explains that (illustrative) figures are invented", "illustrative note missing");
-ok(/GADM/.test(html) && /redistribut/i.test(html),
-  "the GADM redistribution restriction is stated, not just the credit", "GADM warning missing");
+ok(/GADM/.test(html) === false || /replaced GADM|replaced with Natural Earth/.test(html),
+  "the page does not claim GADM is in use, and if it mentions GADM it says it was replaced",
+  "the footer still presents GADM as a live dependency");
+ok(/Natural Earth/.test(html) && /[Pp]ublic domain/.test(html),
+  "Natural Earth is credited as the public-domain boundary source", "Natural Earth credit missing");
 ok(/Bureau of Meteorology/.test(html) && /3\.0 AU/.test(html),
   "the BoM diagrams carry their CC BY 3.0 AU credit", "BoM credit missing");
 ok(/MIT|BSD/.test(html),

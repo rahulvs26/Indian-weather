@@ -7,7 +7,7 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.23e">
+<link rel="stylesheet" href="styles.css?v=7.23g">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -361,9 +361,10 @@ and other open sources, &copy; OpenMapTiles.</p>
 <code>photos/</code>, &copy; Commonwealth of Australia 2013, under
 <a href="https://creativecommons.org/licenses/by/3.0/au/" target="_blank" rel="noopener">CC BY 3.0 AU</a>.
 Currently not displayed; see <code>photos/SOURCES.md</code>.</p>
-<p class="srcWarn"><b>&copy; GADM v4.1</b> is used for state boundaries. Its licence does not permit
-redistribution, so this repository must not be published as-is until that is resolved &mdash; see
-<code>COPYRIGHT-AUDIT.md</code> finding F1.</p>
+<p><b>State boundaries</b> &mdash; India states and union territories from
+<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a> admin-1
+at 10m resolution. Public domain. These replaced GADM v4.1, whose licence forbids redistribution
+without permission; boundary detail is slightly coarser as a result.</p>
 </div></details>
 
 <p class="discFine">Study demo &mdash; not an operational product, not an IMD publication.
@@ -376,8 +377,8 @@ OpenStreetMap contributors, OpenMapTiles and Bureau of Meteorology, as cited per
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
-<script src="data/_mjo-article.mjs?v=7.23e" type="module"></script>
-<script src="app.js?v=7.23e" defer></script>
+<script src="data/_mjo-article.mjs?v=7.23g" type="module"></script>
+<script src="app.js?v=7.23g" defer></script>
 <script type="module" src="map3d.js?v=7.22s"></script>
 </body>
 </html>

@@ -178,6 +178,30 @@ table.mini th,table.mini td{border:1px solid var(--line);padding:6px 8px;text-al
 .damNo{font-size:10px;color:#9fb4c7;padding:2px 4px}
 .damMsg{margin-top:5px;font-size:10px;color:#5EEAD4;min-height:12px}
 .damCities{margin-top:4px;font-size:10px;color:#FDE68A;line-height:1.45}
+.damFacts{margin-top:5px;font-size:10px;color:#CBD5E1;line-height:1.5;border-left:2px solid #0F766E;padding-left:6px}
+.damFacts .damSrc{color:#5EEAD4}
+.damCtl{margin-top:7px;display:flex;flex-direction:column;gap:5px}
+.damDir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10px;color:#E2E8F0}
+.damDir>span{color:#94A3B8;letter-spacing:.02em}
+.damDir label{display:flex;align-items:center;gap:3px;cursor:pointer}
+.damRelRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:#CBD5E1}
+.damRelRow label{color:#94A3B8}
+.damRelRow select,.damRelRow input[type=number]{background:#0B1F22;border:1px solid #14524F;color:#F1F5F9;border-radius:4px;padding:2px 4px;font-size:10px}
+.damRelRow input[type=number]{width:78px}
+.dim{color:#8FA3AE}
+.damRead{font-size:10px;color:#E2E8F0;line-height:1.6;background:rgba(2,20,24,.55);border:1px solid #14524F;border-radius:5px;padding:5px 6px}
+.damRead .warn{color:#FBBF24}
+.damRead .damHint{margin-top:3px;color:#7E93A0;font-size:9px;line-height:1.4}
+.damFill{margin-top:4px;border-collapse:collapse;width:100%;font-size:9.5px}
+.damFill th,.damFill td{border-top:1px solid #14524F;padding:2px 3px;text-align:right}
+.damFill th:first-child,.damFill td:first-child{text-align:left}
+.damFill th{color:#94A3B8;font-weight:500}
+.damGateHead{margin-top:6px;font-size:10px;color:#CBD5E1}
+.damGateSum{color:#5EEAD4}
+.damGateGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:2px 6px;margin-top:3px;max-height:104px;overflow:auto}
+.damGate{display:flex;align-items:center;gap:3px;font-size:9px;color:#94A3B8}
+.damGate input[type=range]{flex:1;min-width:34px;accent-color:#2DD4BF;height:14px}
+.damGateNote{margin-top:6px;font-size:9.5px;color:#8FA3AE;line-height:1.45}
 .damChkRow{display:flex;gap:12px;margin-top:7px;flex-wrap:wrap}
 .damChk{display:flex;align-items:center;gap:4px;font-size:10.5px;color:#cfe0d8;cursor:pointer}
 .damChk input{accent-color:#2DD4BF}

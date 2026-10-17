@@ -144,6 +144,57 @@ function makeAxis(feature,lat0){
 }
 
 /* flatten any geometry into a flat [lon,lat,lon,lat,…] segment list (coast test input) */
+export function recordedStart(feature){
+  const p=feature.properties||{};
+  if(typeof p.st_lon==="number"&&typeof p.st_lat==="number")return [p.st_lon,p.st_lat];
+  const en=recordedEnd(feature);
+  let near=null,nd=Infinity;
+  for(const line of partsOf(feature.geometry))for(const c of line){
+    if(!c)continue;
+    const d=hav(en,c);
+    if(d<nd){nd=d;near=c;}
+  }
+  return near;
+}
+
+/* ---- units (exact conversions, not estimates) ----------------------------------
+   1 TMC = 1,000,000 ft3 = 28,316.8466 m3   ·   1 cfs = 1 ft3/s = 0.0283168466 m3/s */
+export const TMC_M3=28316.8466;
+export const CFS_M3S=0.0283168466;
+export const M3S_CFS=1/CFS_M3S;
+
+/* ---------------------------------------------------------------- release ---- */
+/* A dam does not empty at once: it releases through gates at a DISCHARGE rate.
+   Given the course length, a release rate and (optionally) a volume cap, this returns the
+   honest, clearly illustrative timings:
+     frontDays  = how long the leading edge takes to travel the course (kinematic wave)
+     gateDays   = how long the gates stay open for the released volume
+     daysToSea  = when the leading edge reaches the mouth
+     daysAllOut = when the last of the released water has passed the mouth
+   The fill time of any downstream reservoir is travel time + volume-to-fill / rate. */
+export function releasePlan(totalKm,o){
+  o=o||{};
+  const waveKmDay=o.waveKmDay||129.6;          /* 1.5 m/s kinematic wave — illustrative */
+  const rateM3s=Math.max(0,o.rate_m3s||0);
+  const volCapM3=(o.volumeCapTmc!=null&&o.volumeCapTmc>0)?o.volumeCapTmc*TMC_M3:null;
+  const gateDays=rateM3s>0?(volCapM3!=null?volCapM3/rateM3s:Infinity)/86400:Infinity;
+  const frontDays=totalKm/waveKmDay;
+  return {
+    rate_m3s:rateM3s,rate_cfs:rateM3s*M3S_CFS,waveKmDay,
+    volume_m3:volCapM3!=null?Math.min(volCapM3,rateM3s*86400*(isFinite(gateDays)?gateDays:0)):null,
+    gateOpenDays:gateDays,frontDays,
+    daysToSea:frontDays,daysAllOut:frontDays+gateDays,
+    /* days until a reservoir `atKm` along the course is full (volume needed / rate) */
+    fillDays:(atKm,liveTmc)=>{
+      if(!(rateM3s>0))return null;
+      const travel=atKm/waveKmDay;
+      const need=(liveTmc!=null&&liveTmc>0)?liveTmc*TMC_M3/rateM3s/86400:gateDays;
+      return travel+Math.min(need,isFinite(gateDays)?gateDays:need);
+    }
+  };
+}
+
+/* flatten any geometry into a flat [lon,lat,lon,lat,…] segment list (coast test input) */
 export function coastSegments(geojson){
   const segs=[];
   const pushRing=r=>{for(let i=0;i<r.length-1;i++){if(r[i]&&r[i+1]){segs.push(r[i]);segs.push(r[i+1]);}}};
@@ -248,10 +299,13 @@ export function crossCities(coords,cities,maxKm){
    among equal-hop paths, the branch whose continuation can still reach the coast comes first. */
 export function walkFeature(feature,from,o){
   o=o||{};
-  const coast=o.coastTest||null,coastKm=o.coastKm||COAST_KM,linkKm=o.linkKm||LINK_KM;
+  const coast=(o.upstream?null:o.coastTest)||null;   /* an upstream walk has no sea preference */
+  const coastKm=o.coastKm||COAST_KM,linkKm=o.linkKm||LINK_KM;
   const parts=partsOf(feature.geometry).map(q=>q.slice());
   const ax=makeAxis(feature,from[1]);
-  const SEA=recordedEnd(feature);
+  /* downstream walk: the target is the river's recorded END (its mouth/lower end).
+     upstream walk (v7.12): the target is the recorded START, so the path runs to the source. */
+  const SEA=o.upstream?recordedStart(feature):recordedEnd(feature);
   const proj=ax?ax.proj:(pt=>-hav(pt,SEA));
   const reach=coast?(pt=>reachesSea(pt,coast,coastKm)):(pt=>false);
   const P=plane(from[1]);
@@ -355,7 +409,9 @@ export function walkFeature(feature,from,o){
         const s0=rev?E1(k):E0(k);
         const e0=rev?E0(k):E1(k);
         const gap=hav(pos,s0);if(gap>linkKm)continue;
-        const upflow=SEA?(hav(e0,SEA)>hav(pos,SEA)+2):false;
+        /* on an upstream walk the target is the source, so "moving away from it" is normal meander —
+       the upflow veto only applies to the downstream walk */
+    const upflow=(SEA&&!o.upstream)?(hav(e0,SEA)>hav(pos,SEA)+2):false;
         const score=(upflow?1e7:0)+3*(SEA?hav(e0,SEA):0)-10*(proj(e0)-proj(pos))+gap*0.01;
         if(!best||score<best.score)best={k,rev,gap,score};
       }
@@ -375,6 +431,7 @@ export function walkFeature(feature,from,o){
 /* ---------------------------------------------------------------- main ---- */
 export function solveRoute(idx,features,coastSegs,dam,opts){
   const o=opts||{};
+  const up=!!o.upstream;                      /* v7.12: trace back to the reservoir origin */
   const snap=o.snapKm||SNAP_KM,link=o.linkKm||LINK_KM,coastKm=o.coastKm||COAST_KM;
   const coastTest=o.coastTest||(coastSegs&&coastSegs.length?makeCoastTest(coastSegs):null);
   const hit=nearestRiver(idx,features,[dam.lon,dam.lat],snap,null);
@@ -387,14 +444,14 @@ export function solveRoute(idx,features,coastSegs,dam,opts){
     if(!feat)break;
     const nm=(feat.properties&&feat.properties.rivname)||"river";
     chains.push(nm);used.add(f);
-    const w=walkFeature(feat,from,{coastTest,coastKm,linkKm:link});
-    for(let i=1;i<w.course.length;i++)course.push(w.course[i]);
+    const w=walkFeature(feat,from,{coastTest,coastKm,linkKm:link,upstream:up});
+    /* the walk starts at the snap point and runs toward the target in BOTH modes (the target is
+       the river's recorded end downstream, its recorded start upstream), so the course always
+       begins at the dam — no reversal needed. */
+    const leg=w.course;
+    for(let i=1;i<leg.length;i++)course.push(leg[i]);
     const end=w.endedAt||w.course[w.course.length-1];
-    if(reachesSea(end,coastTest,coastKm)){coastal=true;to=nm+" → coast";break;}
-    /* chain into the river that continues the system: prefer a MAIN stem (longer recorded
-       length), then one whose recorded end is itself at the sea, then the closest join.
-       Ranking by "recorded end nearest the sea" alone used to pick 10-km hill streams over the
-       Ganga, because a stub's end can happen to sit closer to the coast than a trunk's. */
+    if(!up&&reachesSea(end,coastTest,coastKm)){coastal=true;to=nm+" → coast";break;}
     let pick=null;
     const cands=candidatesNear(idx,end,link).map(cf=>({cf,h:nearestOnFeature(features[cf],end)}))
       .filter(x=>x.h.dKm<=link)
@@ -402,20 +459,37 @@ export function solveRoute(idx,features,coastSegs,dam,opts){
     for(const x of cands){
       if(used.has(x.cf))continue;
       const feat=features[x.cf],p=feat.properties||{};
-      const e2=recordedEnd(feat);
-      if(!e2)continue;
-      const len=typeof p.len_km==="number"?p.len_km:0;
-      const atSea=reachesSea(e2,coastTest,coastKm);
-      const score=-Math.min(len,1200)*2+(atSea?-1e5:0)+x.h.dKm;
-      if(!pick||score<pick.score)pick={f:x.cf,score,hit:x.h};
+      /* downstream: keep the main stem that can still reach the sea.
+         upstream: keep the main stem whose recorded START is the highest/furthest back. */
+      if(up){
+        const s2=recordedStart(feat);
+        if(!s2)continue;
+        const len=typeof p.len_km==="number"?p.len_km:0;
+        /* only chain into a real tributary, not every 8-km gully (CWC "Hole"/"Hole stream"
+           features otherwise chain the walk into dozens of headwater branches) */
+        const here=typeof (features[f].properties||{}).len_km==="number"?features[f].properties.len_km:0;
+        if(len<here*0.4)continue;
+        const score=-Math.min(len,1200)*2-x.h.dKm;
+        if(!pick||score<pick.score)pick={f:x.cf,score,hit:x.h};
+      }else{
+        const e2=recordedEnd(feat);
+        if(!e2)continue;
+        const len=typeof p.len_km==="number"?p.len_km:0;
+        const atSea=reachesSea(e2,coastTest,coastKm);
+        const score=-Math.min(len,1200)*2+(atSea?-1e5:0)+x.h.dKm;
+        if(!pick||score<pick.score)pick={f:x.cf,score,hit:x.h};
+      }
     }
     if(!pick||pick.f===f)break;
     f=pick.f;from=[pick.hit.lon,pick.hit.lat];
   }
-  if(!coastal&&chains.length)to=chains[chains.length-1]+" → recorded river end (inland)";
+  if(!coastal&&chains.length)to=up
+    ?chains[chains.length-1]+" → recorded river source"
+    :chains[chains.length-1]+" → recorded river end (inland)";
   const simp=simplifyDP(course,DP_TOL_KM,dam.lat).map(q=>[+q[0].toFixed(5),+q[1].toFixed(5)]);
   const km=lineKm(simp);
-  return {coords:simp,totalKm:+km.toFixed(2),arrivalDays:+(km/KM_DAY).toFixed(2),coastal,chains,to,
-    snapKm:+hit.dKm.toFixed(2),speed_m_s:SPEED_M_S,
+  const src=up?recordedStart(features[f]):null;
+  return {coords:simp,totalKm:+km.toFixed(2),arrivalDays:+(km/KM_DAY).toFixed(2),coastal:up?false:coastal,chains,to,
+    snapKm:+hit.dKm.toFixed(2),speed_m_s:SPEED_M_S,upstream:up,source:src,
     cities:crossCities(simp,o.cities||[],o.corridorKm||CORRIDOR_KM)};
 }

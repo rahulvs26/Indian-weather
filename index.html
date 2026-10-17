@@ -7,11 +7,11 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.10">
+<link rel="stylesheet" href="styles.css?v=7.12">
 </head>
 <body>
 <header class="top"><div class="wrap">
-<div class="brand">Indian Weather <small>study deck · v7.11</small></div>
+<div class="brand">Indian Weather <small>study deck · v7.12</small></div>
 <nav aria-label="Sections"><a href="#map">Map</a><a href="#monsoon">Monsoon</a><a href="#iod">IOD</a><a href="#heat">Heat/Cold</a><a href="#deck">Deck</a></nav>
 </div></header>
 
@@ -35,6 +35,14 @@
 <div class="damResults" id="damResults"></div>
 <div class="damSub" id="damSub">Pick a dam to derive its river course.</div>
 <div class="damCities" id="damCities"></div>
+<div class="damFacts" id="damFacts"></div>
+<div class="damCtl">
+<div class="damDir"><span>Trace</span><label><input type="radio" name="damDir" id="damDirDown" value="down" checked> Downstream → sea</label><label><input type="radio" name="damDir" id="damDirUp" value="up"> Upstream → source</label></div>
+<div class="damGates" id="damGates"></div>
+<div class="damRelRow"><label for="damRate">Release rate</label><select id="damUnit" aria-label="Release rate unit"><option value="cms">m³/s</option><option value="cfs">cfs</option></select><input id="damRate" type="number" min="0" step="100" value="20000" inputmode="numeric"><span class="dim" id="damRateHint">leave 0 to let the gate sliders set it</span></div>
+<div class="damRelRow"><label for="damVol">Volume to release</label><input id="damVol" type="number" min="0" step="1" value="20" inputmode="decimal"><span class="dim">TMC (0 = keep releasing until you stop it)</span></div>
+<div class="damRead" id="damRead"></div>
+</div>
 <div class="damStat" id="damStat">—</div>
 <div class="damMsg" id="damMsg"></div>
 <div class="damChkRow"><label class="damChk"><input type="checkbox" id="damBird" checked> Bird's-eye</label><label class="damChk"><input type="checkbox" id="damFollow" checked> Zoom follows wave</label><label class="damChk"><input type="checkbox" id="damSmooth"> Smooth (flat 2D)</label></div>
@@ -264,6 +272,6 @@ Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHE
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
 <script src="app.js?v=7.8" defer></script>
-<script type="module" src="map3d.js?v=7.11"></script>
+<script type="module" src="map3d.js?v=7.12"></script>
 </body>
 </html>

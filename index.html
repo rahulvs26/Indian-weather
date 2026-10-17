@@ -7,7 +7,7 @@
 <meta name="description" content="Minimalist interactive study site: Esri pastel relief India map, monthly winds Jan-Sep, IOD, heat/cold waves, Doppler radars, 3D map.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<link rel="stylesheet" href="styles.css?v=7.22z">
+<link rel="stylesheet" href="styles.css?v=7.23a">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -294,15 +294,90 @@ it is regularly confused with. Tap any of the eight sectors of the phase diagram
 </main>
 
 <footer><div class="wrap">
-<b style="color:var(--ink)">Sources (pdf/):</b> monsoon_report_2025_2 (310 pp) · swmonsoon_yprao (376 pp) · met_monograph NE (224 pp) · Cold_Heat_Waves (202pp) · MM2 (565 pp) · 569-589 IOD (21 pp) — all © IMD / respective authors, used for study with attribution; full citations in <code>CITATIONS.md</code>.<br>
-<b style="color:var(--ink)">Web (Oct 2026):</b> IMD 4-season; Esri World Terrain Base tiles, re-tinted pastel via CSS (Tiles © Esri — Esri, USGS, NOAA); 3D map view: MapLibre GL JS (BSD-3, keyless) + OpenFreeMap vector tiles + Mapterhorn DEM + OSM building extrusions — © OpenMapTiles / © OpenStreetMap contributors / © Mapterhorn; DWR counts/ranges via PIB/MoES; branch dates via PMF IAS/IMD; rivers Natural Earth + CWC west-flowing subset (data/india-rivers-west.geo.json, 633 lines); states GADM; DEM Terrarium; IOD rules BOM/NOAA. User CWC shapefiles (basins, rivers, dams, reservoirs, lakes) — dam 3D cross-sections follow the CWC type/height columns (earth 2.5:1, rockfill 1.5:1, CFRD slab, stepped gravity; illustrative anatomy). The v7.6 dam-release route is derived from the CWC 'Mahanadi River' centre-line (data/dam-route-hirakud.geo.json; see data/_gen_dam_route.mjs) — travel speed illustrative.<br>
-Study demo — not operational, not an IMD publication. Spec <code>INDIAN_WEATHER_SPEC.md</code>. Future live: <code>window.INDWeather.live = { imdWMS, openMeteo }</code>.
+<div class="disc">
+  <h2 class="discH">Sources, rights &amp; disclaimer</h2>
+  <p><b>This is a personal, non-commercial study project.</b> It is not a publication of the
+  India Meteorological Department, the Central Water Commission, WRIS, or any other body named
+  below. Nobody involved in producing the underlying data has reviewed or endorsed this site.</p>
+  <ul class="discList">
+    <li><b>The data and imagery are not ours.</b> Every map layer, table, figure and photo here
+    belongs to its original owner and remains their copyright. This project only hosts copies of
+    those files and re-derives measurements from them. Ownership is unchanged by being displayed.</li>
+    <li><b>Accuracy is not guaranteed.</b> Figures are transcribed from published sources and may
+    carry transcription, rounding, unit-conversion or derivation error. Where a number was measured
+    here rather than published, the card says so. Where a source did not state a value, the site says
+    "not recorded in the sources used" instead of filling the gap. Treat this as a study aid, never
+    as an operational forecast &mdash; for real warnings use the official IMD channels.</li>
+    <li><b>Figures marked "(illustrative)" are invented on purpose.</b> Dam cross-sections, rainfall
+    intensities, travel speeds and the catchment-storm model are drawn from standard engineering
+    conventions so the mechanics can be seen. They are not observations and must not be used for
+    design, safety or planning.</li>
+    <li><b>Reuse.</b> The prose, the instruments and the code here are the author's study notes and
+    may be reused with credit. The underlying data are <i>not</i> ours to relicense &mdash; cite the
+    original source, not this site. Read <code>CITATIONS.md</code> before reusing anything, because
+    one dataset here may not be redistributed at all.</li>
+  </ul>
+  <p class="discErr"><b>Corrections welcome.</b> If an owner wants material removed or a credit
+  changed, that is a reasonable request and it will be honoured &mdash; see
+  <code>COPYRIGHT-AUDIT.md</code> for exactly what is here and under what terms.</p>
+</div>
+
+<details class="srcBox"><summary><b>Data &amp; documents</b> &mdash; click to expand</summary>
+<div class="srcCol">
+<p><b>India Meteorological Department</b> (© Govt. of India, Ministry of Earth Sciences) &mdash;
+<i>Monsoon 2025: A Report</i>; Rao (1976) <i>Southwest Monsoon</i>; <i>Northeast Monsoon of South
+Asia</i> (2022); <i>Heat and Cold Waves in India</i> (2023); <i>Monsoon Monograph Vol.&nbsp;2</i>
+(2012); Vinayachandran, Francis &amp; Rao, <i>Indian Ocean Dipole: Processes and Impacts</i>.
+Full references in <code>CITATIONS.md</code>. These PDFs are <b>not</b> published here; they are
+quoted for study with attribution.</p>
+<p><b>WRIS / IndiaWRIS</b>, via <code>ramSeraph/indian_water_features</code> releases
+<code>hydro-boundaries</code> and <code>waterbodies</code> &mdash; watershed polygons, catchment
+areas, reservoir outlines, river network and dam points. <b>CC0</b>, with attribution to datameet
+and the original government source.</p>
+<p><b>Central Water Commission</b> &mdash; basin and sub-basin polygons, dam/barrage/weir points,
+reservoir and glacial-lake outlines, supplied to this project as shapefiles and re-derived here.</p>
+<p><b>Government of India open data</b> (data.gov.in) &mdash; subdivision rainfall 1901&ndash;2015,
+used to compute state monthly averages. A 1901&ndash;2015 record mean, <i>not</i> the official
+1971&ndash;2000 LPA.</p>
+<p><b>Natural Earth</b> (public domain) &mdash; river centrelines and the India outline.</p>
+<p><b>IMD / PIB / MoES</b> &mdash; radar station list and ranges; annual seasonal summaries.</p>
+<p><b>NOAA, BoM, IIT Bombay CAS</b> &mdash; IOD definitions and event years; MJO phase behaviour.</p>
+</div></details>
+
+<details class="srcBox"><summary><b>Maps, tiles &amp; libraries</b> &mdash; click to expand</summary>
+<div class="srcCol">
+<p class="srcMust"><b>Required attribution &mdash; OpenStreetMap contributors</b> (ODbL 1.0).
+Building extrusions in the 3D view are &copy; OpenStreetMap contributors, available under the
+<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">Open Database
+Licence</a>.</p>
+<p><b>Esri World Terrain Base</b> &mdash; 2D basemap tiles, &copy; Esri. Re-tinted in CSS; no tile
+data is stored or redistributed here.</p>
+<p><b>OpenMapTiles / OpenFreeMap</b> &mdash; 3D vector basemap and glyphs. Natural Earth, OpenStreetMap
+and other open sources, &copy; OpenMapTiles.</p>
+<p><b>Terrarium DEM</b> (AWS Open Data) and <b>Mapterhorn DEM</b> &mdash; 3D relief.</p>
+<p><b>Libraries</b> &mdash; Leaflet 1.9.4 (BSD-2-Clause), Three.js r160 (MIT), MapLibre GL JS
+(BSD-3-Clause).</p>
+<p><b>Bureau of Meteorology (Australia)</b> &mdash; Indian Ocean Dipole diagrams in
+<code>photos/</code>, &copy; Commonwealth of Australia 2013, under
+<a href="https://creativecommons.org/licenses/by/3.0/au/" target="_blank" rel="noopener">CC BY 3.0 AU</a>.
+Currently not displayed; see <code>photos/SOURCES.md</code>.</p>
+<p class="srcWarn"><b>&copy; GADM v4.1</b> is used for state boundaries. Its licence does not permit
+redistribution, so this repository must not be published as-is until that is resolved &mdash; see
+<code>COPYRIGHT-AUDIT.md</code> finding F1.</p>
+</div></details>
+
+<p class="discFine">Study demo &mdash; not an operational product, not an IMD publication.
+Spec <code>INDIAN_WEATHER_SPEC.md</code> &middot; full bibliography <code>CITATIONS.md</code> &middot;
+rights audit <code>COPYRIGHT-AUDIT.md</code> &middot; data registry <code>data/README.md</code>.<br>
+Suggested credit for anything reused from the study notes:
+<em>Indian Weather Study Deck (2026); facts &copy; IMD, CWC, WRIS/IndiaWRIS, Natural Earth, Esri,
+OpenStreetMap contributors, OpenMapTiles and Bureau of Meteorology, as cited per figure. Study use only.</em></p>
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/embedded.js?v=7.4"></script>
-<script src="data/_mjo-article.mjs?v=7.22z" type="module"></script>
-<script src="app.js?v=7.22z" defer></script>
+<script src="data/_mjo-article.mjs?v=7.23a" type="module"></script>
+<script src="app.js?v=7.23a" defer></script>
 <script type="module" src="map3d.js?v=7.22s"></script>
 </body>
 </html>

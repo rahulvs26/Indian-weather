@@ -79,14 +79,39 @@ All three serve the files identically — there is no build in this project to r
 
 ## 5. Before you publish: the short checklist
 
-- [ ] `node data/_smoke.mjs` — 36 checks, all passing
+### Blocker — read this first
+
+- [ ] **Resolve GADM.** `data/india-states.geo.json` is GADM v4.1, whose licence
+      says *"Redistribution, or commercial use is not allowed without prior
+      permission."* Publishing the repository publishes the file, and an
+      attribution line does **not** satisfy that licence. Pick one
+      (`COPYRIGHT-AUDIT.md` §F1 has the three options):
+      - **A.** swap the geometry for Natural Earth admin-1, public domain, and
+        re-key the state names in `months.json` and `rain-state-avg.json`
+      - **B.** write to GADM for permission
+      - **C.** do not publish the repository publicly
+
+      Until one of these is done, **do not make the repo public.** Everything
+      else on this page is ready.
+
+### Everything else
+
+- [ ] `node data/_smoke.mjs` — 39 checks, all passing
+- [ ] `node data/_run_tests.mjs` — 6 of 6 suites
 - [ ] `git ls-files | wc -l` and confirm `Shape files/` and `pdf/` are **not** in the list
+- [ ] `node data/_audit_inventory.mjs` — confirms no document or spreadsheet has crept in, and
+      lists any binary file in the published tree that needs its own credit line
 - [ ] confirm no secrets: `data/live.json` is gitignored (it holds API keys)
+- [ ] decide what to do with `photos/iod-*.png` — they are Bureau of Meteorology
+      diagrams, CC BY 3.0 AU, **referenced by nothing**. Use them with the credit
+      in `photos/SOURCES.md`, or add `photos/` to `.gitignore`
 - [ ] open the published URL and **click a dam, open the storm block, and look at the reservoirs** —
       the automated checks cannot see that anything is drawn in the right place, and that gap is
       documented in `PERFORMANCE.md` §3
 - [ ] run the probe from `PERFORMANCE.md` against the live URL and compare the numbers with the local
       ones, especially the 14.6 MB river file
+- [ ] read the current OpenMapTiles and Esri tile terms yourself if you use the 3D map — this
+      machine could not reach them, so `COPYRIGHT-AUDIT.md` §F5 is marked unverified
 
 If you want, I can add the `CNAME` file, a one-command publish script, or a small banner that names
 the data sources — say which and I'll do it.

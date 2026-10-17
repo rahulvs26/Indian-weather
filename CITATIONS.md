@@ -79,3 +79,87 @@ Sciences, Govt. of India — used for non-commercial study with attribution)
 
 Page text, instruments and code are the author's study notes. Suggested credit:
 "Indian Weather Study Deck (2026), facts © IMD et al. as cited."
+
+---
+
+# Added by the copyright audit
+
+## WRIS / IndiaWRIS — the largest data group, previously uncited
+
+Sourced from the `ramSeraph/indian_water_features` releases
+`hydro-boundaries` and `waterbodies`. **CC0 with attribution to datameet and the
+original government source.** The individual files each name this in their own
+`note` field; it is recorded here because `CITATIONS.md` had not caught up.
+
+13. **IndiaWRIS** (National River Water Institute / Ministry of Jal Shakti),
+    via `github.com/ramSeraph/indian_water_features`, releases `hydro-boundaries`
+    and `waterbodies`. CC0 with attribution to datameet and the original
+    government source. Supplies: `data/watersheds.geo.json` (4,560 watershed
+    polygons) and `data/watershed-areas.json` (their **published** `area_km2`,
+    never re-derived from geometry); `data/reservoirs.geojson` (5,160 outlines);
+    `data/rivers-cwc.geo.json` (30,395 river lines); `data/dams.geo.json`
+    (13,002 dam/barrage/weir points); `data/river-stats.json` (27,479 measured
+    lengths, haversine over those coordinates).
+
+    **Catchment caveat, stated on every affected card:** a WRIS watershed is the
+    mapped *watershed unit*, a floor — not the full catchment above a dam. Where
+    the two disagree, the published dam figure is the one shown and the
+    discrepancy is named.
+
+## GADM — attribution is not sufficient; read the licence
+
+14. **GADM v4.1** (`gadm.org`), India level-1 boundaries, in
+    `data/india-states.geo.json`. Licence: *"freely available for academic use
+    and other non-commercial use. Redistribution, or commercial use is not allowed
+    without prior permission."*
+
+    **This is the one item in the audit that a credit line does not satisfy.**
+    Publishing the repository publishes the file. See `COPYRIGHT-AUDIT.md` F1 for
+    the three options, and `HOSTING.md` for the pre-publish blocker. Natural
+    Earth (public domain) is the drop-in replacement if the geometry is swapped.
+
+## Bureau of Meteorology (Australia) — diagrams held in `photos/`
+
+15. **Bureau of Meteorology**, Indian Ocean Dipole positive / negative / neutral
+    diagrams, `photos/iod-*.png`. © Commonwealth of Australia 2013, published
+    under **Creative Commons Attribution 3.0 Australia** (`bom.gov.au/copyright`).
+    Reuse permitted **with visible attribution**. Required credit:
+
+    > Indian Ocean Dipole diagrams: Bureau of Meteorology, © Commonwealth of
+    > Australia 2013, used under Creative Commons Attribution 3.0 Australia
+    > (CC BY 3.0 AU).
+
+    Currently **unreferenced by the site** — see `photos/SOURCES.md`.
+
+## Libraries and tile services — licence obligations, not just credit
+
+16. **Leaflet 1.9.4** (BSD-2-Clause) · **Three.js r160** (MIT) · **MapLibre GL JS**
+    (BSD-3-Clause). Loaded from unpkg. The licence notices must be kept.
+17. **OpenStreetMap** building extrusions (ODbL 1.0). *"© OpenStreetMap
+    contributors"* must be **visible on the page with a link to
+    openstreetmap.org/copyright**. That is an attribution obligation, not just a
+    credit.
+18. **OpenMapTiles / OpenFreeMap** vector tiles (`tiles.openfreemap.org`).
+    OpenMapTiles Data Licence: free with attribution, but not for building a
+    competing tile service and not for bulk redistribution of the tiles.
+19. **Esri World Terrain Base** (`server.arcgisonline.com`). The Esri terms cover
+    *viewing the service*; the tiles are **not** redistributable. The deck
+    re-tints them in CSS and commits no tile data.
+20. **Terrarium DEM** (AWS Open Data, `s3.amazonaws.com`) · **Mapterhorn DEM**
+    (`tiles.mapterhorn.com`) · **OpenMapTiles fonts** (`fonts.openmaptiles.org`,
+    attribution owed).
+
+> **Unverified:** there is no shell network access in this environment, so items
+> 18–20 are from memory and search results, not from reading current licence
+> text. Read `github.com/openfreemap/terms` and Esri's terms yourself before
+> publishing. If either tightened, it affects the 3D basemap only — the 2D map
+> and all data files are unaffected.
+
+## Provenance weakness, recorded not fixed
+
+21. The 41 entries in `data/phenomena.json` and the 8 phases in `data/mjo.json`
+    cite sources as `"web · Pai 2011"` — no journal, no page. That is not
+    checkable from the deck, and one cited source (TransRe) is a commercial
+    re-insurer rather than a climate-science authority. Every other number in the
+    deck cites a PDF and a page. Re-sourcing these against the monographs is open
+    work; see `CLIMATE_PHENOMENA_TODO.md` and `COPYRIGHT-AUDIT.md` F4.

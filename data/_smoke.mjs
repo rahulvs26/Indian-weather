@@ -14,6 +14,7 @@
 
    Run: node data/_smoke.mjs        (no browser needed, about a second) */
 import { readFileSync, statSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 let pass = 0, fail = 0;
 const ok = (cond, label, detail = "") => {
@@ -188,6 +189,47 @@ ok(unaccounted.length === 0, "no script asks for an id that is neither in the ma
 ok([...REMOVED_FIGURE_IDS].every(id => wanted.has(id)),
   "the removed-figure allowlist is all still used (delete stale entries)",
   [...REMOVED_FIGURE_IDS].filter(id => !wanted.has(id)).join(","));
+
+/* ---------------------------------------------------------------- 8. rights & attribution
+   Attribution obligations are the one thing in this project that cannot be fixed after the fact
+   by noticing it later. A missing credit line is invisible to every other test: the page renders,
+   the tests pass, and the site is quietly non-compliant. So the specific lines that are legally
+   required, not merely good manners, are asserted here.
+
+   The test asserts PRESENCE of the credit, which is the part that is mechanical. Whether the credit
+   is accurate is a judgement, and COPYRIGHT-AUDIT.md is where that gets made. */
+section("8. required rights notices are on the page");
+ok(/openstreetmap\.org\/copyright/.test(html),
+  "OSM copyright link is present (ODbL 1.0 requires visible attribution with a link)",
+  "no openstreetmap.org/copyright in index.html");
+ok(/©|&\copy;/.test(html) && /OpenStreetMap/i.test(html),
+  "OSM attribution names the contributors", "no 'OpenStreetMap contributors' credit");
+ok(/Accuracy is not guaranteed/i.test(html),
+  "the footer states that accuracy is not guaranteed", "disclaimer text missing");
+ok(/not our/i.test(html) && /copyright/i.test(html),
+  "the footer states that the material is owned by others", "ownership disclaimer missing");
+ok(/illustrative/i.test(html),
+  "the footer explains that (illustrative) figures are invented", "illustrative note missing");
+ok(/GADM/.test(html) && /redistribut/i.test(html),
+  "the GADM redistribution restriction is stated, not just the credit", "GADM warning missing");
+ok(/Bureau of Meteorology/.test(html) && /3\.0 AU/.test(html),
+  "the BoM diagrams carry their CC BY 3.0 AU credit", "BoM credit missing");
+ok(/MIT|BSD/.test(html),
+  "library licences (Leaflet/Three/MapLibre) are named", "no library licence named");
+
+/* every binary file in the published tree must be accounted for in a SOURCES file, because a
+   raster cannot carry its own credit. This is the check that would have caught the three orphaned
+   Bureau of Meteorology diagrams being published with no visible credit. */
+const BINARY = /\.(png|jpe?g|gif|webp|pdf|ico|woff2?|ttf)$/i;
+const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+  .split("\n").map(s => s.trim()).filter(Boolean);
+const binaries = tracked.filter(f => BINARY.test(f));
+const photoNote = binaries.length && exists("photos/SOURCES.md")
+  ? readFileSync("photos/SOURCES.md", "utf8") : "";
+const uncited = binaries.filter(f => !photoNote.includes(f.split("/").pop()));
+ok(uncited.length === 0,
+  "every binary file in the published tree is named in a SOURCES note",
+  uncited.join("; "));
 
 console.log("\n" + (fail ? "FAILED " + fail + " of " + (pass + fail) : "all " + pass + " checks passed"));
 process.exit(fail ? 1 : 0);

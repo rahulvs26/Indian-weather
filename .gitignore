@@ -10,3 +10,4 @@ Thumbs.db
 data/live.json
 # Fetched source copies (like pdf/, kept out of git)
 data/_src/
+data/_wtiles/

@@ -1,21 +1,26 @@
-/* v7.22 — the second, opt-in layer: a catchment storm.
+/* v7.22n — the second, opt-in layer: a catchment storm.
    ------------------------------------------------------------------------------------
    Asleep until the user opens the "Rainfall → runoff" block in the dam card and ticks the
    checkbox. Until then nothing is fetched, nothing is drawn and no animation runs.
 
    What it draws, and why that answers "how much area should the cloud cover?":
-     the cloud is an extruded polygon whose footprint IS the catchment the storm falls on - the
-     sub-basin that contains the dam, from data/subbasins.geo.json, with the area measured from
-     that geometry (data/subbasin-areas.json). Rainfall intensity does not move the footprint; it
-     sets the cloud's height, its opacity and how dense the rain streaks are, because a heavier
-     storm falls over the same ground. The readout says this in as many words, so the picture
-     cannot be misread as "the storm covers a different place".
+     the cloud is an extruded polygon whose footprint IS the catchment the storm falls on. The
+     footprint is the WRIS watershed unit containing the dam (data/_catchment.mjs over
+     data/watersheds.geo.json, built from the WRIS watershed tiles) and its area is the source's own
+     published area_km2, never one measured from the drawn shape. Rainfall intensity does not move
+     the footprint; it sets the cloud's height, its opacity and how dense the rain is, because a
+     heavier storm falls over the same ground. The readout says so in as many words.
 
-   Speed: one requestAnimationFrame loop that writes a single paint property (line-pattern-offset).
-   No per-frame feature updates, no per-feature JavaScript, streaks capped, everything torn down
-   the moment the checkbox is cleared. */
+   NOT the CWRD sub-basin tile, which this replaced: the tile holding Irukkangudi is named
+   "Vaippar and others", holds 126 rivers and 19,937 km2, and put that in front of a 79 km river.
+   Across the network 27,404 of 27,479 rivers share their tile with 25+ others, so a tile area is
+   essentially never a catchment. The tile is still mentioned in the panel, as the thing it is.
+
+   Speed: one requestAnimationFrame loop writing a single paint property. No per-frame feature
+   updates, no per-feature JavaScript, rain capped, everything torn down when the box is cleared. */
 
 import { stormModel, CN_TABLE, COVER_KEYS, DEFAULT_THRESHOLD_M } from "./_hydrology.mjs";
+import { loadWatersheds, watershedAt } from "./_catchment.mjs";
 
 const V = "?v=7.22";
 const MAX_STREAKS = 360;      /* hard cap: 360 short segments is one cheap draw call */
@@ -76,8 +81,12 @@ export function createStormLayer(ctx) {
     if (data) return data;
     if (!loading) loading = (async () => {
       const get = async u => { try { const r = await fetch(u + V); return r.ok ? await r.json() : null; } catch (_) { return null; } };
-      const [subs, stats] = await Promise.all([get("data/subbasins.geo.json"), get("data/river-stats.json")]);
-      data = { subs, stats, byName: new Map((stats && stats.rivers || []).map(r => [r.name.toLowerCase(), r])) };
+      const [stats, ws] = await Promise.all([
+        get("data/river-stats.json"),
+        /* 5.6 MB, fetched only when this block is first opened - the layer stays asleep until then */
+        loadWatersheds().catch(() => null),
+      ]);
+      data = { stats, ws, byName: new Map((stats && stats.rivers || []).map(r => [r.name.toLowerCase(), r])) };
       return data;
     })();
     return loading;
@@ -175,19 +184,22 @@ export function createStormLayer(ctx) {
     const d = await load();
     if (!d) { if (out) out.innerHTML = '<span class="warn">Could not load the river data, so this dam&#8217;s river is unknown. Type a catchment area to go on.</span>'; return null; }
     const rf = riverFacts(dam);
-    /* the area is ONLY what the dam record gives, or what the user types. The sub-basin tile is
-       never used as the area: it is a CWRD tile shared by up to 1,253 rivers, and using it made a
-       79 km river report a 19,937 km&#178; catchment. */
+    /* the area is the PUBLISHED WRIS watershed unit the dam sits in, or what the user types over
+       it. The sub-basin tile is gone from this path entirely: it is a CWRD tile shared by up to
+       1,253 rivers, and using it made a 79 km river report a 19,937 km&#178; catchment. */
+    const ws = watershedAt(d.ws, dam.lon, dam.lat);
     const typed = +val("stormArea");
-    const area = typed > 0 ? typed : (ctx.catchmentKm2 ? ctx.catchmentKm2() : 0);
-    const areaFrom = typed > 0 ? "your figure" : (area > 0 ? "the dam record" : null);
+    const area = typed > 0 ? typed : (ws ? ws.km2 : (ctx.catchmentKm2 ? ctx.catchmentKm2() : 0));
+    const areaFrom = typed > 0 ? "your figure"
+      : (ws ? "WRIS watershed " + ws.code : (area > 0 ? "the dam record" : null));
     const rain = Math.max(0, +val("stormRain") || 0);
     const dur = Math.max(0.1, +val("stormDur") || 1);
     const cover = el("stormCover") ? el("stormCover").value : "forest";
     const th = val("stormMt") == null ? DEFAULT_THRESHOLD_M : Math.max(0, +val("stormMt"));
     const m = stormModel({ areaKm2: area, areaLabel: rf ? rf.river : (dam.river || "this river"),
       rainMm: rain, durationH: dur, cover, thresholdM: th });
-    const hit = rf ? { name: rf.river, rf, area, areaFrom, lon: dam.lon, lat: dam.lat } : null;
+    const hit = { name: ws ? ws.code : (rf ? rf.river : (dam.river || "this river")), rf, area, areaFrom,
+      lon: dam.lon, lat: dam.lat, ws, boundary: ws ? ws.polygons : null };
     if (out) out.innerHTML = text(m, hit);
     if (shown) {
       /* a draw failure must be visible, not a silent half-applied storm */
@@ -206,22 +218,27 @@ export function createStormLayer(ctx) {
   function text(m, hit) {
     const run = m.runoffMm > 0;
     const pct = m.areaKm2 > 0 ? (m.runoffMm / m.rainMm) * 100 : 0;
-    const rf = hit && hit.rf;
+    const rf = hit && hit.rf, ws = hit && hit.ws;
     let head;
     if (!hit) {
-      head = '<b class="big">enter a catchment area</b>';
+      head = '<b class="big">no catchment found for this dam</b>';
     } else if (m.areaKm2 > 0) {
       head = '<b class="big">' + fmt(m.intensityMmH, 1) + ' mm/h over ' + fmt(m.areaKm2) + ' km&#178;</b>'
         + '<br><span class="k">area from</span> ' + esc(hit.areaFrom || "your figure");
     } else {
-      head = '<b class="big">no catchment area yet</b>'
+      head = '<b class="big">no catchment area for this dam</b>'
         + '<br><span class="k">this river</span> ' + (rf ? esc(rf.river) + ' &#183; ' + fmt(rf.km, 0) + ' km mapped in the CWC network' : esc(m.areaLabel))
-        + '<br><span class="k">why it is blank</span> no catchment area for this dam is recorded in the sources used. '
-        + 'The ' + (rf ? esc(rf.tileName || "sub-basin tile") + ' tile' : "sub-basin tile") + ' is <b>not</b> a catchment'
-        + (rf && rf.tileRivers ? ' &#8212; it is shared by <b>' + fmt(rf.tileRivers) + ' other rivers</b>' : '')
-        + '. Type the published catchment area above and everything below appears.';
+        + '<br><span class="k">why it is blank</span> this dam does not fall inside a WRIS watershed unit in the'
+        + ' tiles we hold, and no catchment area is recorded in the sources used. Type the published'
+        + ' catchment area above and everything below appears.';
     }
-    return head
+    const wsLine = ws
+      ? '<br><span class="k">catchment</span> WRIS watershed <b>' + esc(ws.code) + '</b>, ' + fmt(ws.km2) + ' km&#178; published'
+        + (ws.alsoContains > 1 ? ' (of ' + ws.alsoContains + ' units whose boundary contains this point; the smallest is the dam&#8217;s)' : '')
+        + '<br><span class="k">reads as</span> the watershed UNIT, which is the finest unit the source publishes. A large'
+        + ' dam&#8217;s own catchment can span several of them, so treat this as a floor.'
+      : "";
+    return head + wsLine
       + (m.areaKm2 > 0
         ? '<br><span class="k">runoff</span> ' + (run ? fmt(m.runoffMm, 1) + ' mm (' + pct.toFixed(0) + '% of the rain, the rest soaks in or is held back)'
           : (m.rainMm > 0 ? 'nothing yet &#8212; the storm has not beaten the ' + fmt(m.initialAbsMm, 1) + ' mm the ground soaks up first' : 'enter a rainfall to see runoff'))
@@ -237,8 +254,10 @@ export function createStormLayer(ctx) {
       + (m.areaKm2 > 0 ? '<br><span class="k">land cover</span> ' + esc(m.coverLabel) + ' &#8212; curve number ' + m.cn + ', coefficient ' + m.c : "")
       + (m.areaKm2 > 0
         ? '<br><span class="k">cloud area</span> ' + (shown
-          ? 'a circle of ' + fmt(m.areaKm2) + ' km&#178; centred on the dam &#8212; an area, not a real boundary. Intensity sets its height and drop density, not its footprint'
-          : 'tick &#8220;show it in 3D&#8221; to place the cloud over that area')
+          ? (hit && hit.boundary && hit.boundary.length
+            ? 'the WRIS watershed boundary above; intensity sets its height and drop density, not its footprint'
+            : 'a circle of ' + fmt(m.areaKm2) + ' km&#178; centred on the dam &#8212; an area, not a real boundary')
+          : 'tick &#8220;show it in 3D&#8221; to place the cloud over the catchment')
         : "");
   }
   const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
@@ -293,7 +312,12 @@ export function createStormLayer(ctx) {
       return;
     }
     tries = 0;
-    const geom = hit && hit.area > 0 ? circleAround(hit.lon, hit.lat, hit.area) : null;
+    /* the footprint is the real watershed boundary when one was found, and a circle of the stated area
+   when the area came from typing. Either way it is labelled, never presented as a surveyed divide. */
+const boundary = hit && hit.boundary && hit.boundary.length
+  ? { type: "MultiPolygon", coordinates: hit.boundary.map(p => p.slice()) }
+  : (hit && hit.area > 0 ? circleAround(hit.lon, hit.lat, hit.area) : null);
+const geom = boundary;
     cloudBase = await terrainBase(geom);
     const feature = geom ? { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: geom }] }
       : { type: "FeatureCollection", features: [] };

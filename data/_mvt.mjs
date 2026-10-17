@@ -84,7 +84,7 @@ export function decodeTile(buf, z, x, y, want) {
         else if (f === 3) type = v;
         else if (f === 4 && w === 2) geomPacked = [v, v + len];
       });
-      if (!geomPacked || (type !== 2 && type !== 1)) continue;    /* keep lines and points */
+      if (!geomPacked || (type !== 1 && type !== 2 && type !== 3)) continue;    /* points, lines, polygons */
       const tags = {};
       if (tagsPacked) {
         const arr = [];
@@ -94,17 +94,25 @@ export function decodeTile(buf, z, x, y, want) {
       }
       /* geometry */
       const g = [];
+      const rings = [];                 /* polygons (type 3) only */
+      let ring = null;
       let p = geomPacked[0], cx = 0, cy = 0;
       while (p < geomPacked[1]) {
         let cmd; [cmd, p] = readVarint(bytes, p);
         const id = cmd & 7, count = cmd >> 3;
         if (id === 1) {
+          /* MoveTo: for a line this is simply a new point; for a polygon it starts a ring */
           for (let k = 0; k < count; k++) {
             let dx, dy;
             [dx, p] = readVarint(bytes, p); [dy, p] = readVarint(bytes, p);
             cx += (dx >> 1) ^ -(dx & 1);
             cy += (dy >> 1) ^ -(dy & 1);
-            g.push([cx, cy]);
+            /* MEASURED BUG FIXED HERE: a MoveTo command may carry several points, each starting a
+               new ring. The first version only started a ring for k === 0 and appended the rest to
+               it, which merged distinct rings and made whole watersheds unfindable by a
+               point-in-polygon test (Mettur found no watershed at all). */
+            if (type === 3) { ring = [[cx, cy]]; rings.push(ring); }
+            else g.push([cx, cy]);
           }
         } else if (id === 2) {
           for (let k = 0; k < count; k++) {
@@ -112,13 +120,29 @@ export function decodeTile(buf, z, x, y, want) {
             [dx, p] = readVarint(bytes, p); [dy, p] = readVarint(bytes, p);
             cx += (dx >> 1) ^ -(dx & 1);
             cy += (dy >> 1) ^ -(dy & 1);
-            g.push([cx, cy]);
+            if (type === 3) { if (ring) ring.push([cx, cy]); }
+            else g.push([cx, cy]);
           }
-        } else if (id === 7) { /* closepath: nothing to emit for lines */ }
+        } else if (id === 7) {
+          /* ClosePath: close the ring. The spec says the ring is implicitly closed, so the last
+             point is dropped and the first point repeated, which keeps the ring explicit for
+             GeoJSON and for the area calculation. */
+          if (type === 3 && ring && ring.length > 1) {
+            const [fx, fy] = ring[0];
+            if (ring[ring.length - 1][0] !== fx || ring[ring.length - 1][1] !== fy) ring.push([fx, fy]);
+          }
+          ring = null;
+        }
         else break;
       }
-      if (!g.length) continue;
-      out.push({ layer: name, type, tags, geom: type === 2 ? [g] : g });
+      if (type === 3) {
+        const keep = rings.filter(r => r.length > 3);
+        if (!keep.length) continue;
+        out.push({ layer: name, type, tags, geom: keep });
+      } else {
+        if (!g.length) continue;
+        out.push({ layer: name, type, tags, geom: type === 2 ? [g] : g });
+      }
     }
     /* tile-local -> lon/lat */
     const n = Math.pow(2, z);

@@ -31,6 +31,12 @@ export const MAX_CHAINS=6;
 export const CORRIDOR_KM=8;     /* "crosses" radius for cities */
 export const SPEED_M_S=1.5;
 export const KM_DAY=SPEED_M_S*86.4;
+/* A vertex-to-vertex hop longer than this is not a channel we are willing to draw silently.
+   Measured in the source data itself: p50 2.2 km, p90 3.9 km, p99 8.0 km, p99.9 15.1 km,
+   max 66.6 km over 204,384 consecutive-vertex gaps — so 15 km separates "normal sparse
+   digitisation" from "this line is an invention". */
+export const MAX_SEG_KM=15;
+export const SPARSE_SEG_KM=10;  /* above this the card discloses that the mapped hop is long */
 
 const R_EARTH=6371.0088;
 const rad=d=>d*Math.PI/180;
@@ -260,7 +266,7 @@ export function simplifyDP(pts,tolKm,lat0){
     const d=Math.abs((qx-ax)*aby-(qy-ay)*abx)/L;
     if(d>md){md=d;mi=i;}
   }
-  if(md<=tolKm)return [pts[0],pts[pts.length-1]];
+  if(md<=tolKm&&L<=MAX_SEG_KM)return [pts[0],pts[pts.length-1]];   /* never create a longer hop than the data has */
   return simplifyDP(pts.slice(0,mi+1),tolKm,lat0).slice(0,-1).concat(simplifyDP(pts.slice(mi),tolKm,lat0));
 }
 
@@ -286,6 +292,105 @@ export function crossCities(coords,cities,maxKm){
   }
   out.sort((a,b)=>a.at-b.at);
   return out;
+}
+
+const MAX_SEG_LOCAL=MAX_SEG_KM;
+
+/* v7.16 — why the walk skipped the river: the start part's own remainder was never traversed.
+   seq excluded the start part, so the course jumped from the snap point straight to the next part
+   and the splice drew that gap as a straight line (Papanasam: 89 km of empty line across Tamil
+   Nadu, because the Tambraparni trunk is ONE 37-vertex part whose lower end sits within 2 km of a
+   delta fragment). Two fixes:
+     A) the path now INCLUDES the start part, cropped to begin at the snap point and oriented by
+        the end that continues downstream;
+     B) every splice is guarded by the link tolerance and any segment longer than MAX_SEG_KM marks
+        the course gapped, so the caller can refuse to draw a fake channel. */
+/* v7.16 — the walk, with three separate verdicts so the UI never draws an invented line.
+
+   MEASURED FACTS that drive this code (see PERF-GAPS / HANDOFF):
+     * the CWC source itself is sparse on big rivers — consecutive-vertex gaps run p50 2.2 km,
+       p90 3.9, p99 8.0, p99.9 15.1, max 66.6 km over 204,384 gaps. The Mahanadi alone contains five
+       gaps over 15 km (max 20.6 km) and the Godavari 29.4 km.
+     * so a long hop is usually REAL DATA, and we must draw it and say so;
+     * only a hop the SOLVER invents (splicing two parts it merely linked) is refused outright.
+
+   Two bugs fixed here:
+     A) the start part's own remainder was never walked — the course jumped from the snap point to
+        the next part and drew that gap as a straight line (Papanasam: 89 km across Tamil Nadu);
+     B) the exit end was taken from the NEXT part, which oriented the start part backwards and sent
+        the walk upstream (Tambraparni: 77.31E -> the river's recorded source).
+
+   Verdicts returned by walkFeature:
+     method    "graph" | "greedy" | "none"
+     stopped   the walk could not continue (a splice would have needed > linkKm) — the course stops
+     synthKm   longest hop the walk INVENTED (a bridge between two parts that the source does not
+               contain) — the course is not drawn when this exceeds MAX_SEG_KM
+     worstKm   longest hop in the course, whatever its origin (source-sparse hops included)
+     gapped    true when either of the above happened (kept for the audit)                */
+
+function courseFromParts(parts,hit0,hit,seq,sideIn,SEA,linkKm){
+  const E0=i=>parts[i][0],E1=i=>parts[i][parts[i].length-1];
+  const pts=[hit];
+  let pos=hit,worstKm=0,synthKm=0,stopped=false;
+  const ownMaxGap=pi=>{                       /* the feature's own biggest vertex gap */
+    let m=0;
+    const raw=parts[pi];
+    for(let k=1;k<raw.length;k++){const g=hav(raw[k-1],raw[k]);if(g>m)m=g;}
+    return m;
+  };
+  const push=q=>{
+    const seg=hav(pts[pts.length-1],q);
+    if(seg>worstKm)worstKm=seg;
+    pts.push(q);
+  };
+  const emitPart=(pi,exitEnd,entryIsHit)=>{
+    const raw=parts[pi];
+    const own=ownMaxGap(pi);
+    let line;
+    if(entryIsHit){
+      /* the start part: begin at the snap point and keep only the vertices beyond it, in the
+         direction of exitEnd. Every hop here is a real source hop. */
+      const forwardExit=(exitEnd===E1(pi));
+      line=forwardExit?raw.slice():raw.slice().reverse();
+      const idx=forwardExit?hit0.si:(raw.length-2-hit0.si);
+      for(let k=idx+1;k<line.length;k++)push(line[k]);
+      pos=line[line.length-1];
+      return true;
+    }
+    /* subsequent parts: join only where the digitisation actually touches (within linkKm) */
+    const d0=hav(pos,E0(pi)),d1=hav(pos,E1(pi));
+    if(Math.min(d0,d1)>linkKm+0.5){stopped=true;worstKm=Math.max(worstKm,Math.min(d0,d1));return false;}
+    const startEnd=d0<=d1?E0(pi):E1(pi);
+    line=(startEnd===E0(pi))?raw.slice():raw.slice().reverse();
+    if(hav(line[line.length-1],exitEnd)>hav(line[0],exitEnd))line=line.slice().reverse();
+    const gap=hav(pos,line[0]);
+    if(gap>linkKm+0.5){stopped=true;worstKm=Math.max(worstKm,gap);return false;}
+    /* the splice point: the hop from where we are to this part's first real vertex is the only
+       place the walk can invent distance — flag it when it exceeds both the link tolerance and
+       the feature's own spacing */
+    const bridge=line.length>1?hav(pos,line[1]):0;
+    if(bridge>Math.max(linkKm,own))synthKm=Math.max(synthKm,bridge);
+    line[0]=pos.slice();
+    for(let k=1;k<line.length;k++)push(line[k]);
+    pos=line[line.length-1];
+    return true;
+  };
+  for(let i=0;i<seq.length;i++){
+    const pi=seq[i];
+    let exitEnd;
+    if(i<seq.length-1){
+      const nx=seq[i+1];
+      const nxEntry=(sideIn[nx]==="0")?E0(nx):E1(nx);
+      exitEnd=(hav(E0(pi),nxEntry)<=hav(E1(pi),nxEntry))?E0(pi):E1(pi);
+    }else if(SEA){
+      exitEnd=(hav(E0(pi),SEA)<=hav(E1(pi),SEA))?E0(pi):E1(pi);
+    }else{
+      exitEnd=(hav(E0(pi),pos)<=hav(E1(pi),pos))?E0(pi):E1(pi);
+    }
+    if(!emitPart(pi,exitEnd,i===0))break;
+  }
+  return {pts,endedAt:pos,stopped,synthKm:+synthKm.toFixed(2),worstKm:+worstKm.toFixed(2),
+          gapped:stopped||synthKm>0};
 }
 
 /* ---------------------------------------------------------------- walk ---- */
@@ -326,7 +431,7 @@ export function walkFeature(feature,from,o){
   const E0=i=>{const p=parts[i];if(!p){if(!E0.warned){E0.warned=1;console.warn("[route] missing part",i,"of",parts.length);}return null;}return p[0];};
   const E1=i=>{const p=parts[i];if(!p){if(!E1.warned){E1.warned=1;console.warn("[route] missing part",i,"of",parts.length);}return null;}return p[p.length-1];};
 
-  let course=null,endedAt=null;
+  let course=null,endedAt=null,builtInfo=null;
   const endSeg=SEA?segOf(SEA):null;
   if(endSeg&&endSeg.pi>=0&&endSeg.dKm<=REACH_KM+3&&endSeg.pi!==hit0.pi){
     const n=parts.length;
@@ -362,35 +467,23 @@ export function walkFeature(feature,from,o){
       }
     }
     if(isFinite(dist[endSeg.pi])){
-      const seq=[];let cur=endSeg.pi;
-      while(cur!==null&&cur!==hit0.pi){seq.unshift(cur);cur=prev[cur];}
-      if(cur===hit0.pi&&seq.length){
-        const pts=[hit];
-        let pos=hit;
-        for(let i=0;i<seq.length;i++){
-          const pi=seq[i],raw=parts[pi];
-          /* exit end: the end that touches the NEXT part, or (last part) the end nearest the recorded end */
-          let exitEnd;
-          if(i<seq.length-1){
-            const nx=seq[i+1];
-            exitEnd=(sideIn[nx]==="0")?E0(nx):E1(nx);
-          }else exitEnd=(hav(E0(pi),SEA)<=hav(E1(pi),SEA))?E0(pi):E1(pi);
-          /* enter this part at whichever end is closer to where we are, and leave by exitEnd */
-          const startEnd=(hav(E0(pi),pos)<=hav(E1(pi),pos))?E0(pi):E1(pi);
-          let line=(startEnd===E0(pi))?raw.slice():raw.slice().reverse();
-          if(hav(line[line.length-1],exitEnd)>hav(line[0],exitEnd))line=line.slice().reverse();
-          line[0]=pos.slice();
-          for(let k=1;k<line.length;k++)pts.push(line[k]);
-          pos=line[line.length-1];
-        }
-        course=pts;endedAt=pos;
+      const rest=[];let cur=endSeg.pi;
+      while(cur!==null&&cur!==hit0.pi){rest.unshift(cur);cur=prev[cur];}
+      if(cur===hit0.pi){
+        /* v7.16: the start part belongs to the walk — without it the course jumped over the trunk */
+        const seq=[hit0.pi].concat(rest);
+        const built=courseFromParts(parts,hit0,hit,seq,sideIn,SEA,linkKm);
+        course=built.pts;
+        endedAt=built.endedAt;
+        builtInfo=built;
       }
     }
   }
 
   if(course){
     return{course,endedAt,reachesCoast:coast?reach(endedAt):false,method:"graph",
-      startPoint:hit,axisKm:ax?ax.lengthKm:null};
+      startPoint:hit,axisKm:ax?ax.lengthKm:null,
+      gapped:!!(builtInfo&&builtInfo.gapped),worstKm:builtInfo?+builtInfo.worstKm.toFixed(2):0};
   }
 
   /* ---- fallback for digitisation that is not connected: greedy with an upflow veto ---- */
@@ -438,18 +531,20 @@ export function solveRoute(idx,features,coastSegs,dam,opts){
   if(!hit)throw new Error("no river within "+snap+" km of "+(dam.name||"the dam"));
   const used=new Set();
   let course=[[dam.lon,dam.lat],[hit.lon,hit.lat]];
-  const chains=[];let coastal=false,to=null,f=hit.f,from=[hit.lon,hit.lat];
+  const chains=[];let coastal=false,to=null,f=hit.f,from=[hit.lon,hit.lat],stoppedWalk=false,worstKm=0,synthKm=0;
   for(let c=0;c<(o.maxChains||MAX_CHAINS);c++){
     const feat=features[f];
     if(!feat)break;
     const nm=(feat.properties&&feat.properties.rivname)||"river";
     chains.push(nm);used.add(f);
     const w=walkFeature(feat,from,{coastTest,coastKm,linkKm:link,upstream:up});
-    /* the walk starts at the snap point and runs toward the target in BOTH modes (the target is
+    /* the walk always starts at the snap point and runs toward the target in BOTH modes (the target is
        the river's recorded end downstream, its recorded start upstream), so the course always
        begins at the dam — no reversal needed. */
     const leg=w.course;
     for(let i=1;i<leg.length;i++)course.push(leg[i]);
+    if(w.stopped){stoppedWalk=true;worstKm=Math.max(worstKm,w.worstKm||0);}
+    if(w.synthKm)synthKm=Math.max(synthKm,w.synthKm||0);
     const end=w.endedAt||w.course[w.course.length-1];
     if(!up&&reachesSea(end,coastTest,coastKm)){coastal=true;to=nm+" → coast";break;}
     let pick=null;
@@ -486,10 +581,33 @@ export function solveRoute(idx,features,coastSegs,dam,opts){
   if(!coastal&&chains.length)to=up
     ?chains[chains.length-1]+" → recorded river source"
     :chains[chains.length-1]+" → recorded river end (inland)";
+  /* v7.16 verdicts, measured on the RAW walked course:
+     maxSegKm  longest vertex-to-vertex hop in the mapped channel (source sparsity included)
+     suspect   we will NOT draw it: a stub (dam->snap only) or an invented bridge over the gate
+     sparse    the source geometry itself is coarse here — drawn, but the card discloses it
+   Measured: 2,930 of 3,056 long hops in a 600-dam sample are in the source (the Mahanadi alone has
+   five over 15 km, max 20.6); only 126 were solver bridges. So refusing everything would hide real
+   rivers, and accepting everything would redraw the 89 km Papanasam line. Hence three verdicts. */
+  let maxSegKm=0;
+  for(let i=1;i<course.length;i++){
+    const s=hav(course[i-1],course[i]);
+    if(s>maxSegKm)maxSegKm=s;
+  }
+  const stub=course.length<=2;
+  const invented=synthKm>MAX_SEG_KM;
+  const suspect=stub||invented;
+  const sparse=!suspect&&(maxSegKm>SPARSE_SEG_KM||stoppedWalk);
+  if(suspect)to=stub
+    ?"mapped reach ends at the dam — no continuous channel to draw"
+    :"channel not continuous here (a "+synthKm.toFixed(0)+" km bridge would be invented) — course not drawn";
+  else if(sparse&&to)to+=" · mapped geometry is coarse here (longest hop "+maxSegKm.toFixed(0)+" km"
+    +(stoppedWalk?", walk stopped where the digitisation breaks":"")+")";
   const simp=simplifyDP(course,DP_TOL_KM,dam.lat).map(q=>[+q[0].toFixed(5),+q[1].toFixed(5)]);
   const km=lineKm(simp);
   const src=up?recordedStart(features[f]):null;
   return {coords:simp,totalKm:+km.toFixed(2),arrivalDays:+(km/KM_DAY).toFixed(2),coastal:up?false:coastal,chains,to,
     snapKm:+hit.dKm.toFixed(2),speed_m_s:SPEED_M_S,upstream:up,source:src,
+    suspect,sparse,maxSegKm:+maxSegKm.toFixed(2),synthKm:+synthKm.toFixed(2),
+    stoppedWalk,maxSegLimitKm:MAX_SEG_KM,
     cities:crossCities(simp,o.cities||[],o.corridorKm||CORRIDOR_KM)};
 }

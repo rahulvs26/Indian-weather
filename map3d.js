@@ -515,7 +515,8 @@ return {id:dam.id,coords,cum,totalKm:km,speedMps:speed,arrivalDays:km/(speed*86.
   dam:{name:dam.name,lon:dam.lon,lat:dam.lat,state:dam.state,height:dam.h,river:dam.river},
   sea:{lon:last[0],lat:last[1]},name:dam.name+" → "+(r.upstream?"river source":(r.coastal?"coast":"recorded river end")),
   river:dam.river,basin:dam.basin,chains:r.chains||[],coastal:!!r.coastal,snapKm:r.snapKm,to:r.to,src:r.src||"",
-  cities:r.cities||[],upstream:!!r.upstream,source:r.source||null};
+  cities:r.cities||[],upstream:!!r.upstream,source:r.source||null,
+  suspect:!!r.suspect,sparse:!!r.sparse,maxSegKm:r.maxSegKm||0,maxSegLimitKm:r.maxSegLimitKm||15};
 }
 
 async function damSelect(dam){
@@ -534,6 +535,28 @@ try{
   const nr=routeFromRoute(r,dam);
   if(!nr)throw new Error("no geometry");
   route=nr;damLoaded=false;
+  /* v7.16: never draw a line the solver invented. A "suspect" course is either a bare dam->snap
+     stub (the mapped reach ends there) or one that would need an invented bridge; either way the
+     card explains it and the release is disabled. A "sparse" course follows the real channel but
+     the digitisation is coarse there, so the card says how coarse. */
+  if(nr.suspect){
+    const t0=dEl("damTitle");if(t0)t0.textContent="💧 "+nr.dam.name+" — no course";
+    const s0=dEl("damSub");
+    if(s0)s0.textContent=nr.to||"no continuous mapped channel from this dam";
+    const st0=dEl("damStat");if(st0)st0.textContent="—";
+    const c0=dEl("damCities");if(c0)c0.textContent="";
+    const rd0=dEl("damRead");if(rd0)rd0.innerHTML="";
+    const gt0=dEl("damGates");if(gt0)gt0.innerHTML="";
+    const fx0=dEl("damFacts");
+    if(fx0)fx0.innerHTML=damFactsText(damFactsFor(nr.dam.name));
+    damMsg("Course not drawn — nothing would be shown that the river data does not contain.");
+    const b0=dEl("damBtn");if(b0){b0.disabled=true;b0.textContent="No course";}
+    return route;
+  }
+  if(nr.sparse){
+    damMsg("Mapped geometry is coarse on this reach (longest mapped hop "
+      +nr.maxSegKm.toFixed(0)+" km, limit "+nr.maxSegLimitKm+" km) — the course follows the source data.");
+  }
   const t=dEl("damTitle");if(t)t.textContent="💧 "+nr.dam.name+" release";
   const sub=dEl("damSub");
   if(sub)sub.textContent=(nr.chains.length?nr.chains.join(" → "):(nr.river||"river"))+" → "
